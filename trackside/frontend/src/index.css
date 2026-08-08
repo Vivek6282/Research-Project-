@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+/*
+ * Trackside — Design System CSS (Motorsport Cockpit Theme)
+ */
+
+@theme {
+  --color-bg: #0A0E13;
+  --color-panel: #12181F;
+  --color-panel2: #161D26;
+  --color-line: #232B35;
+  --color-text: #E7EDF3;
+  --color-muted: #7C8898;
+  --color-faint: #4B5563;
+  --color-accent: #3FA6E0;
+  --color-green: #33D17E;
+  --color-amber: #F2A93B;
+  --color-red: #E5473C;
+  --color-dev-yellow: #E8C547;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background-color: #0A0E13;
+  color: #E7EDF3;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/*
+ * Animated Slanted Photo Background (-16° Rotated Grid)
+ */
+.bg-slanted-grid-wrapper {
+  position: fixed;
+  top: -30%;
+  left: -30%;
+  width: 160%;
+  height: 160%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  transform: rotate(-16deg);
+  background-color: #0A0E13;
+}
+
+.grid-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 240px;
+  flex-shrink: 0;
+  will-change: transform;
+}
+
+/* 34-second seamless linear drift loop */
+@keyframes driftDown {
+  0% { transform: translateY(-50%); }
+  100% { transform: translateY(0%); }
+}
+
+@keyframes driftUp {
+  0% { transform: translateY(0%); }
+  100% { transform: translateY(-50%); }
+}
+
+.column-drift-down {
+  animation: driftDown 34s linear infinite;
+}
+
+.column-drift-up {
+  animation: driftUp 34s linear infinite;
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  .column-drift-down,
+  .column-drift-up {
+    animation: none !important;
+  }
+}
+
+.grid-photo-tile {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 2px;
+  filter: grayscale(0.15) contrast(1.1);
+  opacity: 0.75;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  transition: opacity 300ms ease, filter 300ms ease;
+}
+
+/* Legibility Radial Scrim Overlay */
+.bg-radial-scrim {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(
+    circle at center,
+    rgba(10, 14, 19, 0.35) 0%,
+    rgba(10, 14, 19, 0.78) 55%,
+    rgba(10, 14, 19, 0.95) 100%
+  );
+}
+
+/* Motorsport Hazard Stripe */
+.hazard-stripe {
+  background-image: repeating-linear-gradient(
+    135deg,
+    #E5473C,
+    #E5473C 8px, #ffffff 8px, #ffffff 16px
+  );
+}
+
+.hazard-stripe-yellow {
+  background-image: repeating-linear-gradient(
+    135deg,
+    #E8C547,
+    #E8C547 8px, #0A0E13 8px, #0A0E13 16px
+  );
+}
+
+/* Custom Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0E13;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232B35;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
+}
+
+/* Styled Range Input */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: #161D26;
+  border-radius: 3px;
+  border: 1px solid #232B35;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #3FA6E0;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #0A0E13;
+  box-shadow: 0 0 10px rgba(63, 166, 224, 0.6);
+}
+
+/* Keyframe Animations */
+@keyframes slantSlideLeft {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes slantSlideRight {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 250ms ease-out forwards;
+}

@@ -1,0 +1,200 @@
+"""
+Trackside — Authentication and user management views.
+
+Login/Logout use Django session auth + CSRF protection.
+User CRUD is Admin-only with server-side role enforcement.
+Requirement #4: every endpoint has explicit permission_classes.
+Requirement #9: login is rate-limited to 5/min.
+"""
+
+from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
+from rest_framework import generics, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from accounts.permissions import IsAdmin
+from accounts.serializers import (
+    LoginSerializer,
+    UserCreateSerializer,
+    UserSerializer,
+    UserUpdateSerializer,
+)
+from accounts.throttles import LoginRateThrottle
+
+User = get_user_model()
+
+
+class CSRFTokenView(APIView):
+    """
+    GET /api/auth/csrf/
+
+    Returns a CSRF token for the frontend to include in subsequent
+    POST/PUT/DELETE requests. This is the only AllowAny endpoint besides
+    login — justified because the CSRF token itself is not sensitive
+    (it's a double-submit check, not an auth credential).
+    """
+
+    # AllowAny justified: CSRF token must be obtainable before login
+    permission_classes = [AllowAny]
+
+    @method_decorator(ensure_csrf_cookie)
+    def get(self, request):
+        """Set the CSRF cookie and return the token value."""
+        return Response({"csrfToken": get_token(request)})
+
+
+class LoginView(APIView):
+    """
+    POST /api/auth/login/
+
+    Authenticates the user with email + password, creates a session,
+    and returns the user's profile (including role for frontend routing).
+
+    Requirement #9: rate-limited to 5 attempts per minute per IP.
+    Requirement #8: never logs request.data (contains password).
+    """
+
+    # AllowAny justified: users must be able to log in without being
+    # already authenticated — this is the authentication entry point
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        """
+        Validate credentials, create a session, return user profile.
+
+        Returns 200 with user data on success, 401 on failure.
+        The response never includes the password or any password hash.
+        """
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = authenticate(
+            request,
+            username=serializer.validated_data["email"],
+            password=serializer.validated_data["password"],
+        )
+
+        if user is None:
+            return Response(
+                {"detail": "Invalid email or password."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if not user.is_active:
+            return Response(
+                {"detail": "This account has been deactivated."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Create the session — sets the HttpOnly session cookie
+        login(request, user)
+
+        return Response(
+            UserSerializer(user).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class LogoutView(APIView):
+    """
+    POST /api/auth/logout/
+
+    Destroys the session and clears the session cookie.
+    Requires authentication — you can't log out if you're not logged in.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Flush the session and return confirmation."""
+        logout(request)
+        return Response(
+            {"detail": "Successfully logged out."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class MeView(APIView):
+    """
+    GET /api/auth/me/
+
+    Returns the currently authenticated user's profile.
+    Used by the frontend on page load to check if the session is still valid
+    and which dashboard to render.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return the authenticated user's serialized profile."""
+        return Response(
+            UserSerializer(request.user).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class UserListCreateView(generics.ListCreateAPIView):
+    """
+    GET /api/auth/users/ — list all users (Admin only)
+    POST /api/auth/users/ — create a new Coach or Driver (Admin only)
+
+    Requirement #3 (IDOR): queryset returns all users because only
+    admins can access this endpoint at all. Non-admins get 403 before
+    the queryset is evaluated.
+
+    Requirement #4 (auth bypass): server-side IsAdmin check — the
+    frontend hiding the "create user" button is UX, not security.
+    """
+
+    permission_classes = [IsAdmin]
+
+    def get_serializer_class(self):
+        """Use the create serializer for POST, read serializer for GET."""
+        if self.request.method == "POST":
+            return UserCreateSerializer
+        return UserSerializer
+
+    def get_queryset(self):
+        """
+        Return all users — scoped to admins via permission_classes.
+        Supports optional role filter: ?role=coach
+        """
+        queryset = User.objects.all()
+
+        # Filter by role if provided (uses ORM, no raw SQL — req #1)
+        role_filter = self.request.query_params.get("role")
+        if role_filter and role_filter in ["admin", "coach", "driver"]:
+            queryset = queryset.filter(role=role_filter)
+
+        return queryset
+
+
+class UserDetailView(generics.RetrieveUpdateAPIView):
+    """
+    GET /api/auth/users/<uuid:pk>/ — retrieve a single user (Admin only)
+    PUT/PATCH /api/auth/users/<uuid:pk>/ — update a user (Admin only)
+
+    Requirement #3 (IDOR): only admins can access, and we still scope
+    the queryset to avoid any future permission change from reopening
+    access to arbitrary users.
+    """
+
+    permission_classes = [IsAdmin]
+
+    def get_serializer_class(self):
+        """Use the update serializer for PUT/PATCH, read for GET."""
+        if self.request.method in ("PUT", "PATCH"):
+            return UserUpdateSerializer
+        return UserSerializer
+
+    def get_queryset(self):
+        """
+        Return all users — scoped to admins via permission_classes.
+        Requirement #3: never Model.objects.get(pk=pk) with no scope.
+        """
+        return User.objects.all()

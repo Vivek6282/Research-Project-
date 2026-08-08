@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables — NEVER commit
+.env
+.env.local
+.env.production
+
+# Django
+*.sqlite3
+db.sqlite3
+staticfiles/
+media/
+
+# Node / React
+node_modules/
+frontend/dist/
+frontend/build/
+.cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# Logs
+*.log
