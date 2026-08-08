@@ -173,6 +173,12 @@ class SessionNoteListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         session_id = self.kwargs.get("session_pk")
+        user = self.request.user
+        if user.role == "driver":
+            return SessionNote.objects.filter(
+                session_id=session_id,
+                session__driver=user,
+            ).select_related("coach", "zone")
         return SessionNote.objects.filter(
             session_id=session_id,
         ).select_related("coach", "zone")

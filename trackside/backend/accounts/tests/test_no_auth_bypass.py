@@ -116,3 +116,55 @@ class TestNoAuthBypass:
         self._login_as(self.admin)
         response = self.client.get("/api/auth/users/")
         assert response.status_code == 200
+
+    def test_driver_cannot_access_other_driver_session_notes(self):
+        """Driver requesting GET /api/sessions/<other_driver_session_id>/notes/ receives an empty list (IDOR prevention)."""
+        from django.utils import timezone
+        from tracks.models import Track
+        from driving_sessions.models import Session, SessionNote
+
+        other_driver = User.objects.create_user(
+            email="otherdriver@test.local",
+            name="Other Driver",
+            role="driver",
+            password="DriverPass1!",
+        )
+
+        track = Track.objects.create(name="Apex Circuit", created_by=self.admin)
+        other_session = Session.objects.create(
+            driver=other_driver,
+            track=track,
+            started_at=timezone.now(),
+        )
+
+        SessionNote.objects.create(
+            session=other_session,
+            coach=self.coach,
+            note_text="Watch entry speed into Turn 4."
+        )
+
+        # 1. Driver 1 (self.driver) tries to access Driver 2's session notes -> empty list returned
+        self._login_as(self.driver)
+        response = self.client.get(f"/api/sessions/{other_session.id}/notes/")
+        assert response.status_code == 200
+        data = response.json()
+        results = data.get("results", data)
+        assert len(results) == 0
+
+        # 2. Driver 2 (other_driver) accesses their own session notes -> note is visible
+        self._login_as(other_driver)
+        response = self.client.get(f"/api/sessions/{other_session.id}/notes/")
+        assert response.status_code == 200
+        data = response.json()
+        results = data.get("results", data)
+        assert len(results) == 1
+        assert results[0]["note_text"] == "Watch entry speed into Turn 4."
+
+        # 3. Coach accesses the session notes -> note is visible
+        self._login_as(self.coach)
+        response = self.client.get(f"/api/sessions/{other_session.id}/notes/")
+        assert response.status_code == 200
+        data = response.json()
+        results = data.get("results", data)
+        assert len(results) == 1
+
