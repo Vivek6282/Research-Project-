@@ -10,7 +10,8 @@ Requirement #3 (IDOR): every queryset is scoped to what the user is
 allowed to see. Drivers can never access another driver's data.
 """
 
-from rest_framework import generics, status
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, status, exceptions
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -31,96 +32,98 @@ class SessionListCreateView(generics.ListCreateAPIView):
     """
 
     serializer_class = SessionSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        return [IsAuthenticated()]
 
     def get_queryset(self):
-        """
-        Requirement #3: scope sessions by role.
-        Drivers see only their own sessions — never another driver's.
-        """
         user = self.request.user
-        queryset = Session.objects.select_related("driver", "track")
-
-        if user.role == "admin":
-            return queryset.all()
-        if user.role == "coach":
-            # Coaches see all sessions (they need to review any driver)
-            return queryset.all()
-        # Drivers see only their own sessions
-        return queryset.filter(driver=user)
+        if user.role == "driver":
+            return Session.objects.filter(driver=user).select_related("driver", "track")
+        elif user.role == "device":
+            if user.assigned_to:
+                return Session.objects.filter(driver=user.assigned_to).select_related("driver", "track")
+        return Session.objects.select_related("driver", "track").all()
 
     def perform_create(self, serializer):
-        """Auto-set the driver to the current user if they're a driver."""
-        if self.request.user.role == "driver":
-            serializer.save(driver=self.request.user)
+        user = self.request.user
+        if user.role == "driver":
+            serializer.save(driver=user)
         else:
             serializer.save()
 
 
-class SessionDetailView(generics.RetrieveUpdateAPIView):
+class SessionDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    GET /api/sessions/<uuid>/ — retrieve session details
-    PATCH /api/sessions/<uuid>/ — update session (end it, set goal result)
+    GET /api/sessions/<uuid>/ — session details
+    PUT/PATCH/DELETE — Admin or Coach
     """
 
     serializer_class = SessionSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method in ("PUT", "PATCH", "DELETE"):
+            return [IsAdminOrCoach()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
-        """Requirement #3: same role-based scoping as the list view."""
         user = self.request.user
-        queryset = Session.objects.select_related("driver", "track")
-
-        if user.role == "admin":
-            return queryset.all()
-        if user.role == "coach":
-            return queryset.all()
-        return queryset.filter(driver=user)
+        if user.role == "driver":
+            return Session.objects.filter(driver=user)
+        elif user.role == "device":
+            if user.assigned_to:
+                return Session.objects.filter(driver=user.assigned_to)
+        return Session.objects.all()
 
 
 class TelemetryListCreateView(generics.ListCreateAPIView):
     """
     GET /api/sessions/<uuid>/telemetry/ — list telemetry for a session
-    POST /api/sessions/<uuid>/telemetry/ — ingest telemetry data
-
-    The POST endpoint is shaped to accept data from the IoT devices
-    (or mocked data for now) so hardware can be connected later
-    without an API redesign.
+    POST /api/sessions/<uuid>/telemetry/ — ingest telemetry data (User or IoT Device)
     """
 
     serializer_class = TelemetrySerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Scope telemetry to the session in the URL."""
         session_id = self.kwargs.get("session_pk")
         user = self.request.user
 
-        # Verify the user can access this session first
         if user.role == "driver":
             return Telemetry.objects.filter(
                 session_id=session_id,
                 session__driver=user,
             )
+        elif user.role == "device":
+            if user.assigned_to:
+                return Telemetry.objects.filter(
+                    session_id=session_id,
+                    session__driver=user.assigned_to,
+                )
         return Telemetry.objects.filter(session_id=session_id)
 
     def perform_create(self, serializer):
-        serializer.save(session_id=self.kwargs.get("session_pk"))
+        session_id = self.kwargs.get("session_pk")
+        user = self.request.user
+        session = get_object_or_404(Session, pk=session_id)
+
+        if user.role == "driver" and session.driver != user:
+            raise exceptions.PermissionDenied("You do not own this session.")
+        elif user.role == "device" and user.assigned_to and session.driver != user.assigned_to:
+            raise exceptions.PermissionDenied("Device token is not authorized for this driver's session.")
+
+        serializer.save(session=session)
 
 
 class AlertListView(generics.ListAPIView):
     """
     GET /api/sessions/<uuid>/alerts/ — list alerts for a session
-
-    Read-only — alerts are created by the system when thresholds
-    are exceeded, not directly by API users.
     """
 
     serializer_class = AlertSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Scope alerts to the session and verify access."""
         session_id = self.kwargs.get("session_pk")
         user = self.request.user
 
@@ -129,6 +132,12 @@ class AlertListView(generics.ListAPIView):
                 session_id=session_id,
                 session__driver=user,
             ).select_related("zone")
+        elif user.role == "device":
+            if user.assigned_to:
+                return Alert.objects.filter(
+                    session_id=session_id,
+                    session__driver=user.assigned_to,
+                ).select_related("zone")
         return Alert.objects.filter(
             session_id=session_id,
         ).select_related("zone")
@@ -137,7 +146,7 @@ class AlertListView(generics.ListAPIView):
 class BiometricListCreateView(generics.ListCreateAPIView):
     """
     GET /api/sessions/<uuid>/biometrics/ — list biometric readings
-    POST /api/sessions/<uuid>/biometrics/ — ingest biometric data
+    POST /api/sessions/<uuid>/biometrics/ — ingest biometric data (User or IoT Device)
     """
 
     serializer_class = BiometricReadingSerializer
@@ -152,10 +161,25 @@ class BiometricListCreateView(generics.ListCreateAPIView):
                 session_id=session_id,
                 session__driver=user,
             )
+        elif user.role == "device":
+            if user.assigned_to:
+                return BiometricReading.objects.filter(
+                    session_id=session_id,
+                    session__driver=user.assigned_to,
+                )
         return BiometricReading.objects.filter(session_id=session_id)
 
     def perform_create(self, serializer):
-        serializer.save(session_id=self.kwargs.get("session_pk"))
+        session_id = self.kwargs.get("session_pk")
+        user = self.request.user
+        session = get_object_or_404(Session, pk=session_id)
+
+        if user.role == "driver" and session.driver != user:
+            raise exceptions.PermissionDenied("You do not own this session.")
+        elif user.role == "device" and user.assigned_to and session.driver != user.assigned_to:
+            raise exceptions.PermissionDenied("Device token is not authorized for this driver's session.")
+
+        serializer.save(session=session)
 
 
 class SessionNoteListCreateView(generics.ListCreateAPIView):

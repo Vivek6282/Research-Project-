@@ -6,6 +6,9 @@ Devices include the glove unit, kart-mounted sensor unit, and biometric strap.
 """
 
 import uuid
+import secrets
+import hashlib
+import hmac
 from django.db import models
 from django.conf import settings
 
@@ -61,6 +64,32 @@ class Device(models.Model):
         blank=True,
         help_text="Last time the device sent data to the server",
     )
+
+    api_key_hash = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="SHA-256 hash of the device's secret API key token",
+    )
+
+    @staticmethod
+    def hash_token(raw_token: str) -> str:
+        if not raw_token:
+            return ""
+        return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+    def set_api_key(self) -> str:
+        """Generate a cryptographically secure raw token, save its SHA-256 hash, and return the raw token."""
+        raw_token = f"dt_{secrets.token_urlsafe(32)}"
+        self.api_key_hash = self.hash_token(raw_token)
+        return raw_token
+
+    def verify_api_key(self, raw_token: str) -> bool:
+        """Constant-time comparison of raw token hash against stored hash."""
+        if not self.api_key_hash or not raw_token:
+            return False
+        expected_hash = self.hash_token(raw_token)
+        return hmac.compare_digest(self.api_key_hash, expected_hash)
 
     class Meta:
         db_table = "devices"

@@ -147,9 +147,10 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-    # Session authentication + CSRF — not JWT-in-localStorage
+    # Session authentication for browser users + DeviceTokenAuthentication for physical IoT devices
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
+        "devices.authentication.DeviceTokenAuthentication",
     ],
     # Requirement #9: login rate limiting
     "DEFAULT_THROTTLE_CLASSES": [],

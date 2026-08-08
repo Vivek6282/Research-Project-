@@ -47,7 +47,7 @@ class TelemetrySerializer(serializers.ModelSerializer):
             "id", "session", "zone", "recorded_at",
             "lateral_g", "speed_kmh", "gps_lat", "gps_lng",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "session"]
 
 
 class AlertSerializer(serializers.ModelSerializer):
@@ -65,14 +65,14 @@ class AlertSerializer(serializers.ModelSerializer):
             "id", "session", "zone", "zone_label", "severity",
             "g_value", "threshold_applied", "triggered_at",
         ]
-        read_only_fields = fields
+        read_only_fields = ["id", "session", "zone_label"]
 
     def get_zone_label(self, obj):
         return obj.zone.label if obj.zone else None
 
 
 class BiometricReadingSerializer(serializers.ModelSerializer):
-    """Serializer for biometric data points."""
+    """Serializer for biometric readings."""
 
     class Meta:
         model = BiometricReading
@@ -80,7 +80,7 @@ class BiometricReadingSerializer(serializers.ModelSerializer):
             "id", "session", "recorded_at",
             "heart_rate", "spo2", "breathing_rate",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "session"]
 
 
 class SessionNoteSerializer(serializers.ModelSerializer):
