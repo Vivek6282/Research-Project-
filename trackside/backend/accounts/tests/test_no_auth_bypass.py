@@ -15,14 +15,13 @@ User = get_user_model()
 
 
 @pytest.mark.django_db
-class TestNoAuthBypass:
+class TestNoAuthBypass(TestCase):
     """
     Every role-restricted endpoint must return 403 for wrong roles
     and 401 for no auth at all.
     """
 
-    @pytest.fixture(autouse=True)
-    def setup_users(self):
+    def setUp(self):
         """Create one user per role for testing."""
         self.client = APIClient()
 

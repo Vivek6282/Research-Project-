@@ -8,10 +8,11 @@ Verifies that the Django settings enforce all security requirements:
 """
 
 import pytest
+from django.test import TestCase
 from django.conf import settings
 
 
-class TestSettingsSecurity:
+class TestSettingsSecurity(TestCase):
     """Verify security-critical settings are properly configured."""
 
     def test_session_serializer_is_json(self):

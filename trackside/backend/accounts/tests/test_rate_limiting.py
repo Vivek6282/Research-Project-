@@ -6,6 +6,7 @@ the rate limit of 5 attempts per minute.
 """
 
 import pytest
+from django.test import TestCase
 from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 
@@ -13,11 +14,10 @@ User = get_user_model()
 
 
 @pytest.mark.django_db
-class TestRateLimiting:
+class TestRateLimiting(TestCase):
     """Login endpoint must enforce rate limiting."""
 
-    @pytest.fixture(autouse=True)
-    def setup(self):
+    def setUp(self):
         """Create a test user and clear any existing throttle state."""
         self.client = APIClient()
 

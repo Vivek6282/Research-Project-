@@ -6,13 +6,14 @@ never in plain text, and that the stored hash follows the expected format.
 """
 
 import pytest
+from django.test import TestCase
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
 
 @pytest.mark.django_db
-class TestPasswordHashing:
+class TestPasswordHashing(TestCase):
     """Ensure passwords are hashed via PBKDF2, never stored or logged raw."""
 
     def test_password_is_hashed_with_pbkdf2(self):

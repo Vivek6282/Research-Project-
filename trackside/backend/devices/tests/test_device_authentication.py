@@ -11,6 +11,7 @@ Verifies:
 """
 
 import pytest
+from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
@@ -22,10 +23,9 @@ User = get_user_model()
 
 
 @pytest.mark.django_db
-class TestDeviceAuthentication:
+class TestDeviceAuthentication(TestCase):
 
-    @pytest.fixture(autouse=True)
-    def setup_data(self):
+    def setUp(self):
         self.client = APIClient()
 
         # Users
