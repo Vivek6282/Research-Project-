@@ -360,7 +360,7 @@ export function CoachDashboard() {
                   : "bg-[#161D26] text-[#7C8898] border border-[#232B35] hover:text-[#E7EDF3]"
               }`}
             >
-              HISTORICAL SESSIONS ({HISTORICAL_SESSIONS.length})
+              HISTORICAL SESSIONS ({historicalSessions.length})
             </button>
           </div>
 
