@@ -17,6 +17,7 @@
 import { useState, useEffect } from "react";
 import { TopBar } from "../../components/shell/top-bar";
 import { SignalStrip } from "../../components/ui/signal-strip";
+import { api } from "../../lib/api";
 
 interface DriverProfile {
   pos: number;
@@ -70,18 +71,145 @@ const HISTORICAL_SESSIONS = [
 
 export function CoachDashboard() {
   const [activeTab, setActiveTab] = useState<"live" | "history">("live");
+  const [drivers, setDrivers] = useState<DriverProfile[]>(DRIVERS);
   const [selectedKart, setSelectedKart] = useState("12");
   const [thresholds, setThresholds] = useState<Record<string, number>>({
     "12": 1.15, "7": 1.10, "3": 1.05, "18": 1.15, "5": 1.00,
   });
 
-  const selectedDriver = DRIVERS.find((d) => d.kart === selectedKart) || DRIVERS[0];
-  const currentThreshold = thresholds[selectedKart] || 1.15;
+  const [historicalSessions, setHistoricalSessions] = useState<any[]>(HISTORICAL_SESSIONS);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
-  // Session Notes state
+  const [zones, setZones] = useState<{ id: string; label: string }[]>([
+    { id: "z1", label: "Turn 4 Hairpin" },
+    { id: "z2", label: "Sector 2 Chicane" },
+    { id: "z3", label: "Main Straight" },
+  ]);
+  const [selectedZone, setSelectedZone] = useState("Turn 4 Hairpin");
+
   const [notes, setNotes] = useState<SessionNote[]>(INITIAL_NOTES);
   const [newNoteText, setNewNoteText] = useState("");
-  const [selectedZone, setSelectedZone] = useState("Turn 4 Hairpin");
+
+  const selectedDriver = drivers.find((d) => d.kart === selectedKart) || drivers[0] || DRIVERS[0];
+  const currentThreshold = thresholds[selectedKart] || 1.15;
+
+  // 1. Fetch Drivers Roster from API
+  useEffect(() => {
+    async function loadDrivers() {
+      try {
+        const res = await api.get<any>("/api/auth/users/");
+        const userList = Array.isArray(res) ? res : res.results || [];
+        const driverUsers = userList.filter((u: any) => u.role === "driver");
+        if (driverUsers.length > 0) {
+          const mapped: DriverProfile[] = driverUsers.map((u: any, idx: number) => ({
+            pos: idx + 1,
+            kart: String((idx * 5 + 3) % 20 + 1),
+            name: u.name || u.email,
+            lapTime: "1:24.312",
+            session: "Race Sim 3",
+            gap: idx === 0 ? "---" : `+0.${300 + idx * 250}`,
+            baseSpeed: 80 + (idx % 3) * 4,
+            baseHr: 140 + idx * 5,
+            baseSpo2: 97,
+            baseBreathing: 22,
+            stressIndex: 0.60,
+            hydration: 88,
+            status: "OPTIMAL",
+            statusColor: "#33D17E",
+            alerts: idx * 2,
+            customThreshold: 1.15,
+          }));
+          setDrivers(mapped);
+          if (mapped[0]) setSelectedKart(mapped[0].kart);
+        }
+      } catch (err) {
+        console.warn("Using default driver roster:", err);
+      }
+    }
+    loadDrivers();
+  }, []);
+
+  // 2. Fetch Available Zones for Active Track from API
+  useEffect(() => {
+    async function loadZones() {
+      try {
+        const tracksRes = await api.get<any>("/api/tracks/");
+        const trackList = Array.isArray(tracksRes) ? tracksRes : tracksRes.results || [];
+        if (trackList.length > 0) {
+          const trackId = trackList[0].id;
+          const zonesRes = await api.get<any>(`/api/tracks/${trackId}/zones/`);
+          const zoneList = Array.isArray(zonesRes) ? zonesRes : zonesRes.results || [];
+          if (zoneList.length > 0) {
+            const mappedZones = zoneList.map((z: any) => ({
+              id: z.id,
+              label: z.name || z.label || `Zone ${z.order_number || z.id}`,
+            }));
+            setZones(mappedZones);
+            setSelectedZone(mappedZones[0].label);
+          }
+        }
+      } catch (err) {
+        console.warn("Using default track zones:", err);
+      }
+    }
+    loadZones();
+  }, []);
+
+  // 3. Fetch Historical Sessions & Active Session ID from API
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const res = await api.get<any>("/api/sessions/");
+        const sessionList = Array.isArray(res) ? res : res.results || [];
+        if (sessionList.length > 0) {
+          setActiveSessionId(sessionList[0].id);
+          const mapped = sessionList.map((s: any) => ({
+            id: s.id.length > 8 ? `SESS-${s.id.slice(0, 4).toUpperCase()}` : s.id,
+            rawId: s.id,
+            driver: s.driver_name || "Driver",
+            kart: `#${s.kart || "12"}`,
+            date: s.started_at ? new Date(s.started_at).toISOString().split("T")[0] : "2026-08-08",
+            duration: s.ended_at ? "38 min" : "Active / 42 min",
+            mode: s.mode ? s.mode.charAt(0).toUpperCase() + s.mode.slice(1) : "Performance",
+            laps: s.laps || 24,
+            bestLap: s.best_lap || "1:23.104",
+            maxG: s.max_g || "1.42g",
+            alerts: s.alert_count ?? 2,
+          }));
+          setHistoricalSessions(mapped);
+        }
+      } catch (err) {
+        console.warn("Using default historical sessions:", err);
+      }
+    }
+    loadSessions();
+  }, []);
+
+  // 4. Fetch Notes for Active Session from API
+  useEffect(() => {
+    if (!activeSessionId) return;
+    async function loadNotes() {
+      try {
+        const res = await api.get<any>(`/api/sessions/${activeSessionId}/notes/`);
+        const noteList = Array.isArray(res) ? res : res.results || [];
+        if (noteList.length > 0) {
+          const mapped: SessionNote[] = noteList.map((n: any) => ({
+            id: n.id,
+            timestamp: n.created_at ? new Date(n.created_at).toLocaleTimeString("en-GB") : new Date().toLocaleTimeString("en-GB"),
+            driverName: n.coach_name || selectedDriver.name,
+            kart: selectedDriver.kart,
+            zone: n.zone_label || selectedZone,
+            lap: "Lap 5",
+            text: n.note_text || n.text || "",
+          }));
+          setNotes(mapped);
+        }
+      } catch (err) {
+        console.warn("Using default session notes:", err);
+      }
+    }
+    loadNotes();
+  }, [activeSessionId]);
 
   // Real-time telemetry metrics
   const [currentSpeed, setCurrentSpeed] = useState(selectedDriver.baseSpeed);
@@ -153,19 +281,44 @@ export function CoachDashboard() {
     return () => clearInterval(interval);
   }, [selectedKart, selectedDriver, currentSpeed, currentHr, currentSpo2, currentBreathing]);
 
-  // Handle adding session note
-  const handleAddNote = () => {
+  // Handle adding session note via POST /api/sessions/<uuid>/notes/
+  const handleAddNote = async () => {
     if (!newNoteText.trim()) return;
-    const note: SessionNote = {
+
+    const noteText = newNoteText.trim();
+
+    if (activeSessionId) {
+      try {
+        const res = await api.post<any>(`/api/sessions/${activeSessionId}/notes/`, {
+          note_text: noteText,
+        });
+        const createdNote: SessionNote = {
+          id: res.id || `n-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString("en-GB"),
+          driverName: selectedDriver.name,
+          kart: selectedDriver.kart,
+          zone: selectedZone,
+          lap: "Lap 7",
+          text: noteText,
+        };
+        setNotes((prev) => [createdNote, ...prev]);
+        setNewNoteText("");
+        return;
+      } catch (err) {
+        console.warn("Failed posting note to API, adding locally:", err);
+      }
+    }
+
+    const localNote: SessionNote = {
       id: `n-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString('en-GB'),
+      timestamp: new Date().toLocaleTimeString("en-GB"),
       driverName: selectedDriver.name,
       kart: selectedDriver.kart,
       zone: selectedZone,
       lap: "Lap 7",
-      text: newNoteText.trim(),
+      text: noteText,
     };
-    setNotes([note, ...notes]);
+    setNotes((prev) => [localNote, ...prev]);
     setNewNoteText("");
   };
 
@@ -471,9 +624,11 @@ export function CoachDashboard() {
                     onChange={(e) => setSelectedZone(e.target.value)}
                     className="bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-2 py-1.5 rounded-[2px] outline-none"
                   >
-                    <option value="Turn 4 Hairpin">Turn 4 Hairpin</option>
-                    <option value="Sector 2 Chicane">Sector 2 Chicane</option>
-                    <option value="Main Straight">Main Straight</option>
+                    {zones.map((z) => (
+                      <option key={z.id} value={z.label}>
+                        {z.label}
+                      </option>
+                    ))}
                   </select>
 
                   <input
@@ -532,14 +687,14 @@ export function CoachDashboard() {
                     <span className="text-[#3FA6E0]">|</span> TIMING TOWER
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-[#33D17E]">
-                    <span className="text-[#7C8898]">4/5 ON TRACK</span>
+                    <span className="text-[#7C8898]">{drivers.length}/{drivers.length} ON TRACK</span>
                     <span className="animate-pulse">• LIVE</span>
                   </div>
                 </div>
 
                 {/* Roster Classification Rows */}
                 <div className="space-y-1.5 font-mono">
-                  {DRIVERS.map((d) => {
+                  {drivers.map((d) => {
                     const isSelected = selectedKart === d.kart;
                     return (
                       <div
@@ -565,15 +720,8 @@ export function CoachDashboard() {
                           </div>
                         </div>
 
-                        <div className="text-right">
-                          <p className={`text-[10px] font-bold ${d.gap === "---" ? "text-[#33D17E]" : "text-[#3FA6E0]"}`}>
-                            {d.gap}
-                          </p>
-                          <div className="flex items-center gap-0.5 justify-end mt-1">
-                            <span className="w-1.5 h-1.5 bg-[#33D17E] rounded-[0.5px]" />
-                            <span className="w-1.5 h-1.5 bg-[#33D17E] rounded-[0.5px]" />
-                            <span className="w-1.5 h-1.5 bg-[#33D17E] rounded-[0.5px]" />
-                          </div>
+                        <div className="text-[#3FA6E0] text-right font-bold text-[10px]">
+                          {d.gap}
                         </div>
                       </div>
                     );
@@ -635,7 +783,7 @@ export function CoachDashboard() {
                 <p className="text-xs text-[#7C8898]">Raw session telemetry records and historical coach notes</p>
               </div>
               <span className="text-xs text-[#3FA6E0] font-bold bg-[#3FA6E0]/10 border border-[#3FA6E0]/30 px-2 py-1 rounded-[2px]">
-                {HISTORICAL_SESSIONS.length} SESSIONS RECORDED
+                {historicalSessions.length} SESSIONS RECORDED
               </span>
             </div>
 
@@ -654,7 +802,7 @@ export function CoachDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {HISTORICAL_SESSIONS.map((s) => (
+                {historicalSessions.map((s) => (
                   <tr key={s.id} className="border-b border-[#232B35]/60 hover:bg-[#161D26]">
                     <td className="py-2.5 px-3 font-bold text-[#3FA6E0]">{s.id}</td>
                     <td className="py-2.5 px-3 text-[#E7EDF3] font-semibold">{s.driver}</td>
