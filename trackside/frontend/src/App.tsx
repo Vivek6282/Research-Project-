@@ -8,6 +8,7 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { PreferencesProvider } from "./context/PreferencesContext";
 import { LoginPage } from "./pages/login";
 import { CoachDashboard } from "./pages/coach";
 import { AdminDashboard } from "./pages/admin";
@@ -124,7 +125,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <PreferencesProvider>
+          <AppRoutes />
+        </PreferencesProvider>
       </AuthProvider>
     </BrowserRouter>
   );

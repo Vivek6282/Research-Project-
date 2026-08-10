@@ -12,6 +12,7 @@ import { Users, Wifi, WifiOff, Plus, X, Shield, Activity } from "lucide-react";
 import { TopBar } from "../../components/shell/top-bar";
 import { Panel } from "../../components/ui/panel";
 import { Chip } from "../../components/ui/chip";
+import { TutorialCallout } from "../../components/ui/tutorial-callout";
 
 const INITIAL_USERS = [
   { id: 1, name: "System Admin", role: "admin", status: "Active", email: "admin@trackside.local" },
@@ -34,6 +35,7 @@ export function AdminDashboard() {
 
       <div className="relative z-10">
         <TopBar />
+        <TutorialCallout role="admin" />
 
         <main className="max-w-6xl mx-auto px-4 py-5 space-y-4 animate-fade-in">
           {/* IoT Hardware Status Pings */}

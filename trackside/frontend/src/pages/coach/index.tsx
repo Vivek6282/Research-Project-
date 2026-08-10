@@ -17,6 +17,7 @@
 import { useState, useEffect } from "react";
 import { TopBar } from "../../components/shell/top-bar";
 import { SignalStrip } from "../../components/ui/signal-strip";
+import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { api } from "../../lib/api";
 
 interface DriverProfile {
@@ -373,28 +374,8 @@ export function CoachDashboard() {
 
       {activeTab === "live" ? (
         <>
-          {/* Onboarding Announcement Banner */}
-          <div className="bg-[#12181F] border-b border-[#232B35] px-4 py-2">
-            <div className="max-w-[1400px] mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-3 text-xs font-mono">
-                <span className="bg-[#3FA6E0] text-[#0A0E13] font-bold px-2 py-0.5 rounded-[2px] uppercase animate-pulse">
-                  1 LIVE TELEMETRY
-                </span>
-                <span className="text-[#7C8898]">—</span>
-                <span className="text-[#E7EDF3]">
-                  The main module streams speed and trajectory from the kart unit at 20 Hz.
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-xs font-mono">
-                <button className="px-3 py-1 rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#E7EDF3] hover:border-[#3FA6E0] cursor-pointer">
-                  NEXT
-                </button>
-                <button className="text-[#7C8898] hover:text-[#E7EDF3] cursor-pointer">
-                  Skip
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Per-Role Dismissible Tutorial System */}
+      <TutorialCallout role="coach" />
 
           {/* Main Pit-Wall Cockpit Grid */}
           <main className="max-w-[1400px] mx-auto px-4 py-4 grid grid-cols-12 gap-4">

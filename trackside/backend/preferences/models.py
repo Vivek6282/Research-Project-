@@ -56,6 +56,11 @@ class UserPreference(models.Model):
         help_text="UI font size preset — small, medium, large, or xlarge",
     )
 
+    tutorial_completed = models.BooleanField(
+        default=False,
+        help_text="Whether the user has completed or dismissed the per-role dashboard tutorial",
+    )
+
     class Meta:
         db_table = "user_preferences"
 

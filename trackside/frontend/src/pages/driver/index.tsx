@@ -16,6 +16,7 @@ import { TopBar } from "../../components/shell/top-bar";
 import { Panel } from "../../components/ui/panel";
 import { DevBanner } from "../../components/ui/dev-banner";
 import { SignalStrip } from "../../components/ui/signal-strip";
+import { TutorialCallout } from "../../components/ui/tutorial-callout";
 
 const ZONES = [
   { name: "Hairpin", count: 6, status: "High Risk", color: "#E5473C", threshold: 1.15 },
@@ -43,6 +44,7 @@ export function DriverDashboard() {
   return (
     <div className="min-h-screen bg-[#0A0E13] text-[#E7EDF3] select-none font-sans pb-10">
       <TopBar />
+      <TutorialCallout role="driver" />
 
       <main className="max-w-6xl mx-auto px-4 py-5 space-y-4 animate-fade-in">
         {/* Live Telemetry & 5-Segment Glove Signal Strip Panel */}
