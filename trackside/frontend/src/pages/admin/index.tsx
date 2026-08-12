@@ -13,6 +13,7 @@ import { TopBar } from "../../components/shell/top-bar";
 import { Panel } from "../../components/ui/panel";
 import { Chip } from "../../components/ui/chip";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { api } from "../../lib/api";
 
 const INITIAL_USERS = [
@@ -39,6 +40,21 @@ export function AdminDashboard() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editError, setEditError] = useState("");
+
+  // Confirm Dialog Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    userToToggle: any | null;
+    isCurrentlyActive: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    userToToggle: null,
+    isCurrentlyActive: true,
+  });
 
   useEffect(() => {
     async function loadUsers() {
@@ -96,13 +112,30 @@ export function AdminDashboard() {
     }
   };
 
-  const handleToggleDeactivate = async (u: any) => {
-    const isCurrentlyActive = u.is_active !== false;
+  const handleToggleDeactivate = (u: any) => {
+    const isCurrentlyActive = u.is_active !== false && u.status !== "Inactive";
     const actionText = isCurrentlyActive ? "deactivate" : "reactivate";
 
-    if (!window.confirm(`Are you sure you want to ${actionText} ${u.name}?`)) {
-      return;
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: isCurrentlyActive ? "Deactivate User Account" : "Reactivate User Account",
+      message: `Are you sure you want to ${actionText} ${u.name}? ${
+        isCurrentlyActive
+          ? "This user will no longer be able to log in to the Pit-Wall dashboard."
+          : "This user will regain access to log in to the Pit-Wall dashboard."
+      }`,
+      userToToggle: u,
+      isCurrentlyActive,
+    });
+  };
+
+  const executeToggleDeactivate = async () => {
+    if (!confirmModal.userToToggle) return;
+    const u = confirmModal.userToToggle;
+    const isCurrentlyActive = confirmModal.isCurrentlyActive;
+    const actionText = isCurrentlyActive ? "deactivate" : "reactivate";
+
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
 
     try {
       const updated = await api.patch<any>(`/api/auth/users/${u.id}/`, {
@@ -110,7 +143,11 @@ export function AdminDashboard() {
       });
 
       setUsers((prev) =>
-        prev.map((item) => (item.id === u.id ? { ...item, is_active: updated.is_active } : item))
+        prev.map((item) =>
+          item.id === u.id
+            ? { ...item, is_active: updated.is_active, status: updated.is_active ? "Active" : "Inactive" }
+            : item
+        )
       );
     } catch (err: any) {
       alert(err.message || `Failed to ${actionText} user.`);
@@ -456,6 +493,17 @@ export function AdminDashboard() {
           </div>
         </main>
       </div>
+
+      {/* Confirm Dialog Modal */}
+      <ConfirmDialog
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.isCurrentlyActive ? "Deactivate Account" : "Reactivate Account"}
+        variant={confirmModal.isCurrentlyActive ? "danger" : "primary"}
+        onConfirm={executeToggleDeactivate}
+        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
