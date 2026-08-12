@@ -74,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (identifier: string, password: string) => {
     setError(null);
     try {
+      await fetchCSRFToken();
       const loggedInUser = await api.post<User>("/api/auth/login/", {
         identifier,
         email: identifier,

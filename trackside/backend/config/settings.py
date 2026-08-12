@@ -212,20 +212,21 @@ if DJANGO_ENV == "production":
     X_FRAME_OPTIONS = "DENY"
 
 # ---------------------------------------------------------------------------
-# CORS — exact dev origin only, never CORS_ALLOW_ALL_ORIGINS with credentials
+# CORS & CSRF — dev origins merged with configured environment origins
 # ---------------------------------------------------------------------------
-CORS_ALLOWED_ORIGINS = env.list(
-    "CORS_ALLOWED_ORIGIN",
-    default=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-    ],
-)
+DEV_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
+]
+env_origins = env.list("CORS_ALLOWED_ORIGIN", default=[])
+CORS_ALLOWED_ORIGINS = list(set(DEV_ORIGINS + env_origins))
 CORS_ALLOW_CREDENTIALS = True
 
-# CSRF trusted origins must match the frontend origin
+# CSRF trusted origins must match all allowed frontend origins
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # ---------------------------------------------------------------------------
