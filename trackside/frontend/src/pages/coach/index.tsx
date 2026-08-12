@@ -219,6 +219,9 @@ export function CoachDashboard() {
   const [currentBreathing, setCurrentBreathing] = useState(selectedDriver.baseBreathing);
   const [currentGForce, setCurrentGForce] = useState(1.42);
 
+  // WebSocket connection status for live telemetry pipeline
+  const [wsStatus, setWsStatus] = useState<"connected" | "reconnecting" | "disconnected">("disconnected");
+
   // Waveform oscilloscope points
   const [actualSpeedPath, setActualSpeedPath] = useState<number[]>([
     110, 105, 90, 70, 60, 65, 80, 110, 125, 130, 115, 85, 65, 75, 95, 105
@@ -244,6 +247,81 @@ export function CoachDashboard() {
     setCurrentSpo2(selectedDriver.baseSpo2);
     setCurrentBreathing(selectedDriver.baseBreathing);
   }, [selectedKart]);
+
+  // Real-time WebSocket connection to Django Channels backend
+  useEffect(() => {
+    if (!activeSessionId) return;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/ws/sessions/${activeSessionId}/telemetry/`;
+
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connectWebSocket = () => {
+      try {
+        ws = new WebSocket(wsUrl);
+        setWsStatus("reconnecting");
+
+        ws.onopen = () => {
+          setWsStatus("connected");
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type === "telemetry_reading" && message.data) {
+              const { speed_kmh, lateral_g } = message.data;
+              if (typeof speed_kmh === "number") {
+                setCurrentSpeed(Math.round(speed_kmh));
+                setActualSpeedPath((prev) => [...prev.slice(1), Math.round(speed_kmh)]);
+              }
+              if (typeof lateral_g === "number") {
+                setCurrentGForce(Number(lateral_g.toFixed(2)));
+              }
+            } else if (message.type === "biometric_reading" && message.data) {
+              const { heart_rate, spo2, breathing_rate } = message.data;
+              if (heart_rate) {
+                setCurrentHr(heart_rate);
+                setHrHistory((prev) => [...prev.slice(1), heart_rate]);
+              }
+              if (spo2) {
+                setCurrentSpo2(spo2);
+                setSpo2History((prev) => [...prev.slice(1), spo2]);
+              }
+              if (breathing_rate) {
+                setCurrentBreathing(breathing_rate);
+                setBreathingHistory((prev) => [...prev.slice(1), breathing_rate]);
+              }
+            }
+          } catch (e) {
+            console.warn("Error parsing incoming WebSocket telemetry packet:", e);
+          }
+        };
+
+        ws.onclose = () => {
+          setWsStatus("disconnected");
+          reconnectTimer = setTimeout(connectWebSocket, 3000);
+        };
+
+        ws.onerror = () => {
+          setWsStatus("disconnected");
+          ws?.close();
+        };
+      } catch (err) {
+        setWsStatus("disconnected");
+        reconnectTimer = setTimeout(connectWebSocket, 3000);
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    };
+  }, [activeSessionId]);
 
   // Real-time 20Hz telemetry streaming engine
   useEffect(() => {
@@ -366,6 +444,22 @@ export function CoachDashboard() {
           </div>
 
           <div className="flex items-center gap-3 text-xs font-mono">
+            {wsStatus === "connected" ? (
+              <span className="flex items-center gap-1.5 text-[10px] text-[#33D17E] bg-[#33D17E]/10 border border-[#33D17E]/30 px-2 py-0.5 rounded-[2px] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#33D17E] animate-pulse" />
+                LIVE WS STREAM
+              </span>
+            ) : wsStatus === "reconnecting" ? (
+              <span className="flex items-center gap-1.5 text-[10px] text-[#F2A93B] bg-[#F2A93B]/10 border border-[#F2A93B]/30 px-2 py-0.5 rounded-[2px] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F2A93B] animate-ping" />
+                RECONNECTING WS...
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-[10px] text-[#E5473C] bg-[#E5473C]/10 border border-[#E5473C]/30 px-2 py-0.5 rounded-[2px] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#E5473C]" />
+                OFFLINE FALLBACK
+              </span>
+            )}
             <span className="text-[#7C8898]">ACADEMY TRACK:</span>
             <span className="text-[#3FA6E0] font-bold">APEX CIRCUIT NODE 7</span>
           </div>

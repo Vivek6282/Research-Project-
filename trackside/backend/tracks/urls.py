@@ -6,11 +6,13 @@ from tracks.views import (
     TrackDetailView,
     ZoneListCreateView,
     ZoneDetailView,
+    TrackSurveyView,
 )
 
 urlpatterns = [
     path("", TrackListCreateView.as_view(), name="track-list-create"),
     path("<uuid:pk>/", TrackDetailView.as_view(), name="track-detail"),
+    path("<uuid:pk>/survey/", TrackSurveyView.as_view(), name="track-survey"),
     path(
         "<uuid:track_pk>/zones/",
         ZoneListCreateView.as_view(),

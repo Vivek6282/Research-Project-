@@ -102,7 +102,8 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
                 )
         return Telemetry.objects.filter(session_id=session_id)
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        """Accept single object OR list of telemetry readings (bulk batch ingestion)."""
         session_id = self.kwargs.get("session_pk")
         user = self.request.user
         session = get_object_or_404(Session, pk=session_id)
@@ -112,6 +113,16 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
         elif user.role == "device" and user.assigned_to and session.driver != user.assigned_to:
             raise exceptions.PermissionDenied("Device token is not authorized for this driver's session.")
 
+        is_many = isinstance(request.data, list)
+        serializer = self.get_serializer(data=request.data, many=is_many)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(session=session)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_create(self, serializer):
+        session_id = self.kwargs.get("session_pk")
+        session = get_object_or_404(Session, pk=session_id)
         serializer.save(session=session)
 
 

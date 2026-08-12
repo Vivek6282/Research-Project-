@@ -40,6 +40,8 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 # INSTALLED APPS — feature-organized modules
 # ---------------------------------------------------------------------------
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -56,6 +58,15 @@ INSTALLED_APPS = [
     "devices",
     "preferences",
 ]
+
+ASGI_APPLICATION = "config.asgi.application"
+
+# In-memory channel layer for local dev & testing
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 # ---------------------------------------------------------------------------
 # MIDDLEWARE

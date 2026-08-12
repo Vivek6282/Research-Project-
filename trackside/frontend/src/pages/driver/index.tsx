@@ -17,6 +17,7 @@ import { Panel } from "../../components/ui/panel";
 import { DevBanner } from "../../components/ui/dev-banner";
 import { SignalStrip } from "../../components/ui/signal-strip";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
+import { StaleDataBadge } from "../../components/ui/stale-data-badge";
 
 const ZONES = [
   { name: "Hairpin", count: 6, status: "High Risk", color: "#E5473C", threshold: 1.15 },
@@ -27,6 +28,7 @@ const ZONES = [
 export function DriverDashboard() {
   const [mode, setMode] = useState<"safety" | "performance">("safety");
   const [currentG, setCurrentG] = useState(0.85);
+  const [lastSyncTime] = useState<number>(Date.now());
   const activeThreshold = 1.15; // Hairpin Zone Threshold
 
   // Simulate real-time driver G-Force telemetry streaming
@@ -51,7 +53,10 @@ export function DriverDashboard() {
         <Panel title="Live Driver Telemetry & Glove LED Feed" icon={Activity}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 bg-[#161D26] border border-[#232B35] rounded-[2px] font-mono">
             <div>
-              <p className="text-[10px] text-[#7C8898] uppercase">Active Zone: Turn 4 Hairpin</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-[10px] text-[#7C8898] uppercase">Active Zone: Turn 4 Hairpin</p>
+                <StaleDataBadge lastSyncedTimestamp={lastSyncTime} />
+              </div>
               <div className="flex items-baseline gap-2 mt-0.5">
                 <span className="text-3xl font-extrabold text-[#3FA6E0]">{currentG} g</span>
                 <span className="text-xs text-[#7C8898]">/ {activeThreshold.toFixed(2)} g THRESHOLD</span>

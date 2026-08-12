@@ -6,3 +6,5 @@ class DrivingSessionsConfig(AppConfig):
     name = "driving_sessions"
     verbose_name = "Sessions & Telemetry"
 
+    def ready(self):
+        import driving_sessions.signals  # noqa

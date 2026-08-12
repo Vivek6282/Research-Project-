@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: trackside_db
+    restart: always
+    environment:
+      POSTGRES_DB: trackside
+      POSTGRES_USER: trackside_user
+      POSTGRES_PASSWORD: trackside_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: trackside_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trackside_backend
+    restart: always
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    environment:
+      - DJANGO_ENV=production
+      - DEBUG=False
+      - SECRET_KEY=production-secret-key-replace-me-in-env
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+      - DATABASE_URL=postgres://trackside_user:trackside_password@db:5432/trackside
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
