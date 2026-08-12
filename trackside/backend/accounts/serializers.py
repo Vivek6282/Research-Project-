@@ -149,6 +149,13 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     Password updates are handled separately to ensure proper hashing.
     """
 
+    email = serializers.EmailField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text="Email address — required for Coach accounts, optional for Drivers",
+    )
+
     password = serializers.CharField(
         write_only=True,
         min_length=8,
@@ -170,6 +177,22 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 "Cannot change role to admin through the API."
             )
         return value
+
+    def validate(self, attrs):
+        """
+        Validate email requirements based on role.
+        Email is required for Coach, optional for Driver.
+        """
+        role = attrs.get("role", self.instance.role if self.instance else None)
+        email = attrs.get("email")
+
+        if role == "coach" and email is not None and not email:
+            raise serializers.ValidationError({"email": "Email address is required for Coach accounts."})
+
+        if role == "driver" and email == "":
+            attrs["email"] = None
+
+        return attrs
 
     def update(self, instance, validated_data):
         """

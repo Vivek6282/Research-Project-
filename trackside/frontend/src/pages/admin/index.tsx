@@ -32,16 +32,24 @@ export function AdminDashboard() {
   const [errorMsg, setErrorMsg] = useState("");
   const [copied, setCopied] = useState(false);
   const [successData, setSuccessData] = useState<{ username: string; password: string; name: string; role: string } | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Inline User Editing State
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editError, setEditError] = useState("");
 
   useEffect(() => {
     async function loadUsers() {
       try {
+        setFetchError(null);
         const fetched = await api.get<any[]>("/api/auth/users/");
         if (Array.isArray(fetched) && fetched.length > 0) {
           setUsers(fetched);
         }
-      } catch {
-        // Fallback to initial mock roster if API endpoint unavailable
+      } catch (err: any) {
+        setFetchError(err.message || "Could not load live user roster — showing cached fallback data");
       }
     }
     loadUsers();
@@ -85,6 +93,66 @@ export function AdminDashboard() {
       setPassword("");
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to create account.");
+    }
+  };
+
+  const handleToggleDeactivate = async (u: any) => {
+    const isCurrentlyActive = u.is_active !== false;
+    const actionText = isCurrentlyActive ? "deactivate" : "reactivate";
+
+    if (!window.confirm(`Are you sure you want to ${actionText} ${u.name}?`)) {
+      return;
+    }
+
+    try {
+      const updated = await api.patch<any>(`/api/auth/users/${u.id}/`, {
+        is_active: !isCurrentlyActive,
+      });
+
+      setUsers((prev) =>
+        prev.map((item) => (item.id === u.id ? { ...item, is_active: updated.is_active } : item))
+      );
+    } catch (err: any) {
+      alert(err.message || `Failed to ${actionText} user.`);
+    }
+  };
+
+  const startEdit = (u: any) => {
+    setEditingUserId(u.id);
+    setEditName(u.name);
+    setEditEmail(u.email || "");
+    setEditError("");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUserId) return;
+    setEditError("");
+
+    if (!editName.trim()) {
+      setEditError("Name cannot be empty.");
+      return;
+    }
+
+    const currentUser = users.find((u) => u.id === editingUserId);
+    if (currentUser?.role === "coach" && !editEmail.trim()) {
+      setEditError("Email address is required for Coach accounts.");
+      return;
+    }
+
+    try {
+      const updated = await api.patch<any>(`/api/auth/users/${editingUserId}/`, {
+        name: editName.trim(),
+        email: editEmail.trim() || undefined,
+      });
+
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === editingUserId ? { ...item, name: updated.name, email: updated.email } : item
+        )
+      );
+      setEditingUserId(null);
+    } catch (err: any) {
+      setEditError(err.message || "Failed to update user.");
     }
   };
 
@@ -252,6 +320,16 @@ export function AdminDashboard() {
               </div>
             )}
 
+            {/* API Fetch Error Banner */}
+            {fetchError && (
+              <div className="mb-4 p-3 rounded text-xs font-mono bg-[#F2A93B]/15 border border-[#F2A93B]/40 text-[#F2A93B] flex items-center justify-between">
+                <span>⚠️ {fetchError}</span>
+                <button onClick={() => setFetchError(null)} className="text-[10px] underline cursor-pointer">
+                  Dismiss
+                </button>
+              </div>
+            )}
+
             {/* Users Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs font-mono">
@@ -267,7 +345,51 @@ export function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-[#232B35]">
                   {users.map((u) => {
+                    const isEditing = editingUserId === u.id;
+                    const isActive = u.is_active !== false && u.status !== "Inactive";
                     const roleColor = u.role === "admin" ? "#33D17E" : u.role === "coach" ? "#3FA6E0" : "#F2A93B";
+
+                    if (isEditing) {
+                      return (
+                        <tr key={u.id} className="bg-[#161D26]">
+                          <td className="py-2.5 px-1" colSpan={2}>
+                            <input
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              placeholder="Full Name"
+                              className="w-full px-2 py-1 rounded text-xs font-mono bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
+                            />
+                          </td>
+                          <td className="py-2.5 px-1" colSpan={2}>
+                            <input
+                              value={editEmail}
+                              onChange={(e) => setEditEmail(e.target.value)}
+                              placeholder={u.role === "driver" ? "Email (optional)" : "Email (required)"}
+                              className="w-full px-2 py-1 rounded text-xs font-mono bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
+                            />
+                            {editError && <div className="text-[10px] text-[#E5473C] mt-0.5">{editError}</div>}
+                          </td>
+                          <td className="py-2.5 text-center font-mono text-[10px] text-[#7C8898]">
+                            {u.role.toUpperCase()}
+                          </td>
+                          <td className="py-2.5 text-right space-x-2">
+                            <button
+                              onClick={handleSaveEdit}
+                              className="text-[10px] px-2 py-1 rounded cursor-pointer font-bold bg-[#33D17E] text-[#0A0E13]"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingUserId(null)}
+                              className="text-[10px] px-2 py-1 rounded cursor-pointer text-[#7C8898] border border-[#232B35]"
+                            >
+                              Cancel
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    }
+
                     return (
                       <tr key={u.id} className="hover:bg-[#161D26] transition-colors">
                         <td className="py-2.5 font-bold">{u.name}</td>
@@ -286,22 +408,28 @@ export function AdminDashboard() {
                           </span>
                         </td>
                         <td className="py-2.5">
-                          <Chip color={u.status === "Active" ? "#33D17E" : "#4B5563"}>
-                            {u.status}
+                          <Chip color={isActive ? "#33D17E" : "#E5473C"}>
+                            {isActive ? "Active" : "Inactive"}
                           </Chip>
                         </td>
                         <td className="py-2.5 text-right space-x-2">
                           <button
-                            className="text-[10px] px-2 py-1 rounded cursor-pointer"
+                            onClick={() => startEdit(u)}
+                            className="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors"
                             style={{ color: "#3FA6E0", border: "1px solid #3FA6E044" }}
                           >
                             Edit
                           </button>
                           <button
-                            className="text-[10px] px-2 py-1 rounded cursor-pointer"
-                            style={{ color: "#E5473C", border: "1px solid #E5473C44" }}
+                            onClick={() => handleToggleDeactivate(u)}
+                            className="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors font-mono"
+                            style={{
+                              color: isActive ? "#E5473C" : "#33D17E",
+                              border: `1px solid ${isActive ? "#E5473C44" : "#33D17E44"}`,
+                              background: `${isActive ? "#E5473C10" : "#33D17E10"}`,
+                            }}
                           >
-                            Deactivate
+                            {isActive ? "Deactivate" : "Reactivate"}
                           </button>
                         </td>
                       </tr>
