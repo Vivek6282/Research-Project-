@@ -19,6 +19,9 @@ import { TopBar } from "../../components/shell/top-bar";
 import { SignalStrip } from "../../components/ui/signal-strip";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { api } from "../../lib/api";
+import { startMockTelemetryEngine } from "../../lib/mockTelemetry";
+
+const USE_MOCK_TELEMETRY = import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false";
 
 interface DriverProfile {
   pos: number;
@@ -236,9 +239,9 @@ export function CoachDashboard() {
   const [breathingHistory, setBreathingHistory] = useState<number[]>([25, 28, 20, 22, 26, 24, 28, 20, 22, 25]);
 
   // Sector Deltas
-  const [s1, setS1] = useState(28.104);
-  const [s2, setS2] = useState(31.882);
-  const [s3, setS3] = useState(24.326);
+  const s1 = 28.104;
+  const s2 = 31.882;
+  const s3 = 24.326;
 
   // Sync state when switching driver
   useEffect(() => {
@@ -269,6 +272,10 @@ export function CoachDashboard() {
         };
 
         ws.onmessage = (event) => {
+          if (USE_MOCK_TELEMETRY) {
+            // Discard incoming WebSocket packets when mock telemetry mode is enabled
+            return;
+          }
           try {
             const message = JSON.parse(event.data);
             if (message.type === "telemetry_reading" && message.data) {
@@ -323,42 +330,21 @@ export function CoachDashboard() {
     };
   }, [activeSessionId]);
 
-  // Real-time 20Hz telemetry streaming engine
+  // Isolated mock telemetry generator effect
   useEffect(() => {
-    const interval = setInterval(() => {
-      const time = Date.now() / 300;
+    if (!USE_MOCK_TELEMETRY) return; // Do NOT run mock generator when mock mode is false
 
-      if (selectedDriver.inPit) {
-        setCurrentSpeed(0);
-        setCurrentGForce(0.00);
-      } else {
-        const speedVar = Math.round(selectedDriver.baseSpeed + Math.sin(time) * 14 + (Math.random() * 3 - 1.5));
-        setCurrentSpeed(Math.max(45, Math.min(145, speedVar)));
-        setCurrentGForce(Number((1.10 + Math.abs(Math.sin(time * 0.8)) * 0.65).toFixed(2)));
-      }
+    const stopMock = startMockTelemetryEngine(selectedDriver, (packet) => {
+      setCurrentSpeed(packet.speed);
+      setCurrentGForce(packet.gForce);
+      setCurrentHr(packet.hr);
+      setCurrentSpo2(packet.spo2);
+      setCurrentBreathing(packet.breathing);
+      setActualSpeedPath((prev) => [...prev.slice(1), packet.oscilloscopeVal]);
+    });
 
-      setCurrentHr(Math.round(selectedDriver.baseHr + Math.sin(time * 0.5) * 4 + (Math.random() * 2 - 1)));
-      setCurrentSpo2(Math.min(99, Math.max(94, Math.round(selectedDriver.baseSpo2 + (Math.random() * 0.6 - 0.3)))));
-      setCurrentBreathing(Math.round(selectedDriver.baseBreathing + (Math.random() * 1.6 - 0.8)));
-
-      setActualSpeedPath((prev) => {
-        const nextVal = selectedDriver.inPit
-          ? 140
-          : 160 - ((currentSpeed / 140) * 120 + (Math.random() * 8 - 4));
-        return [...prev.slice(1), Math.max(20, Math.min(150, nextVal))];
-      });
-
-      setHrHistory((prev) => [...prev.slice(1), Math.max(8, Math.min(35, 40 - (currentHr / 190) * 35))]);
-      setSpo2History((prev) => [...prev.slice(1), Math.max(10, Math.min(35, 40 - (currentSpo2 / 100) * 30))]);
-      setBreathingHistory((prev) => [...prev.slice(1), Math.max(10, Math.min(35, 40 - (currentBreathing / 30) * 30))]);
-
-      setS1(Number((28.104 + (Math.random() * 0.04 - 0.02)).toFixed(3)));
-      setS2(Number((31.882 + (Math.random() * 0.04 - 0.02)).toFixed(3)));
-      setS3(Number((24.326 + (Math.random() * 0.04 - 0.02)).toFixed(3)));
-    }, 150);
-
-    return () => clearInterval(interval);
-  }, [selectedKart, selectedDriver, currentSpeed, currentHr, currentSpo2, currentBreathing]);
+    return () => stopMock();
+  }, [selectedDriver]);
 
   // Handle adding session note via POST /api/sessions/<uuid>/notes/
   const handleAddNote = async () => {
@@ -487,6 +473,11 @@ export function CoachDashboard() {
                     <span className="text-xs text-[#7C8898]">
                       KART #{selectedDriver.kart} · SESSION 3 · LAP 7/12
                     </span>
+                    {USE_MOCK_TELEMETRY && (
+                      <span className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase tracking-wider animate-pulse ml-2">
+                        SIMULATED DATA — not live
+                      </span>
+                    )}
                   </div>
                   {/* Live Signal Indicator & Stage Label */}
                   <SignalStrip

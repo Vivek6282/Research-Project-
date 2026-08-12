@@ -132,7 +132,13 @@ class TrackSurveyView(generics.GenericAPIView):
             laps = []
 
         if not laps or not any(laps):
-            # Provide realistic default candidate survey zones if empty
+            from django.conf import settings
+            if not getattr(settings, "TRACKSIDE_USE_MOCK_SURVEY_DATA", True):
+                return Response(
+                    {"error": "No valid GPS survey points provided. Real survey submissions require GPS lap coordinates."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # Provide realistic default candidate survey zones if empty and mock mode is enabled
             avg_points = [
                 {"lat": 11.016842, "lng": 76.955831},
                 {"lat": 11.017120, "lng": 76.956110},
