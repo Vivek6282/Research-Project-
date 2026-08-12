@@ -15,7 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
     """
     Read-only serializer for user data returned in API responses.
 
-    Exposes id, email, name, role, is_active, created_at, and created_by.
+    Exposes id, username, email, name, role, is_active, created_at, and created_by.
     Password is explicitly excluded — it should never appear in any response.
     """
 
@@ -27,6 +27,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id",
+            "username",
             "email",
             "name",
             "role",
@@ -50,8 +51,20 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     Accepts email, name, role, and password. The password field is
     write-only — it's hashed via set_password() and never returned.
-    Requirement #8: never log request.data on this endpoint.
+    Username is automatically generated server-side.
     """
+
+    email = serializers.EmailField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text="Email address — required for Coach accounts, optional for Drivers",
+    )
+
+    username = serializers.CharField(
+        read_only=True,
+        help_text="System-generated unique identifier (e.g. TRK-DRV-000042)",
+    )
 
     password = serializers.CharField(
         write_only=True,
@@ -62,8 +75,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "name", "role", "password", "is_active"]
-        read_only_fields = ["id"]
+        fields = ["id", "username", "email", "name", "role", "password", "is_active"]
+        read_only_fields = ["id", "username"]
 
     def validate_role(self, value):
         """
@@ -78,11 +91,44 @@ class UserCreateSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate(self, attrs):
+        """
+        Validate email requirements based on role.
+        Email is required for Coach, optional for Driver.
+        """
+        role = attrs.get("role")
+        email = attrs.get("email")
+
+        if role == "coach" and not email:
+            raise serializers.ValidationError({"email": "Email address is required for Coach accounts."})
+
+        if role == "driver" and email == "":
+            attrs["email"] = None
+
+        return attrs
+
     def create(self, validated_data):
         """
-        Create a new user with a properly hashed password.
+        Create a new user with a properly hashed password and server-generated username.
         The requesting admin is recorded as created_by.
         """
+        # Strictly ignore any client-supplied username
+        validated_data.pop("username", None)
+
+        role = validated_data.get("role", "driver")
+        role_code_map = {"driver": "DRV", "coach": "COACH", "admin": "ADMIN"}
+        role_code = role_code_map.get(role.lower(), role.upper())
+
+        # Auto-generate role-scoped username sequence TRK-{ROLE}-{6-digit}
+        count = User.objects.filter(role=role).count() + 1
+        while True:
+            candidate = f"TRK-{role_code}-{count:06d}"
+            if not User.objects.filter(username=candidate).exists():
+                username = candidate
+                break
+            count += 1
+
+        validated_data["username"] = username
         password = validated_data.pop("password")
         request = self.context.get("request")
 
@@ -90,7 +136,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
             **validated_data,
             created_by=request.user if request else None,
         )
-        # Requirement #8: always use set_password(), never store raw
         user.set_password(password)
         user.save()
         return user
@@ -115,8 +160,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "name", "role", "is_active", "password"]
-        read_only_fields = ["id"]
+        fields = ["id", "username", "email", "name", "role", "is_active", "password"]
+        read_only_fields = ["id", "username"]
 
     def validate_role(self, value):
         """Prevent role escalation to admin via the API."""
@@ -147,15 +192,28 @@ class LoginSerializer(serializers.Serializer):
     """
     Serializer for login requests.
 
-    Validates email and password fields. Authentication logic is
-    handled in the view — this only validates the input shape.
+    Validates identifier (email or Driver ID username) and password fields.
     """
 
-    email = serializers.EmailField(
-        help_text="User's email address",
+    identifier = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="User's email address or Driver ID (username)",
+    )
+    email = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Email address or Driver ID (alias)",
     )
     password = serializers.CharField(
         write_only=True,
         style={"input_type": "password"},
         help_text="User's password — never logged",
     )
+
+    def validate(self, attrs):
+        identifier = attrs.get("identifier") or attrs.get("email")
+        if not identifier:
+            raise serializers.ValidationError({"identifier": "Email or Driver ID is required."})
+        attrs["identifier"] = identifier
+        return attrs

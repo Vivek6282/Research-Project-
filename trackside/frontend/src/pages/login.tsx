@@ -45,11 +45,11 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState<"coach" | "admin" | "driver">("coach");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const DEMO_EMAILS = {
+  const DEMO_IDENTIFIERS = {
     admin: "admin@trackside.local",
     coach: "coach@trackside.local",
     driver: "driver@trackside.local",
@@ -57,8 +57,8 @@ export function LoginPage() {
 
   const handleRoleSelect = (role: "coach" | "admin" | "driver") => {
     setSelectedRole(role);
-    if (!email || Object.values(DEMO_EMAILS).includes(email)) {
-      setEmail(DEMO_EMAILS[role]);
+    if (!identifier || Object.values(DEMO_IDENTIFIERS).includes(identifier)) {
+      setIdentifier(DEMO_IDENTIFIERS[role]);
     }
   };
 
@@ -69,10 +69,10 @@ export function LoginPage() {
     clearError();
     setIsSubmitting(true);
 
-    const loginEmail = email || DEMO_EMAILS[selectedRole];
+    const loginId = identifier || DEMO_IDENTIFIERS[selectedRole];
 
     try {
-      const user = await login(loginEmail, password);
+      const user = await login(loginId, password);
       navigate(`/${user.role}`, { replace: true });
     } catch {
       // Handled in auth context
@@ -238,18 +238,18 @@ export function LoginPage() {
                 </div>
               </div>
 
-              {/* Name Text Field */}
+              {/* Identifier Text Field */}
               <div>
                 <label className="block text-[9px] font-mono uppercase tracking-wider mb-1 text-[#7C8898]">
-                  NAME
+                  EMAIL OR DRIVER ID
                 </label>
                 <input
                   type="text"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Full name"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Email or Driver ID (e.g. TRK-DRV-000042)"
                   required
-                  className="w-full px-3 py-2 rounded-[2px] text-xs font-sans outline-none transition-colors bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] placeholder-[#4B5563] focus:border-[#3FA6E0]"
+                  className="w-full px-3 py-2 rounded-[2px] text-xs font-mono outline-none transition-colors bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] placeholder-[#4B5563] focus:border-[#3FA6E0]"
                 />
               </div>
 

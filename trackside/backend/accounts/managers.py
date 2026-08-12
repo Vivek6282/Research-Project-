@@ -33,12 +33,12 @@ class UserManager(BaseUserManager):
         Raises:
             ValueError: if email or role is missing.
         """
-        if not email:
-            raise ValueError("Users must have an email address")
         if not role:
             raise ValueError("Users must have a role assigned")
+        if not email and role != "driver":
+            raise ValueError("Coach and Admin users must have an email address")
 
-        email = self.normalize_email(email)
+        email = self.normalize_email(email) if email else None
         user = self.model(
             id=uuid.uuid4(),
             email=email,

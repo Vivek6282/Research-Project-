@@ -22,7 +22,8 @@ import { api, fetchCSRFToken } from "./api";
 /** User shape returned by the API */
 export interface User {
   id: string;
-  email: string;
+  username?: string;
+  email?: string;
   name: string;
   role: "admin" | "coach" | "driver";
   is_active: boolean;
@@ -34,7 +35,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<User>;
+  login: (identifier: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -69,12 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSession();
   }, []);
 
-  /** Log in with email and password */
-  const login = useCallback(async (email: string, password: string) => {
+  /** Log in with email or username and password */
+  const login = useCallback(async (identifier: string, password: string) => {
     setError(null);
     try {
       const loggedInUser = await api.post<User>("/api/auth/login/", {
-        email,
+        identifier,
+        email: identifier,
         password,
       });
       setUser(loggedInUser);

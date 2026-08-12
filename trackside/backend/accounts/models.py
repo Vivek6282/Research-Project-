@@ -34,9 +34,20 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text="Unique identifier for this user",
     )
 
+    username = models.CharField(
+        max_length=32,
+        unique=True,
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="System-generated unique login identifier (e.g. TRK-DRV-000042)",
+    )
+
     email = models.EmailField(
         unique=True,
-        help_text="Email address — used as the login identifier",
+        null=True,
+        blank=True,
+        help_text="Email address — optional for Drivers, required for Coach/Admin",
     )
 
     name = models.CharField(

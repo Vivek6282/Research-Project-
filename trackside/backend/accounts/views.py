@@ -73,15 +73,17 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user = authenticate(
-            request,
-            username=serializer.validated_data["email"],
-            password=serializer.validated_data["password"],
-        )
+        identifier = serializer.validated_data["identifier"]
+        password = serializer.validated_data["password"]
 
-        if user is None:
+        # Dual-identifier lookup: email first (case-insensitive), then username
+        user = User.objects.filter(email__iexact=identifier).first()
+        if not user:
+            user = User.objects.filter(username__iexact=identifier).first()
+
+        if user is None or not user.check_password(password):
             return Response(
-                {"detail": "Invalid email or password."},
+                {"detail": "Invalid email/username or password."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
