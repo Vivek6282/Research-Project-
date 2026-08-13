@@ -60,12 +60,18 @@ export function AdminDashboard() {
     async function loadUsers() {
       try {
         setFetchError(null);
-        const fetched = await api.get<any[]>("/api/auth/users/");
-        if (Array.isArray(fetched) && fetched.length > 0) {
-          setUsers(fetched);
-        }
+        const fetched: any = await api.get("/api/auth/users/");
+        const userList = Array.isArray(fetched)
+          ? fetched
+          : Array.isArray(fetched?.results)
+          ? fetched.results
+          : [];
+        setUsers(userList);
       } catch (err: any) {
-        setFetchError(err.message || "Could not load live user roster — showing cached fallback data");
+        console.error("[AdminDashboard] loadUsers failure:", err);
+        setFetchError(
+          err.message || "Could not load live user roster — showing cached fallback data"
+        );
       }
     }
     loadUsers();
@@ -451,20 +457,28 @@ export function AdminDashboard() {
                         </td>
                         <td className="py-2.5 text-right space-x-2">
                           <button
+                            disabled={!!fetchError}
                             onClick={() => startEdit(u)}
-                            className="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors"
+                            className={`text-[10px] px-2 py-1 rounded transition-colors ${
+                              fetchError ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-[#3FA6E0]/10"
+                            }`}
                             style={{ color: "#3FA6E0", border: "1px solid #3FA6E044" }}
+                            title={fetchError ? "Actions disabled while user roster fetch fails" : "Edit user"}
                           >
                             Edit
                           </button>
                           <button
+                            disabled={!!fetchError}
                             onClick={() => handleToggleDeactivate(u)}
-                            className="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors font-mono"
+                            className={`text-[10px] px-2 py-1 rounded transition-colors font-mono ${
+                              fetchError ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                            }`}
                             style={{
                               color: isActive ? "#E5473C" : "#33D17E",
                               border: `1px solid ${isActive ? "#E5473C44" : "#33D17E44"}`,
                               background: `${isActive ? "#E5473C10" : "#33D17E10"}`,
                             }}
+                            title={fetchError ? "Actions disabled while user roster fetch fails" : isActive ? "Deactivate user" : "Reactivate user"}
                           >
                             {isActive ? "Deactivate" : "Reactivate"}
                           </button>

@@ -93,3 +93,36 @@ class TestUserDeactivationAndLoginPrevention:
         )
         assert res.status_code == status.HTTP_401_UNAUTHORIZED
         assert res.data["detail"] == "This account has been deactivated."
+
+    def test_created_user_persists_in_paginated_list_fetch(self, api_client, admin_user):
+        """Creating a user and subsequently fetching GET /api/auth/users/ returns the created user in paginated results."""
+        api_client.force_authenticate(user=admin_user)
+
+        # 1. Create a new driver account
+        create_res = api_client.post(
+            "/api/auth/users/",
+            {
+                "name": "Persisted Driver Test",
+                "email": "persisted@trackside.local",
+                "role": "driver",
+                "password": "DriverPassword123!",
+            },
+            format="json",
+        )
+        assert create_res.status_code == status.HTTP_201_CREATED
+        created_id = create_res.data["id"]
+        created_username = create_res.data["username"]
+
+        # 2. Fetch GET /api/auth/users/
+        list_res = api_client.get("/api/auth/users/")
+        assert list_res.status_code == status.HTTP_200_OK
+
+        # Handle DRF paginated structure
+        results = list_res.data.get("results") if isinstance(list_res.data, dict) else list_res.data
+        assert isinstance(results, list)
+
+        # 3. Verify created user exists in results list
+        matching = [u for u in results if u["id"] == created_id]
+        assert len(matching) == 1
+        assert matching[0]["name"] == "Persisted Driver Test"
+        assert matching[0]["username"] == created_username

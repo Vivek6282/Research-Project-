@@ -195,6 +195,10 @@ SESSION_COOKIE_HTTPONLY = True
 # CSRF cookie is NOT HttpOnly — frontend needs to read it to send in headers
 CSRF_COOKIE_HTTPONLY = False
 
+# Cookie SameSite policy for local dev & production cross-origin session handling
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
 # Requirement #8: Django's default hasher is PBKDF2-SHA256 — don't override
 # PASSWORD_HASHERS to anything weaker. Left as default intentionally.
 
@@ -210,6 +214,9 @@ if DJANGO_ENV == "production":
     SECURE_HSTS_PRELOAD = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
+else:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 # ---------------------------------------------------------------------------
 # CORS & CSRF — dev origins merged with configured environment origins
