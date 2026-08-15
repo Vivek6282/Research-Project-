@@ -98,3 +98,73 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.name} ({self.role})"
+
+
+class AuditLogEntry(models.Model):
+    """
+    Audit log entry recording admin actions on user accounts.
+
+    Tracks who performed the action, action type, target user, and timestamp.
+    """
+
+    class Action(models.TextChoices):
+        CREATE_USER = "CREATE_USER", "Create User"
+        UPDATE_USER = "UPDATE_USER", "Update User"
+        DEACTIVATE_USER = "DEACTIVATE_USER", "Deactivate User"
+        REACTIVATE_USER = "REACTIVATE_USER", "Reactivate User"
+        DELETE_USER = "DELETE_USER", "Delete User"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_actions",
+        help_text="The admin user who initiated this modification",
+    )
+
+    action = models.CharField(
+        max_length=30,
+        choices=Action.choices,
+        help_text="Type of action performed",
+    )
+
+    target_user_id = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="ID of the modified user",
+    )
+
+    target_user_name = models.CharField(
+        max_length=150,
+        null=True,
+        blank=True,
+        help_text="Display name of the target user",
+    )
+
+    details = models.TextField(
+        blank=True,
+        default="",
+        help_text="Human-readable description of changes made",
+    )
+
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp when the modification occurred",
+    )
+
+    class Meta:
+        db_table = "audit_log_entries"
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        actor_str = self.actor.name if self.actor else "System"
+        return f"[{self.timestamp.strftime('%Y-%m-%d %H:%M')}] {actor_str} -> {self.action} on {self.target_user_name}"
+

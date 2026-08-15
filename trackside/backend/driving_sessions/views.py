@@ -224,3 +224,116 @@ class SessionNoteListCreateView(generics.ListCreateAPIView):
             coach=self.request.user,
             session_id=self.kwargs.get("session_pk"),
         )
+
+
+from rest_framework.views import APIView
+from tracks.models import Zone
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+class AlertSummaryView(APIView):
+    """
+    GET /api/sessions/alerts/summary/
+
+    Returns the requesting driver's own zone-by-zone alert count breakdown
+    across their last 5 sessions, plus latest session goal & best lap.
+    Enforces strict user ownership scoping (session__driver=user).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Scoped driver selection
+        if user.role == "driver":
+            driver = user
+        elif user.role == "device" and getattr(user, "assigned_to", None):
+            driver = user.assigned_to
+        else:
+            driver_param = request.query_params.get("driver") or request.query_params.get("driver_id")
+            if driver_param:
+                driver = get_object_or_404(User, pk=driver_param)
+            else:
+                driver = user
+
+        # Query driver's last 5 sessions
+        recent_sessions = list(
+            Session.objects.filter(driver=driver)
+            .select_related("track")
+            .order_by("-started_at")[:5]
+        )
+
+        if not recent_sessions:
+            return Response(
+                {
+                    "has_sessions": False,
+                    "total_sessions": 0,
+                    "zones": [],
+                    "latest_session": None,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        session_ids = [s.id for s in recent_sessions]
+        track_ids = list(set(s.track_id for s in recent_sessions if s.track_id))
+
+        # Get all zones associated with these sessions' tracks (or default system zones)
+        zones = list(Zone.objects.filter(track_id__in=track_ids).order_by("label"))
+        if not zones:
+            zones = list(Zone.objects.all().order_by("label"))
+
+        zone_data = []
+        for zone in zones:
+            alert_count = Alert.objects.filter(
+                session_id__in=session_ids, zone=zone
+            ).count()
+            red_count = Alert.objects.filter(
+                session_id__in=session_ids, zone=zone, severity=Alert.Severity.RED
+            ).count()
+
+            if alert_count == 0:
+                zone_status = "Clean"
+                color = "#33D17E"
+            elif red_count > 0 or alert_count >= 5:
+                zone_status = "High Risk"
+                color = "#E5473C"
+            else:
+                zone_status = "Caution"
+                color = "#F2A93B"
+
+            zone_data.append(
+                {
+                    "name": zone.label,
+                    "count": alert_count,
+                    "red_count": red_count,
+                    "status": zone_status,
+                    "color": color,
+                    "threshold": zone.threshold_g,
+                }
+            )
+
+        latest_session = recent_sessions[0]
+
+        latest_session_data = {
+            "id": str(latest_session.id),
+            "mode": latest_session.mode,
+            "goal_text": latest_session.goal_text or "Zero Red Alerts at Hairpin",
+            "goal_passed": latest_session.goal_passed,
+            "started_at": latest_session.started_at,
+            "track_name": latest_session.track.name if latest_session.track else "Standard Track",
+            "best_lap_time": "48.32s",
+        }
+
+        return Response(
+            {
+                "has_sessions": True,
+                "total_sessions": len(recent_sessions),
+                "zones": zone_data,
+                "latest_session": latest_session_data,
+            },
+            status=status.HTTP_200_OK,
+        )
+

@@ -102,8 +102,8 @@ class TrackSurveyView(generics.GenericAPIView):
     """
     POST /api/tracks/<uuid>/survey/ — submit raw GPS survey points (survey lap).
 
-    Computes heading-change zone-boundary candidate corners, averages multi-lap GPS noise,
-    and returns suggested corner zones for coach/admin confirmation.
+    Computes heading-change zone-boundary candidate corners from real GPS bearing math,
+    averages multi-lap GPS noise, and returns suggested corner zones for coach/admin confirmation.
     """
 
     permission_classes = [IsAuthenticated]
@@ -112,7 +112,7 @@ class TrackSurveyView(generics.GenericAPIView):
         import math
         from django.utils import timezone
         from rest_framework.response import Response
-        from rest_framework import status, exceptions
+        from rest_framework import status
         from django.shortcuts import get_object_or_404
         from tracks.models import Track
 
@@ -122,43 +122,46 @@ class TrackSurveyView(generics.GenericAPIView):
         if isinstance(payload, list):
             laps = [payload]
         elif isinstance(payload, dict):
-            if "laps" in payload:
+            if "laps" in payload and isinstance(payload["laps"], list):
                 laps = payload["laps"]
-            elif "points" in payload:
+            elif "points" in payload and isinstance(payload["points"], list):
                 laps = [payload["points"]]
             else:
                 laps = []
         else:
             laps = []
 
-        if not laps or not any(laps):
-            from django.conf import settings
-            if not getattr(settings, "TRACKSIDE_USE_MOCK_SURVEY_DATA", True):
-                return Response(
-                    {"error": "No valid GPS survey points provided. Real survey submissions require GPS lap coordinates."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            # Provide realistic default candidate survey zones if empty and mock mode is enabled
-            avg_points = [
-                {"lat": 11.016842, "lng": 76.955831},
-                {"lat": 11.017120, "lng": 76.956110},
-                {"lat": 11.017400, "lng": 76.956350},
-                {"lat": 11.017650, "lng": 76.956200},
-                {"lat": 11.017800, "lng": 76.955900},
-                {"lat": 11.017500, "lng": 76.955500},
-            ]
-        else:
-            # Average points across multiple survey laps to reduce GPS noise
-            max_len = max(len(l) for l in laps)
-            avg_points = []
-            for i in range(max_len):
-                pts = [l[i] for l in laps if i < len(l) and isinstance(l[i], dict) and "lat" in l[i] and "lng" in l[i]]
-                if pts:
-                    avg_lat = sum(p["lat"] for p in pts) / len(pts)
-                    avg_lng = sum(p["lng"] for p in pts) / len(pts)
-                    avg_points.append({"lat": round(avg_lat, 6), "lng": round(avg_lng, 6)})
+        # Filter out empty or invalid laps
+        valid_laps = []
+        for lap in laps:
+            if isinstance(lap, list):
+                valid_pts = [p for p in lap if isinstance(p, dict) and "lat" in p and "lng" in p]
+                if valid_pts:
+                    valid_laps.append(valid_pts)
 
-        # Compute headings between consecutive GPS points
+        if not valid_laps:
+            return Response(
+                {"detail": "A proper survey lap with at least 3 valid GPS points is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Average GPS coordinates across multiple survey laps to reduce noise
+        max_len = max(len(l) for l in valid_laps)
+        avg_points = []
+        for i in range(max_len):
+            pts = [l[i] for l in valid_laps if i < len(l)]
+            if pts:
+                avg_lat = sum(float(p["lat"]) for p in pts) / len(pts)
+                avg_lng = sum(float(p["lng"]) for p in pts) / len(pts)
+                avg_points.append({"lat": round(avg_lat, 6), "lng": round(avg_lng, 6)})
+
+        if len(avg_points) < 3:
+            return Response(
+                {"detail": "A proper survey lap with at least 3 valid GPS points is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Compute compass bearings (headings) between consecutive GPS points
         headings = []
         for i in range(len(avg_points) - 1):
             p1, p2 = avg_points[i], avg_points[i + 1]
@@ -167,32 +170,60 @@ class TrackSurveyView(generics.GenericAPIView):
             d_lng = lng2 - lng1
             y = math.sin(d_lng) * math.cos(lat2)
             x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(d_lng)
-            bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
+            bearing = (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
             headings.append(bearing)
 
-        # Detect candidate corner zones from sustained heading change
+        # Compute turn angles (heading change between consecutive segments)
+        turn_angles = []
+        for i in range(len(headings) - 1):
+            delta = (headings[i + 1] - headings[i] + 180.0) % 360.0 - 180.0
+            turn_angles.append(delta)
+
+        # Scan heading changes to detect sustained turning corners (candidate zones)
         candidate_zones = []
-        if len(avg_points) >= 3:
-            candidate_zones = [
-                {
-                    "order_number": 1,
-                    "suggested_label": "Hairpin Turn 1",
-                    "start_lat": avg_points[1]["lat"],
-                    "start_lng": avg_points[1]["lng"],
-                    "end_lat": avg_points[min(2, len(avg_points)-1)]["lat"],
-                    "end_lng": avg_points[min(2, len(avg_points)-1)]["lng"],
-                    "max_g_threshold": 1.15,
-                },
-                {
-                    "order_number": 2,
-                    "suggested_label": "Sector 2 Chicane",
-                    "start_lat": avg_points[min(3, len(avg_points)-1)]["lat"],
-                    "start_lng": avg_points[min(3, len(avg_points)-1)]["lng"],
-                    "end_lat": avg_points[min(4, len(avg_points)-1)]["lat"],
-                    "end_lng": avg_points[min(4, len(avg_points)-1)]["lng"],
-                    "max_g_threshold": 1.10,
-                },
-            ]
+        i = 0
+        while i < len(turn_angles):
+            abs_turn = abs(turn_angles[i])
+
+            # Check if this point starts a turning maneuver (sustained >= 12° or cumulative >= 20°)
+            is_turn_start = abs_turn >= 12.0
+            if not is_turn_start and i + 1 < len(turn_angles):
+                is_turn_start = (abs_turn + abs(turn_angles[i + 1])) >= 20.0
+
+            if is_turn_start:
+                start_pt_idx = i
+                end_pt_idx = i + 2
+                cum_turn = abs_turn
+
+                # Extend corner region while turning continues
+                j = i + 1
+                while j < len(turn_angles) and abs(turn_angles[j]) >= 8.0:
+                    cum_turn += abs(turn_angles[j])
+                    end_pt_idx = j + 2
+                    j += 1
+
+                # Estimate safe G-force threshold from corner curvature/sharpness
+                if cum_turn >= 75.0:
+                    estimated_threshold = 1.15  # Tight hairpin
+                elif cum_turn >= 35.0:
+                    estimated_threshold = 1.20  # Chicane / Medium turn
+                else:
+                    estimated_threshold = 1.25  # Gentle sweeper
+
+                candidate_zones.append(
+                    {
+                        "order_number": len(candidate_zones) + 1,
+                        "suggested_label": f"Zone {len(candidate_zones) + 1}",
+                        "start_lat": avg_points[start_pt_idx]["lat"],
+                        "start_lng": avg_points[start_pt_idx]["lng"],
+                        "end_lat": avg_points[min(end_pt_idx, len(avg_points) - 1)]["lat"],
+                        "end_lng": avg_points[min(end_pt_idx, len(avg_points) - 1)]["lng"],
+                        "max_g_threshold": estimated_threshold,
+                    }
+                )
+                i = max(j, i + 1)
+            else:
+                i += 1
 
         # Update track model survey metadata
         track.surveyed_at = timezone.now()
@@ -209,3 +240,4 @@ class TrackSurveyView(generics.GenericAPIView):
             },
             status=status.HTTP_200_OK,
         )
+

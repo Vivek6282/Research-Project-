@@ -126,3 +126,72 @@ class TestUserDeactivationAndLoginPrevention:
         assert len(matching) == 1
         assert matching[0]["name"] == "Persisted Driver Test"
         assert matching[0]["username"] == created_username
+
+    def test_admin_cannot_deactivate_self(self, api_client, admin_user):
+        """Admin user attempting to deactivate their own account via PATCH receives HTTP 400 Bad Request."""
+        api_client.force_authenticate(user=admin_user)
+        res = api_client.patch(
+            f"/api/auth/users/{admin_user.id}/",
+            {"is_active": False},
+            format="json",
+        )
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+        assert "is_active" in res.data
+        assert "cannot deactivate your own admin account" in str(res.data["is_active"])
+
+    def test_update_existing_admin_account_with_admin_role_succeeds(self, api_client, admin_user):
+        """Updating an existing Admin account while providing role='admin' succeeds and does not raise validation error."""
+        api_client.force_authenticate(user=admin_user)
+        res = api_client.patch(
+            f"/api/auth/users/{admin_user.id}/",
+            {"name": "Updated Admin Name", "role": "admin"},
+            format="json",
+        )
+        assert res.status_code == status.HTTP_200_OK
+        assert res.data["name"] == "Updated Admin Name"
+        assert res.data["role"] == "admin"
+
+    def test_seed_admin_reactivates_deactivated_admin(self, monkeypatch, db):
+        """Running seed_admin management command reactivates an existing deactivated admin account."""
+        from django.core.management import call_command
+
+        # Create deactivated admin
+        deact_admin = User.objects.create_superuser(
+            email="seed_reactivate@trackside.local",
+            name="Deactivated Seed Admin",
+            password="SeedAdminPassword123!",
+            is_active=False,
+        )
+        assert deact_admin.is_active is False
+
+        monkeypatch.setenv("ADMIN_EMAIL", "seed_reactivate@trackside.local")
+        monkeypatch.setenv("ADMIN_PASSWORD", "SeedAdminPassword123!")
+        monkeypatch.setenv("ADMIN_NAME", "Deactivated Seed Admin")
+
+        call_command("seed_admin")
+
+        deact_admin.refresh_from_db()
+        assert deact_admin.is_active is True
+
+    def test_admin_can_delete_non_admin_user(self, api_client, admin_user, driver_user):
+        """Admin can permanently delete a driver user via DELETE /api/auth/users/<id>/."""
+        api_client.force_authenticate(user=admin_user)
+        res = api_client.delete(f"/api/auth/users/{driver_user.id}/")
+        assert res.status_code == status.HTTP_204_NO_CONTENT
+        assert not User.objects.filter(id=driver_user.id).exists()
+
+    def test_admin_cannot_delete_admin_user(self, api_client, admin_user):
+        """Attempting to delete an Admin account via DELETE returns 400 Bad Request."""
+        api_client.force_authenticate(user=admin_user)
+        res = api_client.delete(f"/api/auth/users/{admin_user.id}/")
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+        assert User.objects.filter(id=admin_user.id).exists()
+
+    def test_non_admin_cannot_delete_user(self, api_client, coach_user, driver_user):
+        """Non-admin user (Coach) attempting to delete a user receives 403 Forbidden."""
+        api_client.force_authenticate(user=coach_user)
+        res = api_client.delete(f"/api/auth/users/{driver_user.id}/")
+        assert res.status_code == status.HTTP_403_FORBIDDEN
+        assert User.objects.filter(id=driver_user.id).exists()
+
+

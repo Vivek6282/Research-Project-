@@ -172,7 +172,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     def validate_role(self, value):
         """Prevent role escalation to admin via the API."""
-        if value == "admin":
+        if value == "admin" and (not self.instance or self.instance.role != "admin"):
             raise serializers.ValidationError(
                 "Cannot change role to admin through the API."
             )
@@ -180,11 +180,17 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """
-        Validate email requirements based on role.
+        Validate email requirements based on role and prevent self-deactivation.
         Email is required for Coach, optional for Driver.
         """
         role = attrs.get("role", self.instance.role if self.instance else None)
         email = attrs.get("email")
+
+        # Prevent self-deactivation by the logged-in admin user
+        request = self.context.get("request")
+        if request and request.user and self.instance and self.instance == request.user:
+            if attrs.get("is_active") is False:
+                raise serializers.ValidationError({"is_active": "You cannot deactivate your own admin account."})
 
         if role == "coach" and email is not None and not email:
             raise serializers.ValidationError({"email": "Email address is required for Coach accounts."})
@@ -240,3 +246,34 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError({"identifier": "Email or Driver ID is required."})
         attrs["identifier"] = identifier
         return attrs
+
+
+from accounts.models import AuditLogEntry
+
+
+class AuditLogEntrySerializer(serializers.ModelSerializer):
+    """
+    Serializer for returning audit log entries to the frontend.
+    """
+
+    actor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AuditLogEntry
+        fields = [
+            "id",
+            "actor",
+            "actor_name",
+            "action",
+            "target_user_id",
+            "target_user_name",
+            "details",
+            "timestamp",
+        ]
+        read_only_fields = fields
+
+    def get_actor_name(self, obj):
+        if obj.actor:
+            return obj.actor.name
+        return "System Admin"
+

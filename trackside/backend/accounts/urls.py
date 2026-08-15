@@ -8,6 +8,8 @@ No /register or /signup route exists — by design, not by oversight.
 from django.urls import path
 
 from accounts.views import (
+    AdminDiagnosticsView,
+    AuditLogListView,
     CSRFTokenView,
     LoginView,
     LogoutView,
@@ -26,4 +28,8 @@ urlpatterns = [
     # User management — Admin only
     path("users/", UserListCreateView.as_view(), name="user-list-create"),
     path("users/<uuid:pk>/", UserDetailView.as_view(), name="user-detail"),
+    # Security audit trail & diagnostics — Admin only
+    path("audit-logs/", AuditLogListView.as_view(), name="audit-log-list"),
+    path("diagnostics/", AdminDiagnosticsView.as_view(), name="admin-diagnostics"),
 ]
+

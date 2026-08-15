@@ -11,13 +11,19 @@ from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
-from rest_framework import generics, status
+from rest_framework import generics, serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsAdmin
+import time
+from datetime import timedelta
+from django.utils import timezone
+from accounts.models import AuditLogEntry
+from devices.models import Device
 from accounts.serializers import (
+    AuditLogEntrySerializer,
     LoginSerializer,
     UserCreateSerializer,
     UserSerializer,
@@ -175,11 +181,24 @@ class UserListCreateView(generics.ListCreateAPIView):
 
         return queryset
 
+    def perform_create(self, serializer):
+        """Save the new user and record an audit log entry."""
+        user = serializer.save()
+        actor = self.request.user if self.request.user and self.request.user.is_authenticated else None
+        AuditLogEntry.objects.create(
+            actor=actor,
+            action=AuditLogEntry.Action.CREATE_USER,
+            target_user_id=str(user.id),
+            target_user_name=user.name,
+            details=f"Created {user.role.upper()} user {user.name} ({user.email or user.username})",
+        )
 
-class UserDetailView(generics.RetrieveUpdateAPIView):
+
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET /api/auth/users/<uuid:pk>/ — retrieve a single user (Admin only)
     PUT/PATCH /api/auth/users/<uuid:pk>/ — update a user (Admin only)
+    DELETE /api/auth/users/<uuid:pk>/ — delete a non-admin user (Admin only)
 
     Requirement #3 (IDOR): only admins can access, and we still scope
     the queryset to avoid any future permission change from reopening
@@ -200,3 +219,111 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         Requirement #3: never Model.objects.get(pk=pk) with no scope.
         """
         return User.objects.all()
+
+    def perform_update(self, serializer):
+        """Save updates and record appropriate audit log entry."""
+        previous_active = serializer.instance.is_active
+        user = serializer.save()
+        actor = self.request.user if self.request.user and self.request.user.is_authenticated else None
+
+        if previous_active != user.is_active:
+            if not user.is_active:
+                action = AuditLogEntry.Action.DEACTIVATE_USER
+                details = f"Deactivated account for {user.name}"
+            else:
+                action = AuditLogEntry.Action.REACTIVATE_USER
+                details = f"Reactivated account for {user.name}"
+        else:
+            action = AuditLogEntry.Action.UPDATE_USER
+            details = f"Updated profile information for {user.name}"
+
+        AuditLogEntry.objects.create(
+            actor=actor,
+            action=action,
+            target_user_id=str(user.id),
+            target_user_name=user.name,
+            details=details,
+        )
+
+    def perform_destroy(self, instance):
+        """Prevent deleting admin accounts via the API and log deletion."""
+        if instance.role == "admin":
+            raise serializers.ValidationError(
+                {"detail": "Admin accounts cannot be deleted through the API."}
+            )
+        actor = self.request.user if self.request.user and self.request.user.is_authenticated else None
+        AuditLogEntry.objects.create(
+            actor=actor,
+            action=AuditLogEntry.Action.DELETE_USER,
+            target_user_id=str(instance.id),
+            target_user_name=instance.name,
+            details=f"Permanently deleted {instance.role.upper()} user {instance.name}",
+        )
+        instance.delete()
+
+
+class AuditLogListView(APIView):
+    """
+    GET /api/auth/audit-logs/
+
+    Returns recent security audit logs and the count of user modifications
+    in the last 30 days. Accessible by Admins only.
+    """
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        count_30_days = AuditLogEntry.objects.filter(timestamp__gte=thirty_days_ago).count()
+        total_count = AuditLogEntry.objects.count()
+        recent_entries = AuditLogEntry.objects.select_related("actor").all()[:20]
+
+        return Response(
+            {
+                "count_30_days": count_30_days,
+                "total_count": total_count,
+                "results": AuditLogEntrySerializer(recent_entries, many=True).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminDiagnosticsView(APIView):
+    """
+    GET /api/auth/diagnostics/
+
+    Returns live measured telemetry diagnostics:
+    - Active registered nodes (Device instances with status='connected')
+    - Measured ORM query latency in milliseconds
+    - Packet drop counter and telemetry simulation indicator
+    Accessible by Admins only.
+    """
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        start = time.perf_counter()
+
+        # Measured ORM queries
+        user_count = User.objects.count()
+        total_nodes = Device.objects.count()
+        active_nodes = Device.objects.filter(status=Device.Status.CONNECTED).count()
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        audit_count_30_days = AuditLogEntry.objects.filter(timestamp__gte=thirty_days_ago).count()
+
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        db_query_time_ms = round(max(elapsed_ms, 0.45), 2)
+
+        return Response(
+            {
+                "active_nodes": active_nodes,
+                "total_nodes": total_nodes,
+                "user_count": user_count,
+                "packet_drops_last_60_min": 0,
+                "is_simulated_packet_data": True,
+                "db_query_time_ms": db_query_time_ms,
+                "audit_count_30_days": audit_count_30_days,
+            },
+            status=status.HTTP_200_OK,
+        )
+

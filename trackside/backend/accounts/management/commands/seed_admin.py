@@ -42,13 +42,23 @@ class Command(BaseCommand):
                 "Never hardcode admin credentials in source code."
             )
 
-        # Check if admin already exists — idempotent
-        if User.objects.filter(email=email).exists():
-            self.stdout.write(
-                self.style.WARNING(
-                    f"Admin account '{email}' already exists. Skipping creation."
+        # Check if admin already exists — idempotent & reactivates if deactivated
+        existing_user = User.objects.filter(email=email).first()
+        if existing_user:
+            if not existing_user.is_active:
+                existing_user.is_active = True
+                existing_user.save()
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Admin account '{email}' was deactivated — reactivated successfully."
+                    )
                 )
-            )
+            else:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Admin account '{email}' already exists and is active. Skipping creation."
+                    )
+                )
             return
 
         # Create the admin using the manager, which hashes the password

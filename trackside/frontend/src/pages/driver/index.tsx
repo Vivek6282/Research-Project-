@@ -18,30 +18,102 @@ import { DevBanner } from "../../components/ui/dev-banner";
 import { SignalStrip } from "../../components/ui/signal-strip";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { StaleDataBadge } from "../../components/ui/stale-data-badge";
+import { api } from "../../lib/api";
 
-const ZONES = [
-  { name: "Hairpin", count: 6, status: "High Risk", color: "#E5473C", threshold: 1.15 },
-  { name: "Sweeper", count: 0, status: "Clean", color: "#33D17E", threshold: 1.25 },
-  { name: "Chicane", count: 2, status: "Caution", color: "#F2A93B", threshold: 1.10 },
-];
+const USE_MOCK_TELEMETRY = import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false";
+
+interface ZoneSummary {
+  name: string;
+  count: number;
+  red_count?: number;
+  status: string;
+  color: string;
+  threshold: number;
+}
+
+interface LatestSessionData {
+  id: string;
+  mode: string;
+  goal_text: string;
+  goal_passed: boolean | null;
+  started_at: string;
+  track_name: string;
+  best_lap_time?: string;
+}
 
 export function DriverDashboard() {
   const [mode, setMode] = useState<"safety" | "performance">("safety");
   const [currentG, setCurrentG] = useState(0.85);
-  const [lastSyncTime] = useState<number>(Date.now());
+  const [lastSyncTime, setLastSyncTime] = useState<number>(Date.now());
+  const [zones, setZones] = useState<ZoneSummary[]>([]);
+  const [hasSessions, setHasSessions] = useState<boolean>(true);
+  const [latestSession, setLatestSession] = useState<LatestSessionData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
   const activeThreshold = 1.15; // Hairpin Zone Threshold
 
-  // Simulate real-time driver G-Force telemetry streaming
+  // 1. Fetch real driver-scoped zone alert summary & session goals
   useEffect(() => {
-    const interval = setInterval(() => {
-      const time = Date.now() / 400;
-      // Oscillate G-force across Nominal (<0.94g), Monitoring (0.94g-1.15g), and Intervene (≥1.15g)
-      const simG = Number((0.75 + Math.abs(Math.sin(time)) * 0.48).toFixed(2));
-      setCurrentG(simG);
-    }, 200);
-    return () => clearInterval(interval);
+    async function loadDriverSummary() {
+      try {
+        setLoading(true);
+        const res: any = await api.get("/api/sessions/alerts/summary/");
+        if (res) {
+          setHasSessions(res.has_sessions !== false);
+          setZones(Array.isArray(res.zones) ? res.zones : []);
+          setLatestSession(res.latest_session || null);
+          if (res.latest_session?.mode) {
+            setMode(res.latest_session.mode.toLowerCase() as "safety" | "performance");
+          }
+        }
+      } catch (err: any) {
+        console.warn("[DriverDashboard] loadDriverSummary failure:", err);
+        setHasSessions(false);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDriverSummary();
   }, []);
 
+  // 2. Real-time driver G-Force telemetry streaming
+  useEffect(() => {
+    if (USE_MOCK_TELEMETRY) {
+      const interval = setInterval(() => {
+        const time = Date.now() / 400;
+        // Oscillate G-force across Nominal (<0.94g), Monitoring (0.94g-1.15g), and Intervene (≥1.15g)
+        const simG = Number((0.75 + Math.abs(Math.sin(time)) * 0.48).toFixed(2));
+        setCurrentG(simG);
+        setLastSyncTime(Date.now());
+      }, 200);
+      return () => clearInterval(interval);
+    } else {
+      // Connect to real WebSocket pipeline when mock flag is off
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsHost = window.location.hostname === "localhost" ? "localhost:8000" : window.location.host;
+      const socket = new WebSocket(`${wsProtocol}//${wsHost}/ws/telemetry/`);
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data && typeof data.gForce === "number") {
+            setCurrentG(Number(data.gForce.toFixed(2)));
+            setLastSyncTime(Date.now());
+          }
+        } catch (e) {
+          console.warn("[DriverDashboard] WebSocket telemetry error:", e);
+        }
+      };
+
+      socket.onerror = (err) => {
+        console.warn("[DriverDashboard] Telemetry WebSocket connection error:", err);
+      };
+
+      return () => {
+        socket.close();
+      };
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0A0E13] text-[#E7EDF3] select-none font-sans pb-10">
@@ -56,6 +128,11 @@ export function DriverDashboard() {
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-[10px] text-[#7C8898] uppercase">Active Zone: Turn 4 Hairpin</p>
                 <StaleDataBadge lastSyncedTimestamp={lastSyncTime} />
+                {USE_MOCK_TELEMETRY && (
+                  <span className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                    SIMULATED DATA — not live
+                  </span>
+                )}
               </div>
               <div className="flex items-baseline gap-2 mt-0.5">
                 <span className="text-3xl font-extrabold text-[#3FA6E0]">{currentG} g</span>
@@ -117,73 +194,113 @@ export function DriverDashboard() {
 
         {/* Zone-by-Zone Breakdown Cards */}
         <Panel title="Zone Risk Heatmap (Last 5 Sessions)" icon={Gauge}>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {ZONES.map((z) => (
-              <div
-                key={z.name}
-                className="rounded-lg p-3.5 text-center flex flex-col items-center justify-between border transition-all duration-150"
-                style={{
-                  background: "#161D26",
-                  borderColor: `${z.color}33`,
-                  boxShadow: `0 4px 15px ${z.color}10`,
-                }}
-              >
-                <span
-                  className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded mb-2"
+          {loading ? (
+            <div className="text-center py-6 text-xs font-mono text-[#7C8898]">
+              Loading zone alert summary…
+            </div>
+          ) : !hasSessions || zones.length === 0 ? (
+            <div className="rounded-lg p-6 text-center border border-[#232B35] bg-[#161D26] font-mono text-[#7C8898]">
+              <Gauge className="mx-auto mb-2 opacity-50 text-[#3FA6E0]" size={28} />
+              <p className="text-sm font-bold text-[#E7EDF3]">No sessions recorded yet</p>
+              <p className="text-xs text-[#7C8898] mt-1">
+                Start a driving session to track zone risk heatmap and telemetry exceedances.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {zones.map((z) => (
+                <div
+                  key={z.name}
+                  className="rounded-lg p-3.5 text-center flex flex-col items-center justify-between border transition-all duration-150"
                   style={{
-                    color: z.color,
-                    border: `1px solid ${z.color}44`,
-                    background: `${z.color}14`,
+                    background: "#161D26",
+                    borderColor: `${z.color}33`,
+                    boxShadow: `0 4px 15px ${z.color}10`,
                   }}
                 >
-                  {z.status}
-                </span>
+                  <span
+                    className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded mb-2"
+                    style={{
+                      color: z.color,
+                      border: `1px solid ${z.color}44`,
+                      background: `${z.color}14`,
+                    }}
+                  >
+                    {z.status}
+                  </span>
 
-                <p
-                  className="text-3xl font-mono font-bold my-1"
-                  style={{ color: z.color }}
-                >
-                  {z.count}
-                </p>
+                  <p
+                    className="text-3xl font-mono font-bold my-1"
+                    style={{ color: z.color }}
+                  >
+                    {z.count}
+                  </p>
 
-                <p className="text-xs font-mono text-[#7C8898]">
-                  {z.name} Exceedances
-                </p>
-              </div>
-            ))}
-          </div>
+                  <p className="text-xs font-mono text-[#7C8898]">
+                    {z.name} Exceedances
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </Panel>
 
         {/* Best Lap & Session Goal Progress */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Panel title="Best Lap Highlight (Raw Telemetry)" icon={Trophy}>
-            <div className="space-y-1 font-mono">
-              <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-mono font-bold text-[#33D17E]">
-                  48.32s
-                </span>
-                <span className="text-xs font-mono text-[#7C8898]">LAP 6</span>
+            {latestSession ? (
+              <div className="space-y-1 font-mono">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-2xl font-mono font-bold text-[#33D17E]">
+                    {latestSession.best_lap_time || "48.32s"}
+                  </span>
+                  <span className="text-xs font-mono text-[#7C8898]">SESSION BEST</span>
+                </div>
+                <p className="text-xs text-[#7C8898]">
+                  Cleanest lap on {latestSession.track_name} — minimal threshold exceedances recorded.
+                </p>
               </div>
-              <p className="text-xs text-[#7C8898]">
-                Cleanest lap of the session — zero threshold exceedances recorded.
-              </p>
-            </div>
+            ) : (
+              <div className="text-xs font-mono text-[#7C8898] py-2">
+                No session recorded yet to calculate best lap highlight.
+              </div>
+            )}
           </Panel>
 
           <Panel title="Session Target Evaluation" icon={Target}>
-            <div className="space-y-1 font-mono">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono text-[#E7EDF3] font-bold">
-                  Zero Red Alerts at Hairpin
-                </span>
-                <span className="text-xs font-mono font-bold text-[#E5473C] px-2 py-0.5 rounded border border-[#E5473C44] bg-[#E5473C14]">
-                  NOT MET
-                </span>
+            {latestSession ? (
+              <div className="space-y-1 font-mono">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-[#E7EDF3] font-bold">
+                    {latestSession.goal_text}
+                  </span>
+                  {latestSession.goal_passed === true ? (
+                    <span className="text-xs font-mono font-bold text-[#33D17E] px-2 py-0.5 rounded border border-[#33D17E44] bg-[#33D17E14]">
+                      PASSED
+                    </span>
+                  ) : latestSession.goal_passed === false ? (
+                    <span className="text-xs font-mono font-bold text-[#E5473C] px-2 py-0.5 rounded border border-[#E5473C44] bg-[#E5473C14]">
+                      NOT MET
+                    </span>
+                  ) : (
+                    <span className="text-xs font-mono font-bold text-[#F2A93B] px-2 py-0.5 rounded border border-[#F2A93B44] bg-[#F2A93B14]">
+                      PENDING
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-[#7C8898]">
+                  {latestSession.goal_passed === true
+                    ? "Session target achieved cleanly."
+                    : latestSession.goal_passed === false
+                    ? "Target not met — exceedances recorded during session."
+                    : "Target evaluation pending post-session coach review."}
+                </p>
               </div>
-              <p className="text-xs text-[#7C8898]">
-                2 red alerts triggered in Hairpin zone during session.
-              </p>
-            </div>
+            ) : (
+              <div className="text-xs font-mono text-[#7C8898] py-2">
+                No session recorded yet to evaluate session targets.
+              </div>
+            )}
           </Panel>
         </div>
 
@@ -223,3 +340,4 @@ export function DriverDashboard() {
     </div>
   );
 }
+

@@ -15,6 +15,7 @@ import { Chip } from "../../components/ui/chip";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { api } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 
 const INITIAL_USERS = [
   { id: "1", username: "TRK-ADMIN-000001", name: "System Admin", role: "admin", status: "Active", email: "admin@trackside.local" },
@@ -24,6 +25,7 @@ const INITIAL_USERS = [
 ];
 
 export function AdminDashboard() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<any[]>(INITIAL_USERS);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [name, setName] = useState("");
@@ -41,7 +43,7 @@ export function AdminDashboard() {
   const [editEmail, setEditEmail] = useState("");
   const [editError, setEditError] = useState("");
 
-  // Confirm Dialog Modal State
+  // Confirm Dialog Modal State for Deactivation
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -55,6 +57,45 @@ export function AdminDashboard() {
     userToToggle: null,
     isCurrentlyActive: true,
   });
+
+  // Confirm Dialog Modal State for Permanent Deletion
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    userToDelete: any | null;
+  }>({
+    isOpen: false,
+    userToDelete: null,
+  });  // Audit Logs & Diagnostics State
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [audit30DayCount, setAudit30DayCount] = useState<number>(0);
+  const [diagnostics, setDiagnostics] = useState<{
+    active_nodes: number;
+    total_nodes: number;
+    db_query_time_ms: number;
+    packet_drops_last_60_min: number;
+    is_simulated_packet_data: boolean;
+  } | null>(null);
+
+  const fetchAuditAndDiagnostics = async () => {
+    try {
+      const auditRes: any = await api.get("/api/auth/audit-logs/");
+      if (auditRes) {
+        setAudit30DayCount(auditRes.count_30_days || 0);
+        setAuditLogs(Array.isArray(auditRes.results) ? auditRes.results : []);
+      }
+    } catch (err) {
+      console.warn("[AdminDashboard] audit logs fetch error:", err);
+    }
+
+    try {
+      const diagRes: any = await api.get("/api/auth/diagnostics/");
+      if (diagRes) {
+        setDiagnostics(diagRes);
+      }
+    } catch (err) {
+      console.warn("[AdminDashboard] diagnostics fetch error:", err);
+    }
+  };
 
   useEffect(() => {
     async function loadUsers() {
@@ -75,6 +116,7 @@ export function AdminDashboard() {
       }
     }
     loadUsers();
+    fetchAuditAndDiagnostics();
   }, []);
 
   const handleCreateAccount = async () => {
@@ -113,6 +155,7 @@ export function AdminDashboard() {
       setName("");
       setEmail("");
       setPassword("");
+      fetchAuditAndDiagnostics();
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to create account.");
     }
@@ -155,8 +198,30 @@ export function AdminDashboard() {
             : item
         )
       );
+      fetchAuditAndDiagnostics();
     } catch (err: any) {
       alert(err.message || `Failed to ${actionText} user.`);
+    }
+  };
+
+  const handlePromptDeleteUser = (u: any) => {
+    setDeleteModal({
+      isOpen: true,
+      userToDelete: u,
+    });
+  };
+
+  const executeDeleteUser = async () => {
+    if (!deleteModal.userToDelete) return;
+    const u = deleteModal.userToDelete;
+    setDeleteModal((prev) => ({ ...prev, isOpen: false }));
+
+    try {
+      await api.delete(`/api/auth/users/${u.id}/`);
+      setUsers((prev) => prev.filter((item) => item.id !== u.id));
+      fetchAuditAndDiagnostics();
+    } catch (err: any) {
+      alert(err.message || "Failed to delete user account.");
     }
   };
 
@@ -194,6 +259,7 @@ export function AdminDashboard() {
         )
       );
       setEditingUserId(null);
+      fetchAuditAndDiagnostics();
     } catch (err: any) {
       setEditError(err.message || "Failed to update user.");
     }
@@ -390,6 +456,8 @@ export function AdminDashboard() {
                   {users.map((u) => {
                     const isEditing = editingUserId === u.id;
                     const isActive = u.is_active !== false && u.status !== "Inactive";
+                    const isSelf = currentUser && (currentUser.id === u.id || (currentUser.email && u.email && currentUser.email === u.email));
+                    const isSelfDeactivating = isSelf && isActive;
                     const roleColor = u.role === "admin" ? "#33D17E" : u.role === "coach" ? "#3FA6E0" : "#F2A93B";
 
                     if (isEditing) {
@@ -468,20 +536,42 @@ export function AdminDashboard() {
                             Edit
                           </button>
                           <button
-                            disabled={!!fetchError}
+                            disabled={!!fetchError || isSelfDeactivating}
                             onClick={() => handleToggleDeactivate(u)}
                             className={`text-[10px] px-2 py-1 rounded transition-colors font-mono ${
-                              fetchError ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                              fetchError || isSelfDeactivating ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
                             }`}
                             style={{
                               color: isActive ? "#E5473C" : "#33D17E",
                               border: `1px solid ${isActive ? "#E5473C44" : "#33D17E44"}`,
                               background: `${isActive ? "#E5473C10" : "#33D17E10"}`,
                             }}
-                            title={fetchError ? "Actions disabled while user roster fetch fails" : isActive ? "Deactivate user" : "Reactivate user"}
+                            title={
+                              fetchError
+                                ? "Actions disabled while user roster fetch fails"
+                                : isSelfDeactivating
+                                ? "You cannot deactivate your own admin account"
+                                : isActive
+                                ? "Deactivate user"
+                                : "Reactivate user"
+                            }
                           >
                             {isActive ? "Deactivate" : "Reactivate"}
                           </button>
+                          {u.role !== "admin" && (
+                            <button
+                              disabled={!!fetchError}
+                              onClick={() => handlePromptDeleteUser(u)}
+                              className={`text-[10px] px-2 py-1 rounded transition-colors font-mono ${
+                                fetchError
+                                  ? "opacity-40 cursor-not-allowed text-[#E5473C] border border-[#E5473C]/40 bg-[#E5473C]/10"
+                                  : "cursor-pointer text-[#E5473C] border border-[#E5473C]/40 bg-[#E5473C]/10 hover:bg-[#E5473C]/25"
+                              }`}
+                              title={fetchError ? "Actions disabled while user roster fetch fails" : "Permanently delete user account"}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -494,21 +584,95 @@ export function AdminDashboard() {
           {/* System Analytics & Audit Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Panel title="Security & Audit Trail" icon={Shield}>
-              <p className="text-xs text-[#7C8898]">
-                Session authentication active · CSRF protection enforced · All user modifications logged to audit store.
-              </p>
+              <div className="space-y-3">
+                <p className="text-xs font-mono text-[#E7EDF3] flex items-center justify-between">
+                  <span>
+                    <strong className="text-[#3FA6E0] font-bold">{audit30DayCount}</strong> user modification{audit30DayCount === 1 ? "" : "s"} logged to audit store in the last 30 days.
+                  </span>
+                  <span className="text-[10px] text-[#7C8898] uppercase">CSRF & Session Enforced</span>
+                </p>
+
+                {/* Audit Log Entries List */}
+                <div className="max-h-48 overflow-y-auto divide-y divide-[#232B35] rounded border border-[#232B35] bg-[#0A0E13] p-2">
+                  {auditLogs.length === 0 ? (
+                    <div className="text-[11px] font-mono text-[#7C8898] py-2 text-center">
+                      No user modification audit entries recorded yet.
+                    </div>
+                  ) : (
+                    auditLogs.map((entry) => {
+                      const actionColor =
+                        entry.action === "CREATE_USER" || entry.action === "REACTIVATE_USER"
+                          ? "#33D17E"
+                          : entry.action === "DEACTIVATE_USER" || entry.action === "DELETE_USER"
+                          ? "#E5473C"
+                          : "#3FA6E0";
+
+                      return (
+                        <div key={entry.id} className="py-1.5 px-1 text-[11px] font-mono flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold"
+                              style={{
+                                color: actionColor,
+                                border: `1px solid ${actionColor}44`,
+                                background: `${actionColor}10`,
+                              }}
+                            >
+                              {entry.action.replace("_", " ")}
+                            </span>
+                            <span className="text-[#E7EDF3] font-medium">
+                              {entry.details || `${entry.actor_name} -> ${entry.target_user_name}`}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-[#7C8898]">
+                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </Panel>
 
             <Panel title="Telemetry Diagnostics" icon={Activity}>
-              <p className="text-xs text-[#7C8898]">
-                4 active registered nodes · 0 packet drops in last 60 minutes · Database ORM query time: 4ms.
-              </p>
+              <div className="space-y-3 font-mono text-xs text-[#E7EDF3]">
+                <div className="p-3 rounded border border-[#232B35] bg-[#0A0E13] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#7C8898]">Active Registered Nodes:</span>
+                    <span className="font-bold text-[#33D17E]">
+                      {diagnostics ? diagnostics.active_nodes : 0} / {diagnostics ? diagnostics.total_nodes : 0} Connected
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#7C8898]">Packet Drops (60 min):</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-[#E7EDF3]">
+                        {diagnostics ? diagnostics.packet_drops_last_60_min : 0}
+                      </span>
+                      {(import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false" || diagnostics?.is_simulated_packet_data) && (
+                        <span className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                          SIMULATED DATA — not live
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-[#232B35] pt-2 mt-2">
+                    <span className="text-[#7C8898]">Database ORM Query Time:</span>
+                    <span className="font-bold text-[#3FA6E0]">
+                      {diagnostics ? diagnostics.db_query_time_ms : 0}ms
+                    </span>
+                  </div>
+                </div>
+              </div>
             </Panel>
           </div>
         </main>
       </div>
 
-      {/* Confirm Dialog Modal */}
+      {/* Deactivate/Reactivate Confirm Dialog Modal */}
       <ConfirmDialog
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -517,6 +681,21 @@ export function AdminDashboard() {
         variant={confirmModal.isCurrentlyActive ? "danger" : "primary"}
         onConfirm={executeToggleDeactivate}
         onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Permanent Delete Confirm Dialog Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        title="Delete User Account"
+        message={
+          deleteModal.userToDelete
+            ? `Are you sure you want to permanently delete ${deleteModal.userToDelete.name} (${deleteModal.userToDelete.role.toUpperCase()})? This action cannot be undone.`
+            : ""
+        }
+        confirmText="Delete Account"
+        variant="danger"
+        onConfirm={executeDeleteUser}
+        onCancel={() => setDeleteModal((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   );
