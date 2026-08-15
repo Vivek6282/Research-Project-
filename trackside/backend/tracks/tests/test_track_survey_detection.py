@@ -5,18 +5,16 @@ Trackside — Unit tests for Data-Driven Track Survey Zone Detection Algorithm.
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework import status
-from rest_framework.test import APIClient
+from rest_framework.test import APITestCase
 from tracks.models import Track
 
 User = get_user_model()
 
 
-@pytest.mark.django_db
-class TestTrackSurveyZoneDetection:
+class TestTrackSurveyZoneDetection(APITestCase):
 
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        self.client = APIClient()
+    def setUp(self):
+        super().setUp()
         self.admin = User.objects.create_superuser(
             email="admin_survey_test@trackside.local",
             name="Survey Admin",
@@ -106,3 +104,4 @@ class TestTrackSurveyZoneDetection:
         ref_line = self.track.reference_line
         # Verify point 1 lat was averaged ( (10.2 + 10.4)/2 = 10.3 )
         assert ref_line[1]["lat"] == 10.3
+

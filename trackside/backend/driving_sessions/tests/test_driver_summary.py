@@ -6,7 +6,7 @@ import pytest
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from rest_framework import status
-from rest_framework.test import APIClient
+from rest_framework.test import APITestCase
 
 from tracks.models import Track, Zone
 from driving_sessions.models import Session, Alert
@@ -14,12 +14,10 @@ from driving_sessions.models import Session, Alert
 User = get_user_model()
 
 
-@pytest.mark.django_db
-class TestDriverAlertSummaryDataIsolation:
+class TestDriverAlertSummaryDataIsolation(APITestCase):
 
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        self.client = APIClient()
+    def setUp(self):
+        super().setUp()
 
         # Create two separate Driver accounts
         self.driver_a = User.objects.create_user(
@@ -147,3 +145,4 @@ class TestDriverAlertSummaryDataIsolation:
         assert data["total_sessions"] == 0
         assert data["zones"] == []
         assert data["latest_session"] is None
+
