@@ -15,7 +15,10 @@ export interface MockSessionStats {
   laps: number;
   bestLap: string;
   maxG: string;
-  isSimulated: boolean;
+  kartIsSimulated: boolean;
+  durationIsSimulated: boolean;
+  bestLapIsSimulated: boolean;
+  maxGIsSimulated: boolean;
 }
 
 export function getMockSessionStats(session: any): MockSessionStats {
@@ -25,14 +28,15 @@ export function getMockSessionStats(session: any): MockSessionStats {
   const hasRealBestLap = typeof session?.best_lap === "string" && session.best_lap.length > 0;
   const hasRealMaxG = typeof session?.max_g === "string" && session.max_g.length > 0;
 
-  const isSimulated = !(hasRealKart && hasRealDuration && hasRealLaps && hasRealBestLap && hasRealMaxG);
-
   return {
     kart: hasRealKart ? session.kart : `#${(session?.id ? session.id.charCodeAt(0) % 20 : 12) + 1}`,
     duration: hasRealDuration ? session.duration : (session?.ended_at ? "38 min" : "Active / 42 min"),
     laps: hasRealLaps ? session.laps : 24,
     bestLap: hasRealBestLap ? session.best_lap : "1:23.104",
     maxG: hasRealMaxG ? session.max_g : "1.42g",
-    isSimulated,
+    kartIsSimulated: !hasRealKart,
+    durationIsSimulated: !hasRealDuration,
+    bestLapIsSimulated: !hasRealBestLap,
+    maxGIsSimulated: !hasRealMaxG,
   };
 }

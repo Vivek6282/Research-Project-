@@ -220,7 +220,10 @@ const HISTORICAL_SESSIONS = [
               bestLap: stats.bestLap,
               maxG: stats.maxG,
               alerts: s.alert_count ?? 2,
-              isSimulated: stats.isSimulated,
+              kartIsSimulated: stats.kartIsSimulated,
+              durationIsSimulated: stats.durationIsSimulated,
+              bestLapIsSimulated: stats.bestLapIsSimulated,
+              maxGIsSimulated: stats.maxGIsSimulated,
             };
           });
           setHistoricalSessions(mapped);
@@ -985,32 +988,32 @@ const HISTORICAL_SESSIONS = [
 
                 <div className="space-y-3 font-mono">
                   <div>
-                    <div className="flex items-center justify-between text-[10px] mb-1">
-                      <span className="text-[#7C8898]">S1</span>
-                      <span className="text-[#33D17E] font-bold">{s1.toFixed(3)}</span>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="text-[#7C8898]">SECTOR 1 (HAIRPIN ENTRY)</span>
+                      <span className="text-[#33D17E] font-bold">{s1}s (-0.142)</span>
                     </div>
                     <div className="w-full h-1.5 bg-[#0A0E13] rounded-[1px] overflow-hidden">
-                      <div className="h-full bg-[#33D17E] w-[75%] transition-all duration-300" />
+                      <div className="h-full bg-[#33D17E] w-[65%]" />
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between text-[10px] mb-1">
-                      <span className="text-[#7C8898]">S2</span>
-                      <span className="text-[#33D17E] font-bold">{s2.toFixed(3)}</span>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="text-[#7C8898]">SECTOR 2 (MID CHICANE)</span>
+                      <span className="text-[#E5473C] font-bold">{s2}s (+0.310)</span>
                     </div>
                     <div className="w-full h-1.5 bg-[#0A0E13] rounded-[1px] overflow-hidden">
-                      <div className="h-full bg-[#33D17E] w-[90%] transition-all duration-300" />
+                      <div className="h-full bg-[#E5473C] w-[80%]" />
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between text-[10px] mb-1">
-                      <span className="text-[#7C8898]">S3</span>
-                      <span className="text-[#33D17E] font-bold">{s3.toFixed(3)}</span>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="text-[#7C8898]">SECTOR 3 (FINAL APEX)</span>
+                      <span className="text-[#33D17E] font-bold">{s3}s (-0.088)</span>
                     </div>
                     <div className="w-full h-1.5 bg-[#0A0E13] rounded-[1px] overflow-hidden">
-                      <div className="h-full bg-[#33D17E] w-[60%] transition-all duration-300" />
+                      <div className="h-full bg-[#33D17E] w-[55%]" />
                     </div>
                   </div>
                 </div>
@@ -1053,7 +1056,7 @@ const HISTORICAL_SESSIONS = [
                     <td className="py-2.5 px-3 text-[#E7EDF3] font-semibold">{s.driver}</td>
                     <td className="py-2.5 px-3 text-[#7C8898]">
                       {s.kart}
-                      {s.isSimulated && (
+                      {s.kartIsSimulated && (
                         <span className="text-[9px] text-[#F2A93B] bg-[#F2A93B]/10 border border-[#F2A93B]/30 px-1 py-0.2 rounded ml-1.5 font-mono uppercase">
                           est.
                         </span>
@@ -1062,7 +1065,7 @@ const HISTORICAL_SESSIONS = [
                     <td className="py-2.5 px-3 text-[#7C8898]">{s.date}</td>
                     <td className="py-2.5 px-3 text-[#E7EDF3]">
                       {s.duration}
-                      {s.isSimulated && (
+                      {s.durationIsSimulated && (
                         <span className="text-[9px] text-[#F2A93B] bg-[#F2A93B]/10 border border-[#F2A93B]/30 px-1 py-0.2 rounded ml-1.5 font-mono uppercase">
                           est.
                         </span>
@@ -1071,7 +1074,7 @@ const HISTORICAL_SESSIONS = [
                     <td className="py-2.5 px-3 text-[#33D17E]">{s.mode}</td>
                     <td className="py-2.5 px-3 text-[#E7EDF3] font-bold">
                       {s.bestLap}
-                      {s.isSimulated && (
+                      {s.bestLapIsSimulated && (
                         <span className="text-[9px] text-[#F2A93B] bg-[#F2A93B]/10 border border-[#F2A93B]/30 px-1 py-0.2 rounded ml-1.5 font-mono uppercase">
                           est.
                         </span>
@@ -1079,7 +1082,7 @@ const HISTORICAL_SESSIONS = [
                     </td>
                     <td className="py-2.5 px-3 text-[#F2A93B]">
                       {s.maxG}
-                      {s.isSimulated && (
+                      {s.maxGIsSimulated && (
                         <span className="text-[9px] text-[#F2A93B] bg-[#F2A93B]/10 border border-[#F2A93B]/30 px-1 py-0.2 rounded ml-1.5 font-mono uppercase">
                           est.
                         </span>
