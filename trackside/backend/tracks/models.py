@@ -23,9 +23,15 @@ class Track(models.Model):
         RENTAL = "rental", "Rental"
         SPRINT = "sprint", "Sprint"
 
+    # Sustained nominal cornering thresholds for sprint karts (1.0g-1.5g) vs rental karts (0.4g-0.8g)
     KART_CLASS_FLOOR = {
         KartClass.RENTAL: 0.4,
         KartClass.SPRINT: 1.0,
+    }
+
+    KART_CLASS_CEILING = {
+        KartClass.RENTAL: 0.8,
+        KartClass.SPRINT: 1.5,
     }
 
     id = models.UUIDField(
@@ -75,8 +81,19 @@ class Track(models.Model):
         """Plausible g-force floor based on kart physics for this track's kart class."""
         return self.KART_CLASS_FLOOR.get(self.kart_class, 0.4)
 
+    @property
+    def max_threshold_g(self) -> float:
+        """Plausible g-force ceiling based on kart physics for this track's kart class."""
+        return self.KART_CLASS_CEILING.get(self.kart_class, 1.5)
+
     def __str__(self):
         return self.name
+
+
+# Note on IMU Hardware Sensor Configuration:
+# Sensor hardware (IMU) should be configured/verified to measure up to at least 2.5g without clipping,
+# even though alert thresholds never exceed 1.5g — this protects against missing or misreading a genuine
+# hard hit or curb strike, distinct from the alerting logic itself.
 
 
 class Zone(models.Model):
@@ -123,7 +140,7 @@ class Zone(models.Model):
     )
 
     threshold_g = models.FloatField(
-        default=1.15,
+        default=1.50,
         help_text="Calibrated safe g-force limit for this zone — driver thresholds cannot exceed this",
     )
 
@@ -144,7 +161,15 @@ class Zone(models.Model):
             return self.track.min_threshold_g
         return 0.4
 
+    @property
+    def max_threshold_g(self) -> float:
+        """Plausible g-force ceiling for this zone derived from its track's kart class."""
+        if self.track:
+            return self.track.max_threshold_g
+        return 1.5
+
     def __str__(self):
         return f"{self.track.name} — {self.label}"
+
 
 

@@ -25,7 +25,8 @@ import { getMockSessionStats } from "../../lib/mockSessionStats";
 const USE_MOCK_TELEMETRY = import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false";
 
 const DEFAULT_SPRINT_FLOOR = 1.0;
-const DEFAULT_SPRINT_CEILING = 1.15;
+const DEFAULT_SPRINT_CEILING = 1.5;
+
 
 interface DriverProfile {
   pos: number;

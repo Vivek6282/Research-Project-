@@ -18,15 +18,17 @@ class SessionSerializer(serializers.ModelSerializer):
     driver_name = serializers.SerializerMethodField()
     track_name = serializers.SerializerMethodField()
     alert_count = serializers.SerializerMethodField()
+    default_suggested_threshold = serializers.ReadOnlyField()
 
     class Meta:
         model = Session
         fields = [
             "id", "driver", "driver_name", "track", "track_name",
             "mode", "goal_text", "goal_passed",
-            "started_at", "ended_at", "alert_count",
+            "started_at", "ended_at", "alert_count", "default_suggested_threshold",
         ]
-        read_only_fields = ["id", "driver_name", "track_name", "alert_count"]
+        read_only_fields = ["id", "driver_name", "track_name", "alert_count", "default_suggested_threshold"]
+
 
     def get_driver_name(self, obj):
         return obj.driver.name if obj.driver else None

@@ -70,6 +70,16 @@ class Session(models.Model):
         help_text="When the session ended — null if still active",
     )
 
+    @property
+    def default_suggested_threshold(self) -> float:
+        """
+        Mode-based default suggested zone threshold for coaches:
+        - Safety Mode -> 1.0g (conservative training limit)
+        - Performance Mode -> 1.5g (pushing performance limit)
+        """
+        return 1.0 if self.mode == self.Mode.SAFETY else 1.5
+
+
     class Meta:
         db_table = "sessions"
         ordering = ["-started_at"]
