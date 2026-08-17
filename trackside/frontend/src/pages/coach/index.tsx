@@ -965,9 +965,9 @@ const HISTORICAL_SESSIONS = [
                   })}
                 </div>
               </div>
-             </div>
 
               {/* SECTOR DELTAS Panel */}
+
               <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
                 <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
                   <span className="text-xs font-bold text-[#E7EDF3]">
