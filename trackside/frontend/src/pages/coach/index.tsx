@@ -20,6 +20,8 @@ import { SignalStrip } from "../../components/ui/signal-strip";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { api } from "../../lib/api";
 import { startMockTelemetryEngine } from "../../lib/mockTelemetry";
+import { getMockSessionStats } from "../../lib/mockSessionStats";
+
 
 const USE_MOCK_TELEMETRY = import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false";
 
@@ -204,19 +206,23 @@ const HISTORICAL_SESSIONS = [
         const sessionList = Array.isArray(res) ? res : res.results || [];
         if (sessionList.length > 0) {
           setActiveSessionId(sessionList[0].id);
-          const mapped = sessionList.map((s: any) => ({
-            id: s.id.length > 8 ? `SESS-${s.id.slice(0, 4).toUpperCase()}` : s.id,
-            rawId: s.id,
-            driver: s.driver_name || "Driver",
-            kart: `#${s.kart || "12"}`,
-            date: s.started_at ? new Date(s.started_at).toISOString().split("T")[0] : "2026-08-08",
-            duration: s.ended_at ? "38 min" : "Active / 42 min",
-            mode: s.mode ? s.mode.charAt(0).toUpperCase() + s.mode.slice(1) : "Performance",
-            laps: s.laps || 24,
-            bestLap: s.best_lap || "1:23.104",
-            maxG: s.max_g || "1.42g",
-            alerts: s.alert_count ?? 2,
-          }));
+          const mapped = sessionList.map((s: any) => {
+            const stats = getMockSessionStats(s);
+            return {
+              id: s.id.length > 8 ? `SESS-${s.id.slice(0, 4).toUpperCase()}` : s.id,
+              rawId: s.id,
+              driver: s.driver_name || "Driver",
+              kart: stats.kart,
+              date: s.started_at ? new Date(s.started_at).toISOString().split("T")[0] : "2026-08-08",
+              duration: stats.duration,
+              mode: s.mode ? s.mode.charAt(0).toUpperCase() + s.mode.slice(1) : "Performance",
+              laps: stats.laps,
+              bestLap: stats.bestLap,
+              maxG: stats.maxG,
+              alerts: s.alert_count ?? 2,
+              isSimulated: stats.isSimulated,
+            };
+          });
           setHistoricalSessions(mapped);
         }
       } catch (err) {
@@ -225,6 +231,7 @@ const HISTORICAL_SESSIONS = [
     }
     loadSessions();
   }, []);
+
 
   // 4. Fetch Notes for Active Session from API
   useEffect(() => {
@@ -1044,16 +1051,45 @@ const HISTORICAL_SESSIONS = [
                   <tr key={s.id} className="border-b border-[#232B35]/60 hover:bg-[#161D26]">
                     <td className="py-2.5 px-3 font-bold text-[#3FA6E0]">{s.id}</td>
                     <td className="py-2.5 px-3 text-[#E7EDF3] font-semibold">{s.driver}</td>
-                    <td className="py-2.5 px-3 text-[#7C8898]">{s.kart}</td>
+                    <td className="py-2.5 px-3 text-[#7C8898]">
+                      {s.kart}
+                      {s.isSimulated && (
+                        <span className="text-[9px] text-[#F2A93B] bg-[#F2A93B]/10 border border-[#F2A93B]/30 px-1 py-0.2 rounded ml-1.5 font-mono uppercase">
+                          est.
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3 text-[#7C8898]">{s.date}</td>
-                    <td className="py-2.5 px-3 text-[#E7EDF3]">{s.duration}</td>
+                    <td className="py-2.5 px-3 text-[#E7EDF3]">
+                      {s.duration}
+                      {s.isSimulated && (
+                        <span className="text-[9px] text-[#F2A93B] bg-[#F2A93B]/10 border border-[#F2A93B]/30 px-1 py-0.2 rounded ml-1.5 font-mono uppercase">
+                          est.
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3 text-[#33D17E]">{s.mode}</td>
-                    <td className="py-2.5 px-3 text-[#E7EDF3] font-bold">{s.bestLap}</td>
-                    <td className="py-2.5 px-3 text-[#F2A93B]">{s.maxG}</td>
+                    <td className="py-2.5 px-3 text-[#E7EDF3] font-bold">
+                      {s.bestLap}
+                      {s.isSimulated && (
+                        <span className="text-[9px] text-[#F2A93B] bg-[#F2A93B]/10 border border-[#F2A93B]/30 px-1 py-0.2 rounded ml-1.5 font-mono uppercase">
+                          est.
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-[#F2A93B]">
+                      {s.maxG}
+                      {s.isSimulated && (
+                        <span className="text-[9px] text-[#F2A93B] bg-[#F2A93B]/10 border border-[#F2A93B]/30 px-1 py-0.2 rounded ml-1.5 font-mono uppercase">
+                          est.
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3 text-[#E5473C] font-bold">{s.alerts}</td>
                   </tr>
                 ))}
               </tbody>
+
             </table>
           </div>
         </main>
