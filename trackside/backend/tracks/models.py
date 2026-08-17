@@ -23,6 +23,11 @@ class Track(models.Model):
         RENTAL = "rental", "Rental"
         SPRINT = "sprint", "Sprint"
 
+    KART_CLASS_FLOOR = {
+        KartClass.RENTAL: 0.4,
+        KartClass.SPRINT: 1.0,
+    }
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -64,6 +69,11 @@ class Track(models.Model):
     class Meta:
         db_table = "tracks"
         ordering = ["name"]
+
+    @property
+    def min_threshold_g(self) -> float:
+        """Plausible g-force floor based on kart physics for this track's kart class."""
+        return self.KART_CLASS_FLOOR.get(self.kart_class, 0.4)
 
     def __str__(self):
         return self.name
@@ -127,6 +137,14 @@ class Zone(models.Model):
         db_table = "zones"
         ordering = ["track", "label"]
 
+    @property
+    def min_threshold_g(self) -> float:
+        """Plausible g-force floor for this zone derived from its track's kart class."""
+        if self.track:
+            return self.track.min_threshold_g
+        return 0.4
+
     def __str__(self):
         return f"{self.track.name} — {self.label}"
+
 

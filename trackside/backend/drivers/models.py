@@ -68,15 +68,25 @@ class DriverZoneThreshold(models.Model):
 
     def clean(self):
         """
-        Validate that the custom threshold doesn't exceed the zone's
-        calibrated safe limit. This runs on save — also enforced in
-        the serializer for API requests.
+        Validate that the custom threshold:
+        1. Does not exceed the zone's calibrated limit (upper bound)
+        2. Is not below the track's kart_class floor (lower bound)
         """
-        if self.zone and self.custom_threshold_g > self.zone.threshold_g:
-            raise ValidationError(
-                f"Custom threshold ({self.custom_threshold_g}g) cannot exceed "
-                f"the zone's calibrated limit ({self.zone.threshold_g}g)."
-            )
+        if self.zone:
+            if self.custom_threshold_g > self.zone.threshold_g:
+                raise ValidationError(
+                    f"Custom threshold ({self.custom_threshold_g}g) cannot exceed "
+                    f"the zone's calibrated limit ({self.zone.threshold_g}g)."
+                )
+
+            floor_g = self.zone.min_threshold_g
+            if self.custom_threshold_g < floor_g:
+                kart_class_label = self.zone.track.kart_class if (self.zone.track and self.zone.track.kart_class) else "sprint"
+                raise ValidationError(
+                    f"Custom threshold ({self.custom_threshold_g}g) is below the plausible floor "
+                    f"({floor_g}g) for {kart_class_label}-class karts."
+                )
+
 
     def save(self, *args, **kwargs):
         """Run validation before saving."""

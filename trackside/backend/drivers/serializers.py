@@ -42,10 +42,12 @@ class DriverZoneThresholdSerializer(serializers.ModelSerializer):
         return obj.set_by.name if obj.set_by else None
 
     def validate(self, attrs):
+
         """
-        Validate that the custom threshold doesn't exceed the zone's
-        calibrated limit. Uses select_for_update() inside a transaction
-        to prevent race conditions (requirement #7).
+        Validate that the custom threshold:
+        1. Does not exceed the zone's calibrated limit (upper bound)
+        2. Is not below the track's kart_class floor (lower bound)
+        Uses select_for_update() inside a transaction lock.
         """
         zone = attrs.get("zone")
         custom_threshold = attrs.get("custom_threshold_g")
@@ -60,4 +62,13 @@ class DriverZoneThresholdSerializer(serializers.ModelSerializer):
                         f"the zone's calibrated limit ({locked_zone.threshold_g}g)."
                     )
 
+                floor_g = locked_zone.min_threshold_g
+                if custom_threshold < floor_g:
+                    kart_class_label = locked_zone.track.kart_class if (locked_zone.track and locked_zone.track.kart_class) else "sprint"
+                    raise serializers.ValidationError(
+                        f"Custom threshold ({custom_threshold}g) is below the plausible floor "
+                        f"({floor_g}g) for {kart_class_label}-class karts."
+                    )
+
         return attrs
+

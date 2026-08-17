@@ -22,8 +22,10 @@ import { api } from "../../lib/api";
 import { startMockTelemetryEngine } from "../../lib/mockTelemetry";
 import { getMockSessionStats } from "../../lib/mockSessionStats";
 
-
 const USE_MOCK_TELEMETRY = import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false";
+
+const DEFAULT_SPRINT_FLOOR = 1.0;
+const DEFAULT_SPRINT_CEILING = 1.15;
 
 interface DriverProfile {
   pos: number;
@@ -32,7 +34,6 @@ interface DriverProfile {
   lapTime: string;
   session: string;
   gap: string;
-  inPit?: boolean;
   baseSpeed: number;
   baseHr: number;
   baseSpo2: number;
@@ -43,14 +44,15 @@ interface DriverProfile {
   statusColor: string;
   alerts: number;
   customThreshold: number;
+  inPit?: boolean;
 }
 
 const DRIVERS: DriverProfile[] = [
-  { pos: 1, kart: "12", name: "Marco Ferretti", lapTime: "1:24.312", session: "Race Sim 3", gap: "---", baseSpeed: 82, baseHr: 142, baseSpo2: 97, baseBreathing: 22, stressIndex: 0.62, hydration: 88, status: "LOW", statusColor: "#33D17E", alerts: 3, customThreshold: 1.15 },
-  { pos: 2, kart: "7", name: "Lena Hartmann", lapTime: "1:24.688", session: "Race Sim 3", gap: "+0.436", baseSpeed: 88, baseHr: 154, baseSpo2: 98, baseBreathing: 24, stressIndex: 0.74, hydration: 85, status: "MODERATE", statusColor: "#F2A93B", alerts: 5, customThreshold: 1.10 },
-  { pos: 3, kart: "3", name: "Kai Nakamura", lapTime: "1:25.902", session: "Race Sim 3", gap: "+0.773", baseSpeed: 79, baseHr: 136, baseSpo2: 98, baseBreathing: 20, stressIndex: 0.55, hydration: 91, status: "OPTIMAL", statusColor: "#33D17E", alerts: 1, customThreshold: 1.05 },
-  { pos: 4, kart: "18", name: "Sofia Reyes", lapTime: "1:26.044", session: "PITS", gap: "+1.106", inPit: true, baseSpeed: 0, baseHr: 102, baseSpo2: 99, baseBreathing: 16, stressIndex: 0.32, hydration: 94, status: "IN PIT", statusColor: "#F2A93B", alerts: 0, customThreshold: 1.15 },
-  { pos: 5, kart: "5", name: "Ethan Cole", lapTime: "1:26.517", session: "Race Sim 3", gap: "+1.798", baseSpeed: 76, baseHr: 168, baseSpo2: 95, baseBreathing: 27, stressIndex: 0.83, hydration: 82, status: "HIGH STRESS", statusColor: "#E5473C", alerts: 8, customThreshold: 1.00 },
+  { pos: 1, kart: "12", name: "Lucas Vance", lapTime: "1:24.312", session: "Race Sim 3", gap: "---", baseSpeed: 88, baseHr: 154, baseSpo2: 98, baseBreathing: 24, stressIndex: 0.62, hydration: 90, status: "OPTIMAL", statusColor: "#33D17E", alerts: 0, customThreshold: DEFAULT_SPRINT_CEILING },
+  { pos: 2, kart: "7", name: "Lena Hartmann", lapTime: "1:24.688", session: "Qualifying 2", gap: "+0.376", baseSpeed: 84, baseHr: 162, baseSpo2: 97, baseBreathing: 26, stressIndex: 0.74, hydration: 85, status: "ELEVATED STRESS", statusColor: "#F2A93B", alerts: 2, customThreshold: 1.10 },
+  { pos: 3, kart: "3", name: "Kai Nakamura", lapTime: "1:25.902", session: "Practice 1", gap: "+1.590", baseSpeed: 80, baseHr: 148, baseSpo2: 99, baseBreathing: 21, stressIndex: 0.45, hydration: 92, status: "OPTIMAL", statusColor: "#33D17E", alerts: 1, customThreshold: 1.05 },
+  { pos: 4, kart: "18", name: "Marcus Brody", lapTime: "1:26.114", session: "Race Sim 3", gap: "+1.802", baseSpeed: 78, baseHr: 171, baseSpo2: 96, baseBreathing: 28, stressIndex: 0.81, hydration: 78, status: "HIGH FATIGUE", statusColor: "#E5473C", alerts: 4, customThreshold: DEFAULT_SPRINT_CEILING, inPit: true },
+  { pos: 5, kart: "5", name: "Ethan Cole", lapTime: "1:26.517", session: "Practice 2", gap: "+2.205", baseSpeed: 76, baseHr: 158, baseSpo2: 97, baseBreathing: 23, stressIndex: 0.58, hydration: 88, status: "OPTIMAL", statusColor: "#33D17E", alerts: 0, customThreshold: DEFAULT_SPRINT_FLOOR },
 ];
 
 interface SessionNote {
@@ -78,17 +80,17 @@ const HISTORICAL_SESSIONS = [
   const [drivers, setDrivers] = useState<DriverProfile[]>(DRIVERS);
   const [selectedKart, setSelectedKart] = useState("12");
   const [thresholds, setThresholds] = useState<Record<string, number>>({
-    "12": 1.15, "7": 1.10, "3": 1.05, "18": 1.15, "5": 1.00,
+    "12": DEFAULT_SPRINT_CEILING, "7": 1.10, "3": 1.05, "18": DEFAULT_SPRINT_CEILING, "5": DEFAULT_SPRINT_FLOOR,
   });
 
   const [historicalSessions, setHistoricalSessions] = useState<any[]>(HISTORICAL_SESSIONS);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
-  const [zones, setZones] = useState<{ id: string; label: string; corner_type?: string }[]>([
-    { id: "z1", label: "Turn 4 Hairpin", corner_type: "hairpin" },
-    { id: "z2", label: "Sector 2 Chicane", corner_type: "chicane" },
-    { id: "z3", label: "Main Straight", corner_type: "straight" },
+  const [zones, setZones] = useState<{ id: string; label: string; corner_type?: string; threshold_g?: number; min_threshold_g?: number }[]>([
+    { id: "z1", label: "Turn 4 Hairpin", corner_type: "hairpin", threshold_g: DEFAULT_SPRINT_CEILING, min_threshold_g: DEFAULT_SPRINT_FLOOR },
+    { id: "z2", label: "Sector 2 Chicane", corner_type: "chicane", threshold_g: DEFAULT_SPRINT_CEILING, min_threshold_g: DEFAULT_SPRINT_FLOOR },
+    { id: "z3", label: "Main Straight", corner_type: "straight", threshold_g: DEFAULT_SPRINT_CEILING, min_threshold_g: DEFAULT_SPRINT_FLOOR },
   ]);
   const [selectedZoneId, setSelectedZoneId] = useState<string>("z1");
   const [isCreatingZone, setIsCreatingZone] = useState<boolean>(false);
@@ -102,7 +104,16 @@ const HISTORICAL_SESSIONS = [
   const [rosterMap, setRosterMap] = useState<Record<string, { current_g: number; active_threshold: number; stage: string }>>({});
 
   const selectedDriver = drivers.find((d) => d.kart === selectedKart) || drivers[0] || DRIVERS[0];
-  const currentThreshold = thresholds[selectedKart] || 1.15;
+
+  const currentZoneObj = zones.find((z) => z.id === selectedZoneId) || zones[0];
+  const sliderMin = currentZoneObj?.min_threshold_g ?? DEFAULT_SPRINT_FLOOR;
+  const sliderMax = currentZoneObj?.threshold_g ?? DEFAULT_SPRINT_CEILING;
+
+  // Connect Safety vs Performance Mode distinction:
+  // Safety Mode drivers default toward lower end (sliderMin, e.g. 1.0g); Performance Mode drivers default toward upper end (sliderMax, e.g. 1.15g).
+  const selectedDriverMode = (selectedDriver?.session || "").toLowerCase().includes("safety") ? "Safety" : "Performance";
+  const modeDefaultThreshold = selectedDriverMode === "Safety" ? sliderMin : sliderMax;
+  const currentThreshold = thresholds[selectedKart] ?? modeDefaultThreshold;
 
   // Poll GET /api/sessions/roster-status/ every 2.5s for Timing Tower signal strips
   useEffect(() => {
@@ -117,7 +128,7 @@ const HISTORICAL_SESSIONS = [
             if (item.kart) {
               map[item.kart] = {
                 current_g: item.current_g || 0.85,
-                active_threshold: item.active_threshold || 1.15,
+                active_threshold: item.active_threshold || DEFAULT_SPRINT_CEILING,
                 stage: item.stage || "nominal",
               };
             }
@@ -158,7 +169,7 @@ const HISTORICAL_SESSIONS = [
             status: "OPTIMAL",
             statusColor: "#33D17E",
             alerts: idx * 2,
-            customThreshold: 1.15,
+            customThreshold: DEFAULT_SPRINT_CEILING,
           }));
           setDrivers(mapped);
           if (mapped[0]) setSelectedKart(mapped[0].kart);
@@ -186,6 +197,8 @@ const HISTORICAL_SESSIONS = [
               id: z.id,
               label: z.label || z.name || `Zone ${z.order_number || z.id}`,
               corner_type: z.corner_type || "other",
+              threshold_g: typeof z.threshold_g === "number" ? z.threshold_g : DEFAULT_SPRINT_CEILING,
+              min_threshold_g: typeof z.min_threshold_g === "number" ? z.min_threshold_g : DEFAULT_SPRINT_FLOOR,
             }));
             setZones(mappedZones);
             setSelectedZoneId(mappedZones[0].id);
@@ -197,6 +210,7 @@ const HISTORICAL_SESSIONS = [
     }
     loadZones();
   }, []);
+
 
   // 3. Fetch Historical Sessions & Active Session ID from API
   useEffect(() => {
@@ -756,29 +770,29 @@ const HISTORICAL_SESSIONS = [
                     <span className="text-xs font-bold text-[#E7EDF3]">CUSTOM ZONE THRESHOLD CONTROL</span>
                   </div>
                   <span className="text-[10px] text-[#3FA6E0] font-bold">
-                    SERVER VALIDATED ≤ ZONE DEFAULT (1.15g)
+                    SERVER VALIDATED ≤ ZONE DEFAULT ({sliderMax.toFixed(2)}g)
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center font-mono">
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="text-[#7C8898]">ZONE: TURN 4 HAIRPIN</span>
-                      <span className="text-[#E7EDF3] font-bold">DRIVER: {selectedDriver.name.toUpperCase()}</span>
+                      <span className="text-[#7C8898]">ZONE: {currentZoneObj ? currentZoneObj.label.toUpperCase() : "TURN 4 HAIRPIN"}</span>
+                      <span className="text-[#E7EDF3] font-bold">DRIVER: {selectedDriver.name.toUpperCase()} ({selectedDriverMode.toUpperCase()} MODE)</span>
                     </div>
                     <input
                       type="range"
-                      min="0.60"
-                      max="1.15"
+                      min={sliderMin}
+                      max={sliderMax}
                       step="0.05"
                       value={currentThreshold}
                       onChange={(e) => setThresholds({ ...thresholds, [selectedKart]: Number(e.target.value) })}
                       className="w-full accent-[#3FA6E0] cursor-pointer"
                     />
                     <div className="flex justify-between text-[10px] text-[#7C8898] mt-1">
-                      <span>0.60g (Conservative)</span>
-                      <span>0.85g</span>
-                      <span>1.15g (Zone Max)</span>
+                      <span>{sliderMin.toFixed(2)}g (Conservative)</span>
+                      <span>{((sliderMin + sliderMax) / 2).toFixed(2)}g</span>
+                      <span>{sliderMax.toFixed(2)}g (Zone Max)</span>
                     </div>
                   </div>
 
@@ -796,6 +810,7 @@ const HISTORICAL_SESSIONS = [
                   </div>
                 </div>
               </div>
+
 
               {/* Coach Session Notes Recorder Card */}
               <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-4 font-mono">
