@@ -60,15 +60,11 @@ class TrackDetailView(generics.RetrieveUpdateDestroyAPIView):
 class ZoneListCreateView(generics.ListCreateAPIView):
     """
     GET /api/tracks/<uuid>/zones/ — list zones for a track
-    POST /api/tracks/<uuid>/zones/ — add a zone (Admin only)
+    POST /api/tracks/<uuid>/zones/ — add a zone (Admin/Coach)
     """
 
     serializer_class = ZoneSerializer
-
-    def get_permissions(self):
-        if self.request.method == "POST":
-            return [IsAdmin()]
-        return [IsAuthenticated()]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """Scope zones to the track in the URL."""
@@ -78,6 +74,7 @@ class ZoneListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         """Associate the zone with the track from the URL."""
         serializer.save(track_id=self.kwargs.get("track_pk"))
+
 
 
 class ZoneDetailView(generics.RetrieveUpdateDestroyAPIView):

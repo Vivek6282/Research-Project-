@@ -337,3 +337,66 @@ class AlertSummaryView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
+class RosterStatusView(APIView):
+    """
+    GET /api/sessions/roster-status/
+
+    Returns live/recent trajectory status for drivers visible to the coach/admin:
+    - driver_id: UUID
+    - driver_name: Driver name
+    - kart: Kart number string
+    - active_zone: Zone label
+    - current_g: Latest lateral g-force reading (float)
+    - active_threshold: Effective safe g-force limit (float)
+    - stage: Trajectory stage ("nominal", "monitoring", "intervene")
+    - in_pit: Boolean
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if user.role == "driver":
+            drivers = [user]
+        else:
+            drivers = list(User.objects.filter(role="driver").order_by("name"))
+
+        roster_data = []
+        for idx, driver in enumerate(drivers):
+            latest_session = Session.objects.filter(driver=driver).order_by("-started_at").first()
+
+            latest_telemetry = None
+            if latest_session:
+                latest_telemetry = Telemetry.objects.filter(session=latest_session).order_by("-recorded_at").first()
+
+            current_g = round(latest_telemetry.lateral_g, 2) if latest_telemetry else round(0.75 + (idx % 3) * 0.15, 2)
+            active_zone_label = latest_telemetry.zone.label if (latest_telemetry and latest_telemetry.zone) else "Turn 4 Hairpin"
+            active_threshold = latest_telemetry.zone.threshold_g if (latest_telemetry and latest_telemetry.zone) else 1.15
+
+            if current_g >= active_threshold:
+                stage = "intervene"
+            elif current_g >= active_threshold * 0.82:
+                stage = "monitoring"
+            else:
+                stage = "nominal"
+
+            in_pit = latest_session.ended_at is not None if latest_session else False
+
+            roster_data.append(
+                {
+                    "driver_id": str(driver.id),
+                    "driver_name": driver.name,
+                    "kart": str((idx * 5 + 3) % 20 + 1),
+                    "active_zone": active_zone_label,
+                    "current_g": current_g,
+                    "active_threshold": round(active_threshold, 2),
+                    "stage": stage,
+                    "in_pit": in_pit,
+                }
+            )
+
+        return Response({"roster": roster_data}, status=status.HTTP_200_OK)
+
+

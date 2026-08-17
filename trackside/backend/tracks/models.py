@@ -79,6 +79,13 @@ class Zone(models.Model):
     than) the zone's calibrated threshold.
     """
 
+    class CornerType(models.TextChoices):
+        HAIRPIN = "hairpin", "Hairpin"
+        SWEEPER = "sweeper", "Sweeper"
+        CHICANE = "chicane", "Chicane"
+        STRAIGHT = "straight", "Straight"
+        OTHER = "other", "Other"
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -97,7 +104,16 @@ class Zone(models.Model):
         help_text="Human-readable name (e.g. 'Hairpin', 'Sweeper', 'Chicane')",
     )
 
+    corner_type = models.CharField(
+        max_length=20,
+        choices=CornerType.choices,
+        default=CornerType.OTHER,
+        blank=True,
+        help_text="Fixed category classification for corner type",
+    )
+
     threshold_g = models.FloatField(
+        default=1.15,
         help_text="Calibrated safe g-force limit for this zone — driver thresholds cannot exceed this",
     )
 
@@ -113,3 +129,4 @@ class Zone(models.Model):
 
     def __str__(self):
         return f"{self.track.name} — {self.label}"
+

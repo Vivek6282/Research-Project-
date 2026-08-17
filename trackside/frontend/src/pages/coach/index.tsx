@@ -71,9 +71,7 @@ const HISTORICAL_SESSIONS = [
   { id: "SESS-1091", driver: "Lena Hartmann", kart: "#07", date: "2026-08-08", duration: "38 min", mode: "Performance", laps: 24, bestLap: "1:24.688", maxG: "1.38g", alerts: 5 },
   { id: "SESS-1090", driver: "Kai Nakamura", kart: "#03", date: "2026-08-07", duration: "45 min", mode: "Safety", laps: 30, bestLap: "1:25.902", maxG: "1.18g", alerts: 1 },
   { id: "SESS-1089", driver: "Ethan Cole", kart: "#05", date: "2026-08-07", duration: "30 min", mode: "Performance", laps: 18, bestLap: "1:26.517", maxG: "1.52g", alerts: 8 },
-];
-
-export function CoachDashboard() {
+];export function CoachDashboard() {
   const [activeTab, setActiveTab] = useState<"live" | "history">("live");
   const [drivers, setDrivers] = useState<DriverProfile[]>(DRIVERS);
   const [selectedKart, setSelectedKart] = useState("12");
@@ -84,18 +82,55 @@ export function CoachDashboard() {
   const [historicalSessions, setHistoricalSessions] = useState<any[]>(HISTORICAL_SESSIONS);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
-  const [zones, setZones] = useState<{ id: string; label: string }[]>([
-    { id: "z1", label: "Turn 4 Hairpin" },
-    { id: "z2", label: "Sector 2 Chicane" },
-    { id: "z3", label: "Main Straight" },
+  const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
+  const [zones, setZones] = useState<{ id: string; label: string; corner_type?: string }[]>([
+    { id: "z1", label: "Turn 4 Hairpin", corner_type: "hairpin" },
+    { id: "z2", label: "Sector 2 Chicane", corner_type: "chicane" },
+    { id: "z3", label: "Main Straight", corner_type: "straight" },
   ]);
-  const [selectedZone, setSelectedZone] = useState("Turn 4 Hairpin");
+  const [selectedZoneId, setSelectedZoneId] = useState<string>("z1");
+  const [isCreatingZone, setIsCreatingZone] = useState<boolean>(false);
+  const [newZoneName, setNewZoneName] = useState<string>("");
+  const [newCornerType, setNewCornerType] = useState<string>("hairpin");
+  const [isSavingZone, setIsSavingZone] = useState<boolean>(false);
 
   const [notes, setNotes] = useState<SessionNote[]>(INITIAL_NOTES);
   const [newNoteText, setNewNoteText] = useState("");
 
+  const [rosterMap, setRosterMap] = useState<Record<string, { current_g: number; active_threshold: number; stage: string }>>({});
+
   const selectedDriver = drivers.find((d) => d.kart === selectedKart) || drivers[0] || DRIVERS[0];
   const currentThreshold = thresholds[selectedKart] || 1.15;
+
+  // Poll GET /api/sessions/roster-status/ every 2.5s for Timing Tower signal strips
+  useEffect(() => {
+    if (activeTab !== "live") return;
+
+    async function fetchRosterStatus() {
+      try {
+        const res: any = await api.get("/api/sessions/roster-status/");
+        if (res && Array.isArray(res.roster)) {
+          const map: Record<string, { current_g: number; active_threshold: number; stage: string }> = {};
+          res.roster.forEach((item: any) => {
+            if (item.kart) {
+              map[item.kart] = {
+                current_g: item.current_g || 0.85,
+                active_threshold: item.active_threshold || 1.15,
+                stage: item.stage || "nominal",
+              };
+            }
+          });
+          setRosterMap(map);
+        }
+      } catch (err) {
+        console.warn("Roster status polling error:", err);
+      }
+    }
+
+    fetchRosterStatus();
+    const interval = setInterval(fetchRosterStatus, 2500);
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   // 1. Fetch Drivers Roster from API
   useEffect(() => {
@@ -141,15 +176,17 @@ export function CoachDashboard() {
         const trackList = Array.isArray(tracksRes) ? tracksRes : tracksRes.results || [];
         if (trackList.length > 0) {
           const trackId = trackList[0].id;
+          setActiveTrackId(trackId);
           const zonesRes = await api.get<any>(`/api/tracks/${trackId}/zones/`);
           const zoneList = Array.isArray(zonesRes) ? zonesRes : zonesRes.results || [];
           if (zoneList.length > 0) {
             const mappedZones = zoneList.map((z: any) => ({
               id: z.id,
-              label: z.name || z.label || `Zone ${z.order_number || z.id}`,
+              label: z.label || z.name || `Zone ${z.order_number || z.id}`,
+              corner_type: z.corner_type || "other",
             }));
             setZones(mappedZones);
-            setSelectedZone(mappedZones[0].label);
+            setSelectedZoneId(mappedZones[0].id);
           }
         }
       } catch (err) {
@@ -202,7 +239,7 @@ export function CoachDashboard() {
             timestamp: n.created_at ? new Date(n.created_at).toLocaleTimeString("en-GB") : new Date().toLocaleTimeString("en-GB"),
             driverName: n.coach_name || selectedDriver.name,
             kart: selectedDriver.kart,
-            zone: n.zone_label || selectedZone,
+            zone: n.zone_label || "General",
             lap: "Lap 5",
             text: n.note_text || n.text || "",
           }));
@@ -346,23 +383,99 @@ export function CoachDashboard() {
     return () => stopMock();
   }, [selectedDriver]);
 
+  // Handle Zone Selection Change in Session Notes
+  const handleZoneSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (val === "__new__") {
+      setIsCreatingZone(true);
+      setSelectedZoneId("__new__");
+    } else {
+      setIsCreatingZone(false);
+      setSelectedZoneId(val);
+    }
+  };
+
+  // Handle Creating a New Zone via POST /api/tracks/<trackId>/zones/
+  const handleCreateZone = async () => {
+    if (!newZoneName.trim()) return null;
+    const name = newZoneName.trim();
+    setIsSavingZone(true);
+    try {
+      let targetTrackId = activeTrackId;
+      if (!targetTrackId) {
+        const tracksRes = await api.get<any>("/api/tracks/");
+        const trackList = Array.isArray(tracksRes) ? tracksRes : tracksRes.results || [];
+        if (trackList.length > 0) {
+          targetTrackId = trackList[0].id;
+          setActiveTrackId(targetTrackId);
+        }
+      }
+
+      if (targetTrackId) {
+        const res: any = await api.post(`/api/tracks/${targetTrackId}/zones/`, {
+          label: name,
+          corner_type: newCornerType,
+          threshold_g: 1.15,
+        });
+
+        if (res && res.id) {
+          const createdZone = {
+            id: res.id,
+            label: res.label || name,
+            corner_type: res.corner_type || newCornerType,
+          };
+          setZones((prev) => [...prev, createdZone]);
+          setSelectedZoneId(createdZone.id);
+          setIsCreatingZone(false);
+          setNewZoneName("");
+          return createdZone;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed creating zone via API, adding locally:", err);
+    } finally {
+      setIsSavingZone(false);
+    }
+
+    const localZone = {
+      id: `z-${Date.now()}`,
+      label: name,
+      corner_type: newCornerType,
+    };
+    setZones((prev) => [...prev, localZone]);
+    setSelectedZoneId(localZone.id);
+    setIsCreatingZone(false);
+    setNewZoneName("");
+    return localZone;
+  };
+
   // Handle adding session note via POST /api/sessions/<uuid>/notes/
   const handleAddNote = async () => {
     if (!newNoteText.trim()) return;
 
+    let currentZoneId = selectedZoneId;
+    if (currentZoneId === "__new__") {
+      const created = await handleCreateZone();
+      if (created) {
+        currentZoneId = created.id;
+      }
+    }
+
+    const selectedZoneObj = zones.find((z) => z.id === currentZoneId) || zones[0];
     const noteText = newNoteText.trim();
 
     if (activeSessionId) {
       try {
         const res = await api.post<any>(`/api/sessions/${activeSessionId}/notes/`, {
           note_text: noteText,
+          zone: selectedZoneObj ? selectedZoneObj.id : undefined,
         });
         const createdNote: SessionNote = {
           id: res.id || `n-${Date.now()}`,
           timestamp: new Date().toLocaleTimeString("en-GB"),
           driverName: selectedDriver.name,
           kart: selectedDriver.kart,
-          zone: selectedZone,
+          zone: selectedZoneObj ? selectedZoneObj.label : "General",
           lap: "Lap 7",
           text: noteText,
         };
@@ -379,7 +492,7 @@ export function CoachDashboard() {
       timestamp: new Date().toLocaleTimeString("en-GB"),
       driverName: selectedDriver.name,
       kart: selectedDriver.kart,
-      zone: selectedZone,
+      zone: selectedZoneObj ? selectedZoneObj.label : "General",
       lap: "Lap 7",
       text: noteText,
     };
@@ -527,7 +640,7 @@ export function CoachDashboard() {
                     <span>20</span>
                   </div>
 
-                  <div className="absolute left-9 right-4 top-[50%] border-b border-dashed border-[#33D17E]/50" />
+                  <div className="absolute left-9 top-[50%] border-b border-dashed border-[#33D17E]/50" />
                   <div className="absolute left-9 top-[4px] right-4 bottom-7">
                     <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 160">
                       <line x1="0" y1="0" x2="800" y2="0" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
@@ -684,33 +797,79 @@ export function CoachDashboard() {
                   <span className="text-[10px] text-[#7C8898]">ACTIVE: {selectedDriver.name} (#{selectedDriver.kart})</span>
                 </div>
 
-                <div className="flex gap-2 mb-3">
-                  <select
-                    value={selectedZone}
-                    onChange={(e) => setSelectedZone(e.target.value)}
-                    className="bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-2 py-1.5 rounded-[2px] outline-none"
-                  >
-                    {zones.map((z) => (
-                      <option key={z.id} value={z.label}>
-                        {z.label}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-2 mb-3">
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedZoneId}
+                      onChange={handleZoneSelectChange}
+                      className="bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-2 py-1.5 rounded-[2px] outline-none cursor-pointer"
+                    >
+                      {zones.map((z) => (
+                        <option key={z.id} value={z.id}>
+                          {z.label} {z.corner_type ? `(${z.corner_type})` : ""}
+                        </option>
+                      ))}
+                      <option value="__new__">+ New Zone...</option>
+                    </select>
 
-                  <input
-                    type="text"
-                    placeholder="Record coach observation for this lap/zone..."
-                    value={newNoteText}
-                    onChange={(e) => setNewNoteText(e.target.value)}
-                    className="flex-1 bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-1.5 rounded-[2px] outline-none focus:border-[#3FA6E0]"
-                  />
+                    <input
+                      type="text"
+                      placeholder="Record coach observation for this lap/zone..."
+                      value={newNoteText}
+                      onChange={(e) => setNewNoteText(e.target.value)}
+                      className="flex-1 bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-1.5 rounded-[2px] outline-none focus:border-[#3FA6E0]"
+                    />
 
-                  <button
-                    onClick={handleAddNote}
-                    className="bg-[#3FA6E0] text-[#0A0E13] font-bold text-xs px-4 py-1.5 rounded-[2px] hover:bg-[#3FA6E0]/90 cursor-pointer"
-                  >
-                    SAVE NOTE
-                  </button>
+                    <button
+                      onClick={handleAddNote}
+                      className="bg-[#3FA6E0] text-[#0A0E13] font-bold text-xs px-4 py-1.5 rounded-[2px] hover:bg-[#3FA6E0]/90 cursor-pointer"
+                    >
+                      SAVE NOTE
+                    </button>
+                  </div>
+
+                  {/* Extensible New Zone Creation Form */}
+                  {isCreatingZone && (
+                    <div className="flex items-center gap-2 p-2 bg-[#161D26] border border-[#3FA6E0]/50 rounded-[2px] text-xs animate-fade-in">
+                      <span className="text-[#3FA6E0] font-bold">NEW ZONE:</span>
+                      <input
+                        type="text"
+                        placeholder="Zone Name (e.g. Turn 7 Kink)"
+                        value={newZoneName}
+                        onChange={(e) => setNewZoneName(e.target.value)}
+                        className="bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] text-xs px-2 py-1 rounded-[2px] flex-1 outline-none focus:border-[#3FA6E0]"
+                      />
+                      <select
+                        value={newCornerType}
+                        onChange={(e) => setNewCornerType(e.target.value)}
+                        className="bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] text-xs px-2 py-1 rounded-[2px] outline-none cursor-pointer"
+                      >
+                        <option value="hairpin">Hairpin</option>
+                        <option value="sweeper">Sweeper</option>
+                        <option value="chicane">Chicane</option>
+                        <option value="straight">Straight</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleCreateZone}
+                        disabled={isSavingZone}
+                        className="bg-[#33D17E] text-[#0A0E13] font-bold px-3 py-1 rounded-[2px] cursor-pointer hover:bg-[#33D17E]/90"
+                      >
+                        {isSavingZone ? "SAVING..." : "ADD ZONE"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCreatingZone(false);
+                          setSelectedZoneId(zones[0]?.id || "");
+                        }}
+                        className="text-[#7C8898] hover:text-[#E7EDF3] px-2 py-1 cursor-pointer"
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Session Notes Feed */}
@@ -762,6 +921,10 @@ export function CoachDashboard() {
                 <div className="space-y-1.5 font-mono">
                   {drivers.map((d) => {
                     const isSelected = selectedKart === d.kart;
+                    const rosterInfo = rosterMap[d.kart];
+                    const driverG = rosterInfo ? rosterInfo.current_g : (thresholds[d.kart] ? thresholds[d.kart] * 0.7 : 0.85);
+                    const driverThresh = rosterInfo ? rosterInfo.active_threshold : (thresholds[d.kart] || 1.15);
+
                     return (
                       <div
                         key={d.pos}
@@ -786,14 +949,23 @@ export function CoachDashboard() {
                           </div>
                         </div>
 
-                        <div className="text-[#3FA6E0] text-right font-bold text-[10px]">
-                          {d.gap}
+                        <div className="flex flex-col items-end gap-1">
+                          <SignalStrip
+                            currentG={driverG}
+                            threshold={driverThresh}
+                            size="sm"
+                            showLabel={false}
+                          />
+                          <span className="text-[#3FA6E0] text-right font-bold text-[10px]">
+                            {d.gap}
+                          </span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
+             </div>
 
               {/* SECTOR DELTAS Panel */}
               <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">

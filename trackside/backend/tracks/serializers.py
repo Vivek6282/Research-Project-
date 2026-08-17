@@ -10,12 +10,13 @@ from tracks.models import Track, Zone
 
 
 class ZoneSerializer(serializers.ModelSerializer):
-    """Serializer for Zone — includes track reference."""
+    """Serializer for Zone — includes track reference and corner_type."""
 
     class Meta:
         model = Zone
-        fields = ["id", "track", "label", "threshold_g", "gps_range"]
-        read_only_fields = ["id"]
+        fields = ["id", "track", "label", "corner_type", "threshold_g", "gps_range"]
+        read_only_fields = ["id", "track"]
+
 
 
 class TrackSerializer(serializers.ModelSerializer):
