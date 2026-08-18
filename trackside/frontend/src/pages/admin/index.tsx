@@ -58,14 +58,8 @@ export function AdminDashboard() {
     isCurrentlyActive: true,
   });
 
-  // Confirm Dialog Modal State for Permanent Deletion
-  const [deleteModal, setDeleteModal] = useState<{
-    isOpen: boolean;
-    userToDelete: any | null;
-  }>({
-    isOpen: false,
-    userToDelete: null,
-  });  // Audit Logs & Diagnostics State
+  // Audit Logs & Diagnostics State
+
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [audit30DayCount, setAudit30DayCount] = useState<number>(0);
   const [diagnostics, setDiagnostics] = useState<{
@@ -204,28 +198,8 @@ export function AdminDashboard() {
     }
   };
 
-  const handlePromptDeleteUser = (u: any) => {
-    setDeleteModal({
-      isOpen: true,
-      userToDelete: u,
-    });
-  };
-
-  const executeDeleteUser = async () => {
-    if (!deleteModal.userToDelete) return;
-    const u = deleteModal.userToDelete;
-    setDeleteModal((prev) => ({ ...prev, isOpen: false }));
-
-    try {
-      await api.delete(`/api/auth/users/${u.id}/`);
-      setUsers((prev) => prev.filter((item) => item.id !== u.id));
-      fetchAuditAndDiagnostics();
-    } catch (err: any) {
-      alert(err.message || "Failed to delete user account.");
-    }
-  };
-
   const startEdit = (u: any) => {
+
     setEditingUserId(u.id);
     setEditName(u.name);
     setEditEmail(u.email || "");
@@ -558,21 +532,8 @@ export function AdminDashboard() {
                           >
                             {isActive ? "Deactivate" : "Reactivate"}
                           </button>
-                          {u.role !== "admin" && (
-                            <button
-                              disabled={!!fetchError}
-                              onClick={() => handlePromptDeleteUser(u)}
-                              className={`text-[10px] px-2 py-1 rounded transition-colors font-mono ${
-                                fetchError
-                                  ? "opacity-40 cursor-not-allowed text-[#E5473C] border border-[#E5473C]/40 bg-[#E5473C]/10"
-                                  : "cursor-pointer text-[#E5473C] border border-[#E5473C]/40 bg-[#E5473C]/10 hover:bg-[#E5473C]/25"
-                              }`}
-                              title={fetchError ? "Actions disabled while user roster fetch fails" : "Permanently delete user account"}
-                            >
-                              Delete
-                            </button>
-                          )}
                         </td>
+
                       </tr>
                     );
                   })}
@@ -682,21 +643,7 @@ export function AdminDashboard() {
         onConfirm={executeToggleDeactivate}
         onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
       />
-
-      {/* Permanent Delete Confirm Dialog Modal */}
-      <ConfirmDialog
-        isOpen={deleteModal.isOpen}
-        title="Delete User Account"
-        message={
-          deleteModal.userToDelete
-            ? `Are you sure you want to permanently delete ${deleteModal.userToDelete.name} (${deleteModal.userToDelete.role.toUpperCase()})? This action cannot be undone.`
-            : ""
-        }
-        confirmText="Delete Account"
-        variant="danger"
-        onConfirm={executeDeleteUser}
-        onCancel={() => setDeleteModal((prev) => ({ ...prev, isOpen: false }))}
-      />
     </div>
   );
 }
+

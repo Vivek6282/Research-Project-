@@ -173,25 +173,12 @@ class TestUserDeactivationAndLoginPrevention:
         deact_admin.refresh_from_db()
         assert deact_admin.is_active is True
 
-    def test_admin_can_delete_non_admin_user(self, api_client, admin_user, driver_user):
-        """Admin can permanently delete a driver user via DELETE /api/auth/users/<id>/."""
+    def test_delete_user_returns_405_method_not_allowed(self, api_client, admin_user, driver_user):
+        """DELETE /api/auth/users/<id>/ returns 405 Method Not Allowed to prevent cascading data loss."""
         api_client.force_authenticate(user=admin_user)
         res = api_client.delete(f"/api/auth/users/{driver_user.id}/")
-        assert res.status_code == status.HTTP_204_NO_CONTENT
-        assert not User.objects.filter(id=driver_user.id).exists()
-
-    def test_admin_cannot_delete_admin_user(self, api_client, admin_user):
-        """Attempting to delete an Admin account via DELETE returns 400 Bad Request."""
-        api_client.force_authenticate(user=admin_user)
-        res = api_client.delete(f"/api/auth/users/{admin_user.id}/")
-        assert res.status_code == status.HTTP_400_BAD_REQUEST
-        assert User.objects.filter(id=admin_user.id).exists()
-
-    def test_non_admin_cannot_delete_user(self, api_client, coach_user, driver_user):
-        """Non-admin user (Coach) attempting to delete a user receives 403 Forbidden."""
-        api_client.force_authenticate(user=coach_user)
-        res = api_client.delete(f"/api/auth/users/{driver_user.id}/")
-        assert res.status_code == status.HTTP_403_FORBIDDEN
+        assert res.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
         assert User.objects.filter(id=driver_user.id).exists()
+
 
 

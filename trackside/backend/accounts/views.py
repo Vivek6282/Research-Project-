@@ -194,11 +194,11 @@ class UserListCreateView(generics.ListCreateAPIView):
         )
 
 
-class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+class UserDetailView(generics.RetrieveUpdateAPIView):
     """
     GET /api/auth/users/<uuid:pk>/ — retrieve a single user (Admin only)
     PUT/PATCH /api/auth/users/<uuid:pk>/ — update a user (Admin only)
-    DELETE /api/auth/users/<uuid:pk>/ — delete a non-admin user (Admin only)
+    (DELETE method is disabled to prevent cascading data loss — returns 405)
 
     Requirement #3 (IDOR): only admins can access, and we still scope
     the queryset to avoid any future permission change from reopening
@@ -244,22 +244,6 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
             target_user_name=user.name,
             details=details,
         )
-
-    def perform_destroy(self, instance):
-        """Prevent deleting admin accounts via the API and log deletion."""
-        if instance.role == "admin":
-            raise serializers.ValidationError(
-                {"detail": "Admin accounts cannot be deleted through the API."}
-            )
-        actor = self.request.user if self.request.user and self.request.user.is_authenticated else None
-        AuditLogEntry.objects.create(
-            actor=actor,
-            action=AuditLogEntry.Action.DELETE_USER,
-            target_user_id=str(instance.id),
-            target_user_name=instance.name,
-            details=f"Permanently deleted {instance.role.upper()} user {instance.name}",
-        )
-        instance.delete()
 
 
 class AuditLogListView(APIView):
