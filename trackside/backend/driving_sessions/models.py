@@ -70,6 +70,13 @@ class Session(models.Model):
         help_text="When the session ended — null if still active",
     )
 
+    kart_number = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="Kart identifier (e.g. '#12')",
+    )
+
     @property
     def default_suggested_threshold(self) -> float:
         """
@@ -78,6 +85,7 @@ class Session(models.Model):
         - Performance Mode -> 1.5g (pushing performance limit)
         """
         return 1.0 if self.mode == self.Mode.SAFETY else 1.5
+
 
 
     class Meta:
@@ -139,7 +147,14 @@ class Telemetry(models.Model):
         help_text="GPS longitude",
     )
 
+    lap_number = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Lap number within the session",
+    )
+
     class Meta:
+
         db_table = "telemetry"
         ordering = ["session", "recorded_at"]
         indexes = [
