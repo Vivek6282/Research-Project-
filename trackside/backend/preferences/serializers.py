@@ -12,5 +12,6 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserPreference
-        fields = ["id", "user", "theme", "font_size", "tutorial_completed"]
+        fields = ["id", "user", "font_size", "tutorial_completed"]
         read_only_fields = ["id", "user"]
+

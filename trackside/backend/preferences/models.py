@@ -1,7 +1,7 @@
 """
 Trackside — Preferences app models.
 
-Server-stored user preferences for theme and font size.
+Server-stored user preferences for font size and tutorial completion state.
 Stored server-side so preferences follow the user across devices —
 not just localStorage.
 """
@@ -15,13 +15,9 @@ class UserPreference(models.Model):
     """
     Per-user display preferences.
 
-    Theme (dark/light) and font size (4 fixed presets) are stored on
+    Font size (4 fixed presets) and tutorial completion status are stored on
     the server so they persist across devices and sessions.
     """
-
-    class Theme(models.TextChoices):
-        DARK = "dark", "Dark"
-        LIGHT = "light", "Light"
 
     class FontSize(models.TextChoices):
         SMALL = "small", "Small"
@@ -42,13 +38,6 @@ class UserPreference(models.Model):
         help_text="The user these preferences belong to",
     )
 
-    theme = models.CharField(
-        max_length=5,
-        choices=Theme.choices,
-        default=Theme.DARK,
-        help_text="UI theme — dark or light",
-    )
-
     font_size = models.CharField(
         max_length=10,
         choices=FontSize.choices,
@@ -65,4 +54,5 @@ class UserPreference(models.Model):
         db_table = "user_preferences"
 
     def __str__(self):
-        return f"Preferences for {self.user.name}: {self.theme}, {self.font_size}"
+        return f"Preferences for {self.user.name}: {self.font_size}"
+

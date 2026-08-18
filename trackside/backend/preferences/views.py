@@ -34,8 +34,8 @@ class MyPreferencesView(generics.RetrieveUpdateAPIView):
         preference, _created = UserPreference.objects.get_or_create(
             user=self.request.user,
             defaults={
-                "theme": UserPreference.Theme.DARK,
                 "font_size": UserPreference.FontSize.MEDIUM,
             },
         )
+
         return preference

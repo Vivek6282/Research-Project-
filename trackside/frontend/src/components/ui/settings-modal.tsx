@@ -8,12 +8,11 @@
  * - Done button to close and persist preferences
  */
 
-import { X, Sun, Moon, RotateCcw, Check } from "lucide-react";
+import { X, RotateCcw } from "lucide-react";
 import { usePreferences, type FontSizePreset } from "../../context/PreferencesContext";
 
 export function SettingsModal() {
   const {
-    theme,
     fontSize,
     isSettingsOpen,
     closeSettings,
@@ -51,46 +50,8 @@ export function SettingsModal() {
 
         {/* Modal Content Body */}
         <div className="p-5 space-y-6">
-          {/* THEME SECTION */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-[#7C8898] uppercase tracking-wider">
-                | THEME PRESET
-              </span>
-              <span className="text-[10px] text-[#3FA6E0]">SERVER PERSISTED</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => updatePreferences({ theme: "dark" })}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-[2px] border text-xs font-bold cursor-pointer transition-all ${
-                  theme === "dark"
-                    ? "bg-[#3FA6E0]/15 border-[#3FA6E0] text-[#3FA6E0]"
-                    : "bg-[#161D26] border-[#232B35] text-[#7C8898] hover:border-[#3A4553]"
-                }`}
-              >
-                <Moon size={14} />
-                <span>DARK MODE</span>
-                {theme === "dark" && <Check size={12} className="ml-auto" />}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => updatePreferences({ theme: "light" })}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-[2px] border text-xs font-bold cursor-pointer transition-all ${
-                  theme === "light"
-                    ? "bg-[#3FA6E0]/15 border-[#3FA6E0] text-[#3FA6E0]"
-                    : "bg-[#161D26] border-[#232B35] text-[#7C8898] hover:border-[#3A4553]"
-                }`}
-              >
-                <Sun size={14} />
-                <span>LIGHT MODE</span>
-                {theme === "light" && <Check size={12} className="ml-auto" />}
-              </button>
-            </div>
-          </div>
-
           {/* TEXT SIZE SECTION */}
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-[#7C8898] uppercase tracking-wider">

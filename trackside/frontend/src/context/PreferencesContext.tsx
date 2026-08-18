@@ -2,7 +2,6 @@
  * Trackside — Preferences & Settings Context
  *
  * Provides application-wide user display preferences synced with the backend server API:
- * - Theme: dark vs light
  * - Font Size: small, medium, large, xlarge
  * - Tutorial Completed: per-user persistence across sessions/devices
  * - Replay Tutorial action & Settings Modal open/close state
@@ -11,17 +10,14 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { api } from "../lib/api";
 
-export type ThemeMode = "dark" | "light";
 export type FontSizePreset = "small" | "medium" | "large" | "xlarge";
 
 interface UserPreferences {
-  theme: ThemeMode;
   font_size: FontSizePreset;
   tutorial_completed: boolean;
 }
 
 interface PreferencesContextType {
-  theme: ThemeMode;
   fontSize: FontSizePreset;
   tutorialCompleted: boolean;
   isSettingsOpen: boolean;
@@ -34,7 +30,6 @@ interface PreferencesContextType {
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<ThemeMode>("dark");
   const [fontSize, setFontSize] = useState<FontSizePreset>("medium");
   const [tutorialCompleted, setTutorialCompleted] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -56,7 +51,6 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       try {
         const data = await api.get<UserPreferences>("/api/preferences/me/");
         if (data) {
-          if (data.theme) setTheme(data.theme);
           if (data.font_size) {
             setFontSize(data.font_size);
             applyFontSizeScale(data.font_size);
@@ -77,7 +71,6 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
 
   const updatePreferences = async (newPrefs: Partial<UserPreferences>) => {
     // Update local state immediately for instant feedback
-    if (newPrefs.theme) setTheme(newPrefs.theme);
     if (newPrefs.font_size) {
       setFontSize(newPrefs.font_size);
       applyFontSizeScale(newPrefs.font_size);
@@ -107,7 +100,6 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   return (
     <PreferencesContext.Provider
       value={{
-        theme,
         fontSize,
         tutorialCompleted,
         isSettingsOpen,
@@ -121,6 +113,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     </PreferencesContext.Provider>
   );
 }
+
 
 export function usePreferences() {
   const context = useContext(PreferencesContext);
