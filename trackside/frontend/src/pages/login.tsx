@@ -225,7 +225,7 @@ export function LoginPage() {
                         key={role}
                         type="button"
                         onClick={() => handleRoleSelect(role)}
-                        className="py-1.5 text-[10px] font-sans font-bold uppercase tracking-wider transition-all duration-150 rounded-[2px] cursor-pointer"
+                        className="py-2.5 min-h-[40px] text-[10px] font-sans font-bold uppercase tracking-wider transition-all duration-150 rounded-[2px] cursor-pointer"
                         style={{
                           background: isActive ? "#3FA6E0" : "transparent",
                           color: isActive ? "#ffffff" : "#7C8898",
@@ -249,7 +249,7 @@ export function LoginPage() {
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="Email or Driver ID (e.g. TRK-DRV-000042)"
                   required
-                  className="w-full px-3 py-2 rounded-[2px] text-xs font-mono outline-none transition-colors bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] placeholder-[#4B5563] focus:border-[#3FA6E0]"
+                  className="w-full px-3 py-2.5 min-h-[44px] rounded-[2px] text-xs font-mono outline-none transition-colors bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] placeholder-[#4B5563] focus:border-[#3FA6E0]"
                 />
               </div>
 
@@ -264,7 +264,7 @@ export function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full px-3 py-2 rounded-[2px] text-xs font-mono outline-none transition-colors bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] placeholder-[#4B5563] focus:border-[#3FA6E0]"
+                  className="w-full px-3 py-2.5 min-h-[44px] rounded-[2px] text-xs font-mono outline-none transition-colors bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] placeholder-[#4B5563] focus:border-[#3FA6E0]"
                 />
               </div>
 
@@ -272,10 +272,11 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 rounded-[2px] text-xs font-bold font-sans uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50 mt-1 shadow-md bg-[#3FA6E0] text-white hover:bg-[#3595cb]"
+                className="w-full py-3 min-h-[44px] rounded-[2px] text-xs font-bold font-sans uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50 mt-1 shadow-md bg-[#3FA6E0] text-white hover:bg-[#3595cb] flex items-center justify-center"
               >
                 {isSubmitting ? "AUTHENTICATING…" : "SIGN IN"}
               </button>
+
             </form>
 
             {/* Muted Helper Line */}

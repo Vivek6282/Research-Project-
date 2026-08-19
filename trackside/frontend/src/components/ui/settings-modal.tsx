@@ -30,10 +30,10 @@ export function SettingsModal() {
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm select-none p-4">
-      <div className="w-full max-w-md bg-[#12181F] border border-[#232B35] rounded-[4px] shadow-2xl overflow-hidden font-mono text-[#E7EDF3] animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm select-none p-3 sm:p-4">
+      <div className="w-full max-w-md max-h-[90vh] flex flex-col bg-[#12181F] border border-[#232B35] rounded-[4px] shadow-2xl overflow-hidden font-mono text-[#E7EDF3] animate-in fade-in zoom-in-95 duration-150">
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#232B35] bg-[#161D26]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#232B35] bg-[#161D26] flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-[#3FA6E0] font-bold text-sm">⚙️</span>
             <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]">
@@ -42,16 +42,15 @@ export function SettingsModal() {
           </div>
           <button
             onClick={closeSettings}
-            className="text-[#7C8898] hover:text-[#E7EDF3] p-1 rounded hover:bg-[#232B35] transition-colors cursor-pointer"
+            className="text-[#7C8898] hover:text-[#E7EDF3] p-1.5 rounded hover:bg-[#232B35] transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Modal Content Body */}
-        <div className="p-5 space-y-6">
+        <div className="p-4 sm:p-5 space-y-5 overflow-y-auto flex-1">
           {/* TEXT SIZE SECTION */}
-
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-[#7C8898] uppercase tracking-wider">
@@ -67,13 +66,13 @@ export function SettingsModal() {
                     key={preset.value}
                     type="button"
                     onClick={() => updatePreferences({ font_size: preset.value })}
-                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-[2px] border cursor-pointer transition-all ${
+                    className={`flex flex-col items-center justify-center py-3 px-2 min-h-[44px] rounded-[2px] border cursor-pointer transition-all ${
                       isActive
                         ? "bg-[#3FA6E0] text-[#0A0E13] border-[#3FA6E0] font-extrabold"
                         : "bg-[#161D26] text-[#7C8898] border-[#232B35] hover:border-[#3A4553] hover:text-[#E7EDF3]"
                     }`}
                   >
-                    <span className="text-sm">{preset.label}</span>
+                    <span className="text-sm font-bold">{preset.label}</span>
                     <span className={`text-[9px] ${isActive ? "text-[#0A0E13]/80" : "text-[#7C8898]"}`}>
                       {preset.hint}
                     </span>
@@ -93,25 +92,26 @@ export function SettingsModal() {
             <button
               type="button"
               onClick={replayTutorial}
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#3FA6E0] hover:border-[#3FA6E0] hover:bg-[#3FA6E0]/10 text-xs font-bold cursor-pointer transition-all"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 min-h-[44px] rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#3FA6E0] hover:border-[#3FA6E0] hover:bg-[#3FA6E0]/10 text-xs font-bold cursor-pointer transition-all"
             >
-              <RotateCcw size={13} />
+              <RotateCcw size={14} />
               <span>SHOW TUTORIAL AGAIN</span>
             </button>
           </div>
         </div>
 
         {/* Modal Footer Bar */}
-        <div className="px-5 py-3 border-t border-[#232B35] bg-[#161D26] flex justify-end">
+        <div className="px-4 sm:px-5 py-3 border-t border-[#232B35] bg-[#161D26] flex justify-end flex-shrink-0">
           <button
             type="button"
             onClick={closeSettings}
-            className="px-5 py-1.5 rounded-[2px] bg-[#3FA6E0] text-[#0A0E13] font-bold text-xs hover:bg-[#3FA6E0]/90 transition-colors cursor-pointer"
+            className="px-6 py-2 min-h-[40px] rounded-[2px] bg-[#3FA6E0] text-[#0A0E13] font-bold text-xs hover:bg-[#3FA6E0]/90 transition-colors cursor-pointer"
           >
             DONE
           </button>
         </div>
       </div>
     </div>
+
   );
 }

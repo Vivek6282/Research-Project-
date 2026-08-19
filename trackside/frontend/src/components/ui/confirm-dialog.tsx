@@ -56,14 +56,14 @@ export function ConfirmDialog({
   return (
     <div
       onClick={onCancel}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm select-none p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm select-none p-3 sm:p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-[#12181F] border border-[#232B35] rounded-[4px] shadow-2xl overflow-hidden font-mono text-[#E7EDF3] animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-md max-h-[90vh] flex flex-col bg-[#12181F] border border-[#232B35] rounded-[4px] shadow-2xl overflow-hidden font-mono text-[#E7EDF3] animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#232B35] bg-[#161D26]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#232B35] bg-[#161D26] flex-shrink-0">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} style={{ color: iconColor }} />
             <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]">
@@ -72,27 +72,27 @@ export function ConfirmDialog({
           </div>
           <button
             onClick={onCancel}
-            className="text-[#7C8898] hover:text-[#E7EDF3] p-1 rounded hover:bg-[#232B35] transition-colors cursor-pointer"
+            className="text-[#7C8898] hover:text-[#E7EDF3] p-1.5 rounded hover:bg-[#232B35] transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Message Body */}
-        <div className="p-5 space-y-4">
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
           <p className="text-xs text-[#C5D1DE] leading-relaxed font-mono">{message}</p>
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               onClick={onCancel}
-              className="px-4 py-2 rounded text-xs font-mono font-semibold uppercase tracking-wider cursor-pointer bg-[#1A222D] hover:bg-[#232B35] text-[#7C8898] border border-[#232B35] transition-colors"
+              className="px-4 py-2.5 min-h-[44px] rounded text-xs font-mono font-semibold uppercase tracking-wider cursor-pointer bg-[#1A222D] hover:bg-[#232B35] text-[#7C8898] border border-[#232B35] transition-colors"
             >
               {cancelText}
             </button>
             <button
               onClick={onConfirm}
-              className={`px-4 py-2 rounded text-xs font-mono font-bold uppercase tracking-wider cursor-pointer transition-colors ${btnBgClass}`}
+              className={`px-4 py-2.5 min-h-[44px] rounded text-xs font-mono font-bold uppercase tracking-wider cursor-pointer transition-colors ${btnBgClass}`}
             >
               {confirmText}
             </button>
@@ -100,5 +100,6 @@ export function ConfirmDialog({
         </div>
       </div>
     </div>
+
   );
 }

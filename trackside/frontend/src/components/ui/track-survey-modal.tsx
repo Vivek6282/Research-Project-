@@ -127,26 +127,27 @@ export function TrackSurveyModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm select-none p-4 font-mono text-[#E7EDF3]">
-      <div className="w-full max-w-3xl bg-[#12181F] border border-[#232B35] rounded-[4px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm select-none p-3 sm:p-4 font-mono text-[#E7EDF3]">
+      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col bg-[#12181F] border border-[#232B35] rounded-[4px] shadow-2xl overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#232B35] bg-[#161D26]">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-[#232B35] bg-[#161D26] flex-shrink-0">
           <div className="flex items-center gap-2">
-            <Navigation size={16} className="text-[#3FA6E0]" />
-            <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]">
-              TRACK SURVEY & ZONE AUTO-DETECTION — {trackName}
+            <Navigation size={16} className="text-[#3FA6E0] flex-shrink-0" />
+            <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3] truncate">
+              SURVEY & ZONE AUTO-DETECTION — {trackName}
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-[#7C8898] hover:text-[#E7EDF3] p-1 rounded hover:bg-[#232B35] transition-colors cursor-pointer"
+            className="text-[#7C8898] hover:text-[#E7EDF3] p-1.5 rounded hover:bg-[#232B35] transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center flex-shrink-0"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-5 flex-1">
+        <div className="p-3 sm:p-5 overflow-y-auto space-y-4 sm:space-y-5 flex-1">
+
           {/* Survey Action Banner */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-[#161D26] border border-[#232B35] rounded-[2px]">
             <div>

@@ -156,10 +156,10 @@ export function DriverDashboard() {
         {/* Session Setup Mode Selector */}
         <Panel title="Session Mode Setup" icon={Flag}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex gap-2 font-mono">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto font-mono">
               <button
                 onClick={() => setMode("safety")}
-                className="text-xs font-mono font-bold px-4 py-2 rounded transition-all duration-150 cursor-pointer"
+                className="text-xs font-mono font-bold px-4 py-2.5 min-h-[44px] flex-1 sm:flex-initial rounded transition-all duration-150 cursor-pointer flex items-center justify-center"
                 style={{
                   background: mode === "safety" ? "#3FA6E0" : "transparent",
                   color: mode === "safety" ? "#06121B" : "#7C8898",
@@ -171,7 +171,7 @@ export function DriverDashboard() {
               </button>
               <button
                 onClick={() => setMode("performance")}
-                className="text-xs font-mono font-bold px-4 py-2 rounded transition-all duration-150 cursor-pointer"
+                className="text-xs font-mono font-bold px-4 py-2.5 min-h-[44px] flex-1 sm:flex-initial rounded transition-all duration-150 cursor-pointer flex items-center justify-center"
                 style={{
                   background: mode === "performance" ? "#3FA6E0" : "transparent",
                   color: mode === "performance" ? "#06121B" : "#7C8898",
@@ -182,6 +182,7 @@ export function DriverDashboard() {
                 PERFORMANCE MODE
               </button>
             </div>
+
 
             <span className="text-xs font-mono text-[#7C8898]">
               Active Focus:{" "}

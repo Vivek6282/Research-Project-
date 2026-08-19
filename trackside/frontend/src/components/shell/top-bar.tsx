@@ -39,18 +39,18 @@ export function TopBar() {
       >
         <div className="max-w-[1400px] mx-auto px-4 py-2.5 flex items-center justify-between">
           {/* Left: Brand, Role Badge & Circuit Meta */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🏁</span>
-              <span className="text-sm font-bold font-sans tracking-[0.25em] uppercase text-[#E7EDF3]">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-sm sm:text-base">🏁</span>
+              <span className="text-xs sm:text-sm font-bold font-sans tracking-[0.2em] sm:tracking-[0.25em] uppercase text-[#E7EDF3]">
                 TRACKSIDE
               </span>
-              <span className="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider bg-[#3FA6E0] text-[#0A0E13]">
+              <span className="text-[9px] sm:text-[10px] font-sans font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider bg-[#3FA6E0] text-[#0A0E13]">
                 {roleLabel}
               </span>
             </div>
-            <span className="text-[#232B35]">|</span>
-            <div className="flex items-center gap-2 text-[11px] font-mono text-[#7C8898] tracking-wider uppercase hidden sm:flex">
+            <span className="text-[#232B35] hidden sm:inline">|</span>
+            <div className="flex items-center gap-2 text-[11px] font-mono text-[#7C8898] tracking-wider uppercase hidden md:flex">
               <span>APEX ACADEMY</span>
               <span>·</span>
               <span>NODE 7</span>
@@ -58,33 +58,34 @@ export function TopBar() {
           </div>
 
           {/* Right: User Profile, Settings Gear & Sign Out */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-2 px-2 py-1 rounded bg-[#161D26] border border-[#232B35] text-xs font-mono text-[#E7EDF3]">
-              <span className="w-5 h-5 rounded-[2px] bg-[#232B35] text-[#3FA6E0] font-bold flex items-center justify-center text-[10px]">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#161D26] border border-[#232B35] text-xs font-mono text-[#E7EDF3] max-w-[120px] xs:max-w-[160px] sm:max-w-[220px]">
+              <span className="w-5 h-5 rounded-[2px] bg-[#232B35] text-[#3FA6E0] font-bold flex-shrink-0 flex items-center justify-center text-[10px]">
                 {userInitials}
               </span>
-              <span className="font-semibold">{user.name || user.email}</span>
+              <span className="font-semibold truncate text-[11px] sm:text-xs">{user.name || user.email}</span>
             </div>
 
             {/* Settings Gear Button */}
             <button
               onClick={openSettings}
               title="Display Settings"
-              className="flex items-center justify-center w-7 h-7 rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#7C8898] hover:text-[#3FA6E0] hover:border-[#3FA6E0] transition-all cursor-pointer"
+              className="flex items-center justify-center w-8 h-8 rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#7C8898] hover:text-[#3FA6E0] hover:border-[#3FA6E0] transition-all cursor-pointer min-h-[36px] min-w-[36px]"
             >
-              <Settings size={14} />
+              <Settings size={15} />
             </button>
 
             {/* Sign Out Button */}
             <button
               onClick={logout}
               title="Sign Out"
-              className="flex items-center gap-1 text-[11px] font-mono px-2.5 py-1 rounded cursor-pointer transition-colors hover:text-[#E5473C] text-[#7C8898] border border-[#232B35] bg-[#161D26]"
+              className="flex items-center gap-1 text-[11px] font-mono px-2.5 py-1.5 min-h-[36px] rounded cursor-pointer transition-colors hover:text-[#E5473C] text-[#7C8898] border border-[#232B35] bg-[#161D26]"
             >
-              <LogOut size={13} />
+              <LogOut size={14} />
               <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
+
         </div>
       </div>
 
