@@ -591,437 +591,444 @@ const HISTORICAL_SESSIONS = [
 
           {/* Main Pit-Wall Cockpit Grid */}
           <main className="max-w-[1400px] mx-auto px-2.5 sm:px-4 py-3 sm:py-4 grid grid-cols-12 gap-3 sm:gap-4">
-            {/* 1. LIVE TRAJECTORY Panel */}
-            <div className="col-span-12 lg:col-span-9 order-1 bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4">
-              {/* Header & Metadata */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 border-b border-[#232B35]/60 pb-2.5">
-                <div className="flex flex-wrap items-center gap-2 font-mono">
-                  <span className="text-[#3FA6E0] font-bold">|</span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]">
-                    LIVE TRAJECTORY
-                  </span>
-                  <span className="text-xs text-[#7C8898]">
-                    KART #{selectedDriver.kart} · SESSION 3 · LAP 7/12
-                  </span>
-                  {USE_MOCK_TELEMETRY && (
-                    <span className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase tracking-wider animate-pulse">
-                      SIMULATED DATA — not live
+            {/* Main content column (75% on desktop) — independent internal grid */}
+            <div className="col-span-12 lg:col-span-9 grid grid-cols-1 gap-3 sm:gap-4">
+              {/* LIVE TRAJECTORY Panel */}
+              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
+                {/* Header & Metadata */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 border-b border-[#232B35]/60 pb-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[#3FA6E0] font-bold">|</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]">
+                      LIVE TRAJECTORY
                     </span>
-                  )}
-                </div>
-                {/* Live Signal Indicator & Stage Label */}
-                <SignalStrip
-                  currentG={currentGForce}
-                  threshold={currentThreshold}
-                  size="md"
-                  showLabel={true}
-                />
-              </div>
-
-              {/* Readouts Row */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-                <div className="flex items-baseline gap-1.5 font-mono">
-                  <span className="text-3xl sm:text-4xl font-extrabold text-[#3FA6E0] tracking-tight">
-                    {currentSpeed}
-                  </span>
-                  <span className="text-xs text-[#7C8898]">km/h</span>
-                </div>
-
-                <div className="grid grid-cols-4 gap-4 sm:flex sm:items-center sm:gap-6 font-mono text-xs w-full sm:w-auto">
-                  <div>
-                    <span className="text-[10px] text-[#7C8898] block mb-0.5">LAST</span>
-                    <span className="font-semibold text-[#E7EDF3]">{selectedDriver.lapTime}</span>
+                    <span className="text-xs text-[#7C8898]">
+                      KART #{selectedDriver.kart} · SESSION 3 · LAP 7/12
+                    </span>
+                    {USE_MOCK_TELEMETRY && (
+                      <span className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase tracking-wider animate-pulse">
+                        SIMULATED DATA — not live
+                      </span>
+                    )}
                   </div>
-                  <div>
-                    <span className="text-[10px] text-[#7C8898] block mb-0.5">BEST</span>
-                    <span className="font-semibold text-[#33D17E]">1:23.104</span>
+                  {/* Live Signal Indicator & Stage Label */}
+                  <SignalStrip
+                    currentG={currentGForce}
+                    threshold={currentThreshold}
+                    size="md"
+                    showLabel={true}
+                  />
+                </div>
+
+                {/* Readouts Row */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+                  <div className="flex items-baseline gap-1.5 font-mono">
+                    <span className="text-3xl sm:text-4xl font-extrabold text-[#3FA6E0] tracking-tight">
+                      {currentSpeed}
+                    </span>
+                    <span className="text-xs text-[#7C8898]">km/h</span>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-[#7C8898] block mb-0.5">DELTA</span>
-                    <span className="font-semibold text-[#F2A93B]">{selectedDriver.gap}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-[#7C8898] block mb-0.5">G-FORCE</span>
-                    <span className="font-semibold text-[#E7EDF3]">{currentGForce} g</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Dual Waveform Speed Chart */}
-              <div className="relative w-full h-[220px] bg-[#0A0E13] border border-[#232B35] rounded-[2px] p-3 overflow-hidden">
-                <div className="absolute left-2 top-2 bottom-6 flex flex-col justify-between text-[10px] font-mono text-[#4B5563]">
-                  <span>140</span>
-                  <span>110</span>
-                  <span>80</span>
-                  <span>50</span>
-                  <span>20</span>
-                </div>
-
-                <div className="absolute left-9 top-[50%] border-b border-dashed border-[#33D17E]/50" />
-                <div className="absolute left-9 top-[4px] right-4 bottom-7">
-                  <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 160">
-                    <line x1="0" y1="0" x2="800" y2="0" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
-                    <line x1="0" y1="40" x2="800" y2="40" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
-                    <line x1="0" y1="80" x2="800" y2="80" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
-                    <line x1="0" y1="120" x2="800" y2="120" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
-
-                    <path
-                      d={buildSvgPath(targetSpeedPath)}
-                      fill="none"
-                      stroke="#33D17E"
-                      strokeWidth="2"
-                      strokeDasharray="5 5"
-                    />
-                    <path
-                      d={buildSvgPath(actualSpeedPath)}
-                      fill="none"
-                      stroke="#3FA6E0"
-                      strokeWidth="2.5"
-                    />
-                  </svg>
-                </div>
-
-                <div className="absolute left-9 right-4 bottom-1 flex justify-between text-[9px] font-mono text-[#4B5563]">
-                  {[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43].map((num) => (
-                    <span key={num}>{num}</span>
-                  ))}
-                </div>
-
-                <div className="absolute left-10 bottom-2.5 flex items-center gap-4 text-[10px] font-mono">
-                  <span className="flex items-center gap-1.5 text-[#3FA6E0]">
-                    <span className="w-3 h-0.5 bg-[#3FA6E0]" /> Actual
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[#33D17E]">
-                    <span className="w-3 h-0.5 border-b border-dashed border-[#33D17E]" /> Target
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. TIMING TOWER Panel */}
-            <div className="col-span-12 md:col-span-6 lg:col-span-3 order-2 lg:order-6 bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
-              <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#E7EDF3]">
-                  <span className="text-[#3FA6E0]">|</span> TIMING TOWER
-                </div>
-                <div className="flex items-center gap-1 text-[10px] text-[#33D17E]">
-                  <span className="text-[#7C8898]">{drivers.length}/{drivers.length} ON TRACK</span>
-                  <span className="animate-pulse">• LIVE</span>
-                </div>
-              </div>
-
-              {/* Roster Classification Rows */}
-              <div className="space-y-1.5 font-mono">
-                {drivers.map((d) => {
-                  const isSelected = selectedKart === d.kart;
-                  const rosterInfo = rosterMap[d.kart];
-                  const driverG = rosterInfo ? rosterInfo.current_g : (thresholds[d.kart] ? thresholds[d.kart] * 0.7 : 0.85);
-                  const driverThresh = rosterInfo ? rosterInfo.active_threshold : (thresholds[d.kart] || 1.15);
-
-                  return (
-                    <div
-                      key={d.pos}
-                      onClick={() => setSelectedKart(d.kart)}
-                      className="p-2 rounded-[2px] flex items-center justify-between text-xs cursor-pointer transition-all duration-150"
-                      style={{
-                        background: isSelected ? "#161D26" : "transparent",
-                        border: `1px solid ${isSelected ? "#3FA6E0" : "transparent"}`,
-                        boxShadow: isSelected ? "0 0 10px rgba(63,166,224,0.15)" : "none",
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#7C8898] text-[10px] w-3">{d.pos}</span>
-                        <span className="w-5 h-5 rounded-[1px] bg-[#232B35] text-[#E7EDF3] text-[10px] font-bold flex items-center justify-center border border-[#3A4553]">
-                          {d.kart}
-                        </span>
-                        <div>
-                          <p className="font-semibold text-xs text-[#E7EDF3] leading-none mb-1">{d.name}</p>
-                          <p className="text-[9px] text-[#7C8898] leading-none">
-                            {d.lapTime} · <span className={d.inPit ? "text-[#F2A93B]" : "text-[#7C8898]"}>{d.session}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1">
-                        <SignalStrip
-                          currentG={driverG}
-                          threshold={driverThresh}
-                          size="sm"
-                          showLabel={false}
-                        />
-                        <span className="text-[#3FA6E0] text-right font-bold text-[10px]">
-                          {d.gap}
-                        </span>
-                      </div>
+                  <div className="grid grid-cols-4 gap-4 sm:flex sm:items-center sm:gap-6 font-mono text-xs w-full sm:w-auto">
+                    <div>
+                      <span className="text-[10px] text-[#7C8898] block mb-0.5">LAST</span>
+                      <span className="font-semibold text-[#E7EDF3]">{selectedDriver.lapTime}</span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 3. SECTOR DELTAS Panel */}
-            <div className="col-span-12 md:col-span-6 lg:col-span-3 order-3 lg:order-7 bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
-              <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
-                <span className="text-xs font-bold text-[#E7EDF3]">
-                  <span className="text-[#3FA6E0]">|</span> SECTOR DELTAS
-                </span>
-                <span className="text-[9px] text-[#7C8898]">VS SESSION BEST</span>
-              </div>
-
-              <div className="space-y-3 font-mono">
-                <div>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-[#7C8898]">SECTOR 1 (HAIRPIN ENTRY)</span>
-                    <span className="text-[#33D17E] font-bold">{s1}s (-0.142)</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-[#0A0E13] rounded-[1px] overflow-hidden">
-                    <div className="h-full bg-[#33D17E] w-[65%]" />
+                    <div>
+                      <span className="text-[10px] text-[#7C8898] block mb-0.5">BEST</span>
+                      <span className="font-semibold text-[#33D17E]">1:23.104</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#7C8898] block mb-0.5">DELTA</span>
+                      <span className="font-semibold text-[#F2A93B]">{selectedDriver.gap}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#7C8898] block mb-0.5">G-FORCE</span>
+                      <span className="font-semibold text-[#E7EDF3]">{currentGForce} g</span>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-[#7C8898]">SECTOR 2 (MID CHICANE)</span>
-                    <span className="text-[#E5473C] font-bold">{s2}s (+0.310)</span>
+                {/* Dual Waveform Speed Chart */}
+                <div className="relative w-full h-[220px] bg-[#0A0E13] border border-[#232B35] rounded-[2px] p-3 overflow-hidden">
+                  <div className="absolute left-2 top-2 bottom-6 flex flex-col justify-between text-[10px] font-mono text-[#4B5563]">
+                    <span>140</span>
+                    <span>110</span>
+                    <span>80</span>
+                    <span>50</span>
+                    <span>20</span>
                   </div>
-                  <div className="w-full h-1.5 bg-[#0A0E13] rounded-[1px] overflow-hidden">
-                    <div className="h-full bg-[#E5473C] w-[80%]" />
+
+                  <div className="absolute left-9 top-[50%] border-b border-dashed border-[#33D17E]/50" />
+                  <div className="absolute left-9 top-[4px] right-4 bottom-7">
+                    <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 160">
+                      <line x1="0" y1="0" x2="800" y2="0" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
+                      <line x1="0" y1="40" x2="800" y2="40" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
+                      <line x1="0" y1="80" x2="800" y2="80" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
+                      <line x1="0" y1="120" x2="800" y2="120" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
+
+                      <path
+                        d={buildSvgPath(targetSpeedPath)}
+                        fill="none"
+                        stroke="#33D17E"
+                        strokeWidth="2"
+                        strokeDasharray="5 5"
+                      />
+                      <path
+                        d={buildSvgPath(actualSpeedPath)}
+                        fill="none"
+                        stroke="#3FA6E0"
+                        strokeWidth="2.5"
+                      />
+                    </svg>
                   </div>
-                </div>
 
-                <div>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-[#7C8898]">SECTOR 3 (FINAL APEX)</span>
-                    <span className="text-[#33D17E] font-bold">{s3}s (-0.088)</span>
+                  <div className="absolute left-9 right-4 bottom-1 flex justify-between text-[9px] font-mono text-[#4B5563]">
+                    {[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43].map((num) => (
+                      <span key={num}>{num}</span>
+                    ))}
                   </div>
-                  <div className="w-full h-1.5 bg-[#0A0E13] rounded-[1px] overflow-hidden">
-                    <div className="h-full bg-[#33D17E] w-[55%]" />
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* 4. BIOMETRICS 3-Card Row */}
-            <div className="col-span-12 lg:col-span-9 order-4 lg:order-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Heart Rate */}
-              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
-                <div className="flex items-center justify-between text-[10px] font-mono mb-2">
-                  <span className="text-[#E5473C] font-bold">| HEART RATE</span>
-                  <span className="text-[#7C8898]">60–190</span>
-                </div>
-                <div className="flex items-baseline gap-1 font-mono mb-2">
-                  <span className="text-2xl font-extrabold text-[#E5473C]">{currentHr}</span>
-                  <span className="text-[10px] text-[#7C8898]">bpm</span>
-                </div>
-                <div className="w-full h-12 bg-[#0A0E13] rounded-[1px] overflow-hidden p-1">
-                  <svg className="w-full h-full" viewBox="0 0 200 40" preserveAspectRatio="none">
-                    <path d={buildAreaPath(hrHistory)} fill="rgba(229, 71, 60, 0.15)" />
-                    <path d={buildSvgPath(hrHistory)} fill="none" stroke="#E5473C" strokeWidth="1.5" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Blood Oxygen */}
-              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
-                <div className="flex items-center justify-between text-[10px] font-mono mb-2">
-                  <span className="text-[#3FA6E0] font-bold">| BLOOD OXYGEN</span>
-                  <span className="text-[#7C8898]">95–100</span>
-                </div>
-                <div className="flex items-baseline gap-1 font-mono mb-2">
-                  <span className="text-2xl font-extrabold text-[#3FA6E0]">{currentSpo2}</span>
-                  <span className="text-[10px] text-[#7C8898]">%</span>
-                </div>
-                <div className="w-full h-12 bg-[#0A0E13] rounded-[1px] overflow-hidden p-1">
-                  <svg className="w-full h-full" viewBox="0 0 200 40" preserveAspectRatio="none">
-                    <path d={buildAreaPath(spo2History)} fill="rgba(63, 166, 224, 0.15)" />
-                    <path d={buildSvgPath(spo2History)} fill="none" stroke="#3FA6E0" strokeWidth="1.5" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Breathing */}
-              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
-                <div className="flex items-center justify-between text-[10px] font-mono mb-2">
-                  <span className="text-[#33D17E] font-bold">| BREATHING</span>
-                  <span className="text-[#7C8898]">12–30</span>
-                </div>
-                <div className="flex items-baseline gap-1 font-mono mb-2">
-                  <span className="text-2xl font-extrabold text-[#33D17E]">{currentBreathing}</span>
-                  <span className="text-[10px] text-[#7C8898]">rpm</span>
-                </div>
-                <div className="w-full h-12 bg-[#0A0E13] rounded-[1px] overflow-hidden p-1">
-                  <svg className="w-full h-full" viewBox="0 0 200 40" preserveAspectRatio="none">
-                    <path d={buildAreaPath(breathingHistory)} fill="rgba(51, 209, 126, 0.15)" />
-                    <path d={buildSvgPath(breathingHistory)} fill="none" stroke="#33D17E" strokeWidth="1.5" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* 5. CUSTOM ZONE THRESHOLD CONTROL Panel */}
-            <div className="col-span-12 lg:col-span-9 order-5 lg:order-3 bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
-                <div className="flex items-center gap-2">
-                  <span className="text-[#3FA6E0] font-bold">|</span>
-                  <span className="text-xs font-bold text-[#E7EDF3]">CUSTOM ZONE THRESHOLD CONTROL</span>
-                </div>
-                <span className="text-[10px] text-[#3FA6E0] font-bold hidden sm:inline">
-                  SERVER VALIDATED ≤ ZONE DEFAULT ({sliderMax.toFixed(2)}g)
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center font-mono">
-                <div>
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-[#7C8898]">ZONE: {currentZoneObj ? currentZoneObj.label.toUpperCase() : "TURN 4 HAIRPIN"}</span>
-                    <span className="text-[#E7EDF3] font-bold">DRIVER: {selectedDriver.name.toUpperCase()}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={sliderMin}
-                    max={sliderMax}
-                    step="0.05"
-                    value={currentThreshold}
-                    onChange={(e) => setThresholds({ ...thresholds, [selectedKart]: Number(e.target.value) })}
-                    className="w-full accent-[#3FA6E0] cursor-pointer min-h-[36px]"
-                  />
-                  <div className="flex justify-between text-[10px] text-[#7C8898] mt-1">
-                    <span>{sliderMin.toFixed(2)}g (Conservative)</span>
-                    <span>{((sliderMin + sliderMax) / 2).toFixed(2)}g</span>
-                    <span>{sliderMax.toFixed(2)}g (Zone Max)</span>
-                  </div>
-                </div>
-
-                <div className="bg-[#161D26] border border-[#232B35] p-3 rounded-[2px] flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] text-[#7C8898]">CALIBRATED LIMIT</p>
-                    <p className="text-xl font-bold text-[#3FA6E0]">{currentThreshold.toFixed(2)} g</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-[#7C8898]">SERVER STATUS</p>
-                    <span className="text-[10px] text-[#33D17E] bg-[#33D17E]/10 border border-[#33D17E]/30 px-1.5 py-0.5 rounded-[1px]">
-                      ✓ VALIDATED SAFE
+                  <div className="absolute left-10 bottom-2.5 flex items-center gap-4 text-[10px] font-mono">
+                    <span className="flex items-center gap-1.5 text-[#3FA6E0]">
+                      <span className="w-3 h-0.5 bg-[#3FA6E0]" /> Actual
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[#33D17E]">
+                      <span className="w-3 h-0.5 border-b border-dashed border-[#33D17E]" /> Target
                     </span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* 6. SESSION NOTES Panel */}
-            <div className="col-span-12 lg:col-span-9 order-6 lg:order-4 bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
-              <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[#3FA6E0] font-bold">|</span>
-                  <span className="text-xs font-bold text-[#E7EDF3]">SESSION NOTES (TIED TO LAP / ZONE)</span>
+              {/* BIOMETRICS 3-Card Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Heart Rate */}
+                <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
+                  <div className="flex items-center justify-between text-[10px] font-mono mb-2">
+                    <span className="text-[#E5473C] font-bold">| HEART RATE</span>
+                    <span className="text-[#7C8898]">60–190</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 font-mono mb-2">
+                    <span className="text-2xl font-extrabold text-[#E5473C]">{currentHr}</span>
+                    <span className="text-[10px] text-[#7C8898]">bpm</span>
+                  </div>
+                  <div className="w-full h-12 bg-[#0A0E13] rounded-[1px] overflow-hidden p-1">
+                    <svg className="w-full h-full" viewBox="0 0 200 40" preserveAspectRatio="none">
+                      <path d={buildAreaPath(hrHistory)} fill="rgba(229, 71, 60, 0.15)" />
+                      <path d={buildSvgPath(hrHistory)} fill="none" stroke="#E5473C" strokeWidth="1.5" />
+                    </svg>
+                  </div>
                 </div>
-                <span className="text-[10px] text-[#7C8898]">ACTIVE: {selectedDriver.name} (#{selectedDriver.kart})</span>
+
+                {/* Blood Oxygen */}
+                <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
+                  <div className="flex items-center justify-between text-[10px] font-mono mb-2">
+                    <span className="text-[#3FA6E0] font-bold">| BLOOD OXYGEN</span>
+                    <span className="text-[#7C8898]">95–100</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 font-mono mb-2">
+                    <span className="text-2xl font-extrabold text-[#3FA6E0]">{currentSpo2}</span>
+                    <span className="text-[10px] text-[#7C8898]">%</span>
+                  </div>
+                  <div className="w-full h-12 bg-[#0A0E13] rounded-[1px] overflow-hidden p-1">
+                    <svg className="w-full h-full" viewBox="0 0 200 40" preserveAspectRatio="none">
+                      <path d={buildAreaPath(spo2History)} fill="rgba(63, 166, 224, 0.15)" />
+                      <path d={buildSvgPath(spo2History)} fill="none" stroke="#3FA6E0" strokeWidth="1.5" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Breathing */}
+                <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
+                  <div className="flex items-center justify-between text-[10px] font-mono mb-2">
+                    <span className="text-[#33D17E] font-bold">| BREATHING</span>
+                    <span className="text-[#7C8898]">12–30</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 font-mono mb-2">
+                    <span className="text-2xl font-extrabold text-[#33D17E]">{currentBreathing}</span>
+                    <span className="text-[10px] text-[#7C8898]">rpm</span>
+                  </div>
+                  <div className="w-full h-12 bg-[#0A0E13] rounded-[1px] overflow-hidden p-1">
+                    <svg className="w-full h-full" viewBox="0 0 200 40" preserveAspectRatio="none">
+                      <path d={buildAreaPath(breathingHistory)} fill="rgba(51, 209, 126, 0.15)" />
+                      <path d={buildSvgPath(breathingHistory)} fill="none" stroke="#33D17E" strokeWidth="1.5" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2 mb-3">
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <select
-                    value={selectedZoneId}
-                    onChange={handleZoneSelectChange}
-                    className="bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[44px] rounded-[2px] outline-none cursor-pointer"
-                  >
-                    {zones.map((z) => (
-                      <option key={z.id} value={z.id}>
-                        {z.label} {z.corner_type ? `(${z.corner_type})` : ""}
-                      </option>
-                    ))}
-                    <option value="__new__">+ New Zone...</option>
-                  </select>
-
-                  <input
-                    type="text"
-                    placeholder="Record coach observation for this lap/zone..."
-                    value={newNoteText}
-                    onChange={(e) => setNewNoteText(e.target.value)}
-                    className="flex-1 bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[44px] rounded-[2px] outline-none focus:border-[#3FA6E0]"
-                  />
-
-                  <button
-                    onClick={handleAddNote}
-                    className="bg-[#3FA6E0] text-[#0A0E13] font-bold text-xs px-5 py-2 min-h-[44px] rounded-[2px] hover:bg-[#3FA6E0]/90 cursor-pointer flex items-center justify-center"
-                  >
-                    SAVE NOTE
-                  </button>
+              {/* CUSTOM ZONE THRESHOLD CONTROL Panel */}
+              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#3FA6E0] font-bold">|</span>
+                    <span className="text-xs font-bold text-[#E7EDF3]">CUSTOM ZONE THRESHOLD CONTROL</span>
+                  </div>
+                  <span className="text-[10px] text-[#3FA6E0] font-bold hidden sm:inline">
+                    SERVER VALIDATED ≤ ZONE DEFAULT ({sliderMax.toFixed(2)}g)
+                  </span>
                 </div>
 
-                {/* Extensible New Zone Creation Form */}
-                {isCreatingZone && (
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 bg-[#161D26] border border-[#3FA6E0]/50 rounded-[2px] text-xs animate-fade-in">
-                    <span className="text-[#3FA6E0] font-bold">NEW ZONE:</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center font-mono">
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="text-[#7C8898]">ZONE: {currentZoneObj ? currentZoneObj.label.toUpperCase() : "TURN 4 HAIRPIN"}</span>
+                      <span className="text-[#E7EDF3] font-bold">DRIVER: {selectedDriver.name.toUpperCase()}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={sliderMin}
+                      max={sliderMax}
+                      step="0.05"
+                      value={currentThreshold}
+                      onChange={(e) => setThresholds({ ...thresholds, [selectedKart]: Number(e.target.value) })}
+                      className="w-full accent-[#3FA6E0] cursor-pointer min-h-[36px]"
+                    />
+                    <div className="flex justify-between text-[10px] text-[#7C8898] mt-1">
+                      <span>{sliderMin.toFixed(2)}g (Conservative)</span>
+                      <span>{((sliderMin + sliderMax) / 2).toFixed(2)}g</span>
+                      <span>{sliderMax.toFixed(2)}g (Zone Max)</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#161D26] border border-[#232B35] p-3 rounded-[2px] flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] text-[#7C8898]">CALIBRATED LIMIT</p>
+                      <p className="text-xl font-bold text-[#3FA6E0]">{currentThreshold.toFixed(2)} g</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-[#7C8898]">SERVER STATUS</p>
+                      <span className="text-[10px] text-[#33D17E] bg-[#33D17E]/10 border border-[#33D17E]/30 px-1.5 py-0.5 rounded-[1px]">
+                        ✓ VALIDATED SAFE
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SESSION NOTES Panel */}
+              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
+                <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#3FA6E0] font-bold">|</span>
+                    <span className="text-xs font-bold text-[#E7EDF3]">SESSION NOTES (TIED TO LAP / ZONE)</span>
+                  </div>
+                  <span className="text-[10px] text-[#7C8898]">ACTIVE: {selectedDriver.name} (#{selectedDriver.kart})</span>
+                </div>
+
+                <div className="space-y-2 mb-3">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <select
+                      value={selectedZoneId}
+                      onChange={handleZoneSelectChange}
+                      className="bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[44px] rounded-[2px] outline-none cursor-pointer"
+                    >
+                      {zones.map((z) => (
+                        <option key={z.id} value={z.id}>
+                          {z.label} {z.corner_type ? `(${z.corner_type})` : ""}
+                        </option>
+                      ))}
+                      <option value="__new__">+ New Zone...</option>
+                    </select>
+
                     <input
                       type="text"
-                      placeholder="Zone Name (e.g. Turn 7 Kink)"
-                      value={newZoneName}
-                      onChange={(e) => setNewZoneName(e.target.value)}
-                      className="bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[40px] rounded-[2px] flex-1 outline-none focus:border-[#3FA6E0]"
+                      placeholder="Record coach observation for this lap/zone..."
+                      value={newNoteText}
+                      onChange={(e) => setNewNoteText(e.target.value)}
+                      className="flex-1 bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[44px] rounded-[2px] outline-none focus:border-[#3FA6E0]"
                     />
-                    <select
-                      value={newCornerType}
-                      onChange={(e) => setNewCornerType(e.target.value)}
-                      className="bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[40px] rounded-[2px] outline-none cursor-pointer"
-                    >
-                      <option value="hairpin">Hairpin</option>
-                      <option value="sweeper">Sweeper</option>
-                      <option value="chicane">Chicane</option>
-                      <option value="straight">Straight</option>
-                      <option value="other">Other</option>
-                    </select>
+
                     <button
-                      type="button"
-                      onClick={handleCreateZone}
-                      disabled={isSavingZone}
-                      className="bg-[#33D17E] text-[#0A0E13] font-bold px-4 py-2 min-h-[40px] rounded-[2px] cursor-pointer hover:bg-[#33D17E]/90 flex items-center justify-center"
+                      onClick={handleAddNote}
+                      className="bg-[#3FA6E0] text-[#0A0E13] font-bold text-xs px-5 py-2 min-h-[44px] rounded-[2px] hover:bg-[#3FA6E0]/90 cursor-pointer flex items-center justify-center"
                     >
-                      {isSavingZone ? "SAVING..." : "ADD ZONE"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCreatingZone(false);
-                        setSelectedZoneId(zones[0]?.id || "");
-                      }}
-                      className="text-[#7C8898] hover:text-[#E7EDF3] px-3 py-2 min-h-[40px] cursor-pointer"
-                    >
-                      CANCEL
+                      SAVE NOTE
                     </button>
                   </div>
-                )}
+
+                  {/* Extensible New Zone Creation Form */}
+                  {isCreatingZone && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 bg-[#161D26] border border-[#3FA6E0]/50 rounded-[2px] text-xs animate-fade-in">
+                      <span className="text-[#3FA6E0] font-bold">NEW ZONE:</span>
+                      <input
+                        type="text"
+                        placeholder="Zone Name (e.g. Turn 7 Kink)"
+                        value={newZoneName}
+                        onChange={(e) => setNewZoneName(e.target.value)}
+                        className="bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[40px] rounded-[2px] flex-1 outline-none focus:border-[#3FA6E0]"
+                      />
+                      <select
+                        value={newCornerType}
+                        onChange={(e) => setNewCornerType(e.target.value)}
+                        className="bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[40px] rounded-[2px] outline-none cursor-pointer"
+                      >
+                        <option value="hairpin">Hairpin</option>
+                        <option value="sweeper">Sweeper</option>
+                        <option value="chicane">Chicane</option>
+                        <option value="straight">Straight</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleCreateZone}
+                        disabled={isSavingZone}
+                        className="bg-[#33D17E] text-[#0A0E13] font-bold px-4 py-2 min-h-[40px] rounded-[2px] cursor-pointer hover:bg-[#33D17E]/90 flex items-center justify-center"
+                      >
+                        {isSavingZone ? "SAVING..." : "ADD ZONE"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCreatingZone(false);
+                          setSelectedZoneId(zones[0]?.id || "");
+                        }}
+                        className="text-[#7C8898] hover:text-[#E7EDF3] px-3 py-2 min-h-[40px] cursor-pointer"
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Session Notes Feed */}
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {notes.map((n) => (
+                    <div key={n.id} className="bg-[#161D26] border border-[#232B35] p-2 rounded-[2px] flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-[#3FA6E0] font-bold mr-2">[{n.timestamp}]</span>
+                        <span className="text-[#E7EDF3] font-semibold">{n.driverName} ({n.zone}):</span>
+                        <span className="text-[#7C8898] ml-1.5">{n.text}</span>
+                      </div>
+                      <span className="text-[10px] text-[#7C8898] bg-[#0A0E13] px-1.5 py-0.5 rounded">{n.lap}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Session Notes Feed */}
-              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                {notes.map((n) => (
-                  <div key={n.id} className="bg-[#161D26] border border-[#232B35] p-2 rounded-[2px] flex items-center justify-between text-xs">
-                    <div>
-                      <span className="text-[#3FA6E0] font-bold mr-2">[{n.timestamp}]</span>
-                      <span className="text-[#E7EDF3] font-semibold">{n.driverName} ({n.zone}):</span>
-                      <span className="text-[#7C8898] ml-1.5">{n.text}</span>
-                    </div>
-                    <span className="text-[10px] text-[#7C8898] bg-[#0A0E13] px-1.5 py-0.5 rounded">{n.lap}</span>
-                  </div>
-                ))}
+              {/* DEVELOPMENT ONGOING Banner */}
+              <div className="bg-[#12181F] border border-[#E8C547]/40 rounded-[2px] p-3 font-mono">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="bg-[#E8C547] text-[#0A0E13] text-[9px] font-bold px-1.5 py-0.5 rounded-[1px] uppercase">
+                    DEVELOPMENT ONGOING
+                  </span>
+                  <span className="text-xs font-bold text-[#E8C547] uppercase">
+                    PHASE 2: CROSS-DRIVER ML ANALYTICS & RISK PREDICTION
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#7C8898]">
+                  Automated driving-style badges, cross-driver overlap comparisons, and plain-language telemetry advice will be activated in Phase 2 deployment.
+                </p>
               </div>
             </div>
 
-            {/* 7. DEVELOPMENT ONGOING Banner */}
-            <div className="col-span-12 lg:col-span-9 order-7 lg:order-5 bg-[#12181F] border border-[#E8C547]/40 rounded-[2px] p-3 font-mono">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="bg-[#E8C547] text-[#0A0E13] text-[9px] font-bold px-1.5 py-0.5 rounded-[1px] uppercase">
-                  DEVELOPMENT ONGOING
-                </span>
-                <span className="text-xs font-bold text-[#E8C547] uppercase">
-                  PHASE 2: CROSS-DRIVER ML ANALYTICS & RISK PREDICTION
-                </span>
+            {/* Sidebar column (25% on desktop) — independent internal grid */}
+            <div className="col-span-12 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-4">
+              {/* TIMING TOWER Panel */}
+              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 font-mono">
+                <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#E7EDF3]">
+                    <span className="text-[#3FA6E0]">|</span> TIMING TOWER
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] text-[#33D17E]">
+                    <span className="text-[#7C8898]">{drivers.length}/{drivers.length} ON TRACK</span>
+                    <span className="animate-pulse">• LIVE</span>
+                  </div>
+                </div>
+
+                {/* Roster Classification Rows */}
+                <div className="space-y-1.5 font-mono">
+                  {drivers.map((d) => {
+                    const isSelected = selectedKart === d.kart;
+                    const rosterInfo = rosterMap[d.kart];
+                    const driverG = rosterInfo ? rosterInfo.current_g : (thresholds[d.kart] ? thresholds[d.kart] * 0.7 : 0.85);
+                    const driverThresh = rosterInfo ? rosterInfo.active_threshold : (thresholds[d.kart] || 1.15);
+
+                    return (
+                      <div
+                        key={d.pos}
+                        onClick={() => setSelectedKart(d.kart)}
+                        className="p-2 rounded-[2px] flex items-center justify-between text-xs cursor-pointer transition-all duration-150"
+                        style={{
+                          background: isSelected ? "#161D26" : "transparent",
+                          border: `1px solid ${isSelected ? "#3FA6E0" : "transparent"}`,
+                          boxShadow: isSelected ? "0 0 10px rgba(63,166,224,0.15)" : "none",
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-[#7C8898] text-[10px] w-3">{d.pos}</span>
+                          <span className="w-5 h-5 rounded-[1px] bg-[#232B35] text-[#E7EDF3] text-[10px] font-bold flex items-center justify-center border border-[#3A4553]">
+                            {d.kart}
+                          </span>
+                          <div>
+                            <p className="font-semibold text-xs text-[#E7EDF3] leading-none mb-1">{d.name}</p>
+                            <p className="text-[9px] text-[#7C8898] leading-none">
+                              {d.lapTime} · <span className={d.inPit ? "text-[#F2A93B]" : "text-[#7C8898]"}>{d.session}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1">
+                          <SignalStrip
+                            currentG={driverG}
+                            threshold={driverThresh}
+                            size="sm"
+                            showLabel={false}
+                          />
+                          <span className="text-[#3FA6E0] text-right font-bold text-[10px]">
+                            {d.gap}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <p className="text-[11px] text-[#7C8898]">
-                Automated driving-style badges, cross-driver overlap comparisons, and plain-language telemetry advice will be activated in Phase 2 deployment.
-              </p>
+
+              {/* SECTOR DELTAS Panel */}
+              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 font-mono">
+                <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
+                  <span className="text-xs font-bold text-[#E7EDF3]">
+                    <span className="text-[#3FA6E0]">|</span> SECTOR DELTAS
+                  </span>
+                  <span className="text-[9px] text-[#7C8898]">VS SESSION BEST</span>
+                </div>
+
+                <div className="space-y-3 font-mono">
+                  <div>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="text-[#7C8898]">SECTOR 1 (HAIRPIN ENTRY)</span>
+                      <span className="text-[#33D17E] font-bold">{s1}s (-0.142)</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-[#0A0E13] rounded-[1px] overflow-hidden">
+                      <div className="h-full bg-[#33D17E] w-[65%]" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="text-[#7C8898]">SECTOR 2 (MID CHICANE)</span>
+                      <span className="text-[#E5473C] font-bold">{s2}s (+0.310)</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-[#0A0E13] rounded-[1px] overflow-hidden">
+                      <div className="h-full bg-[#E5473C] w-[80%]" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="text-[#7C8898]">SECTOR 3 (FINAL APEX)</span>
+                      <span className="text-[#33D17E] font-bold">{s3}s (-0.088)</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-[#0A0E13] rounded-[1px] overflow-hidden">
+                      <div className="h-full bg-[#33D17E] w-[55%]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </main>
+
 
         </>
       ) : (
