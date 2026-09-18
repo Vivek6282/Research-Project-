@@ -1,7 +1,7 @@
 """Trackside — Devices serializers."""
 
 from rest_framework import serializers
-from devices.models import Device
+from devices.models import Device, DeviceCommand
 
 
 class DeviceSerializer(serializers.ModelSerializer):
@@ -39,3 +39,32 @@ class DeviceSerializer(serializers.ModelSerializer):
         else:
             ret.pop("raw_api_key", None)
         return ret
+
+class DeviceCommandSerializer(serializers.ModelSerializer):
+    """Serializer for IoT device diagnostic commands."""
+    
+    requested_by_name = serializers.CharField(source="requested_by.name", read_only=True)
+
+    class Meta:
+        model = DeviceCommand
+        fields = [
+            "id",
+            "device",
+            "command_type",
+            "status",
+            "requested_by",
+            "requested_by_name",
+            "requested_at",
+            "completed_at",
+            "result",
+        ]
+        read_only_fields = [
+            "id",
+            "device",
+            "status",
+            "requested_by",
+            "requested_by_name",
+            "requested_at",
+            "completed_at",
+            "result",
+        ]

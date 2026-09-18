@@ -13,6 +13,79 @@ from django.db import models
 from django.conf import settings
 
 
+class DeviceCommand(models.Model):
+    """
+    A diagnostic or control command queued for an IoT device.
+    """
+
+    class CommandType(models.TextChoices):
+        SELF_TEST = "self_test", "Self Test"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    device = models.ForeignKey(
+        "devices.Device",
+        on_delete=models.CASCADE,
+        related_name="commands",
+        help_text="The device this command is for",
+    )
+
+    command_type = models.CharField(
+        max_length=50,
+        choices=CommandType.choices,
+        help_text="Type of command to execute",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        help_text="Execution status of the command",
+    )
+
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="requested_device_commands",
+        help_text="The Admin user who triggered this command",
+    )
+
+    requested_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the command was queued",
+    )
+
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the command was completed or failed",
+    )
+
+    result = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Structured result payload from the device",
+    )
+
+    class Meta:
+        db_table = "device_commands"
+        ordering = ["-requested_at"]
+
+    def __str__(self):
+        return f"{self.command_type} for {self.device.id} ({self.status})"
+
+
 class Device(models.Model):
     """
     An IoT device registered in the Trackside system.
