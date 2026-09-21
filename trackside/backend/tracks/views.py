@@ -95,6 +95,30 @@ class ZoneDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Zone.objects.filter(track_id=track_id)
 
 
+class TrackReferenceLineView(generics.GenericAPIView):
+    """
+    GET /api/tracks/<uuid>/reference-line/ — return the track's surveyed GPS polyline.
+
+    Lightweight endpoint for the Live Track View panel: returns only the
+    reference_line JSONB array (ordered {lat, lng} points) without loading
+    zones or other nested data.  Returns null when the track hasn't been
+    surveyed yet, so the frontend can show a graceful fallback.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk=None):
+        from rest_framework.response import Response
+        from django.shortcuts import get_object_or_404
+
+        track = get_object_or_404(Track, pk=pk)
+        return Response({
+            "track_id": str(track.id),
+            "track_name": track.name,
+            "reference_line": track.reference_line,
+        })
+
+
 class TrackSurveyView(generics.GenericAPIView):
     """
     POST /api/tracks/<uuid>/survey/ — submit raw GPS survey points (survey lap).

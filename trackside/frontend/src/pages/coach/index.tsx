@@ -17,6 +17,7 @@
 import { useState, useEffect } from "react";
 import { TopBar } from "../../components/shell/top-bar";
 import { SignalStrip } from "../../components/ui/signal-strip";
+import { LiveTrackView } from "../../components/ui/live-track-view";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { api } from "../../lib/api";
 import { startMockTelemetryEngine } from "../../lib/mockTelemetry";
@@ -278,6 +279,10 @@ const HISTORICAL_SESSIONS = [
   const [currentBreathing, setCurrentBreathing] = useState(selectedDriver.baseBreathing);
   const [currentGForce, setCurrentGForce] = useState(1.42);
 
+  // Live GPS coordinates from telemetry for the Live Track View
+  const [currentGpsLat, setCurrentGpsLat] = useState<number | null>(null);
+  const [currentGpsLng, setCurrentGpsLng] = useState<number | null>(null);
+
   // WebSocket connection status for live telemetry pipeline
   const [wsStatus, setWsStatus] = useState<"connected" | "reconnecting" | "disconnected">("disconnected");
 
@@ -335,13 +340,17 @@ const HISTORICAL_SESSIONS = [
           try {
             const message = JSON.parse(event.data);
             if (message.type === "telemetry_reading" && message.data) {
-              const { speed_kmh, lateral_g } = message.data;
+              const { speed_kmh, lateral_g, gps_lat, gps_lng } = message.data;
               if (typeof speed_kmh === "number") {
                 setCurrentSpeed(Math.round(speed_kmh));
                 setActualSpeedPath((prev) => [...prev.slice(1), Math.round(speed_kmh)]);
               }
               if (typeof lateral_g === "number") {
                 setCurrentGForce(Number(lateral_g.toFixed(2)));
+              }
+              if (typeof gps_lat === "number" && typeof gps_lng === "number") {
+                setCurrentGpsLat(gps_lat);
+                setCurrentGpsLng(gps_lng);
               }
             } else if (message.type === "biometric_reading" && message.data) {
               const { heart_rate, spo2, breathing_rate } = message.data;
@@ -699,6 +708,15 @@ const HISTORICAL_SESSIONS = [
                   </div>
                 </div>
               </div>
+
+              {/* LIVE TRACK VIEW Panel */}
+              <LiveTrackView
+                trackId={activeTrackId}
+                gpsLat={currentGpsLat}
+                gpsLng={currentGpsLng}
+                currentG={currentGForce}
+                threshold={currentThreshold}
+              />
 
               {/* BIOMETRICS 3-Card Row */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
