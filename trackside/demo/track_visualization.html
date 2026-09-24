@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trackside — Live Telemetry Visualizer (Single Source of Truth)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ==========================================================================
+       TRACKSIDE DESIGN SYSTEM TOKENS
+       ========================================================================== */
+    :root {
+      --bg: #0A0E13;
+      --panel: #12181F;
+      --panel-elevated: #161D26;
+      --panel-hover: #1B2430;
+      --line: #232B35;
+      --line-bright: #323D4B;
+      --text: #E7EDF3;
+      --text-muted: #7C8898;
+      --text-faint: #4B5563;
+      
+      --accent-blue: #3FA6E0;
+      --accent-blue-glow: rgba(63, 166, 224, 0.25);
+      
+      --stage-nominal: #33D17E;
+      --stage-nominal-glow: rgba(51, 209, 126, 0.35);
+      --stage-monitoring: #F2A93B;
+      --stage-monitoring-glow: rgba(242, 169, 59, 0.35);
+      --stage-intervene: #E5473C;
+      --stage-intervene-glow: rgba(229, 71, 60, 0.45);
+      
+      --segment-off: #232B35;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+
+    /* Monospace for telemetry values */
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Motorsport hazard top stripe */
+    .hazard-stripe {
+      height: 4px;
+      width: 100%;
+      background: repeating-linear-gradient(
+        -45deg,
+        #F2A93B,
+        #F2A93B 12px,
+        #0A0E13 12px,
+        #0A0E13 24px
+      );
+    }
+
+    /* Container */
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px 24px 40px;
+    }
+
+    /* Top Bar */
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 24px;
+    }
+
+    .brand-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .brand-tag {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      color: var(--accent-blue);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .brand-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--panel-elevated);
+      border: 1px solid var(--line-bright);
+      color: var(--text-muted);
+    }
+
+    .connection-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--stage-intervene);
+      box-shadow: 0 0 10px var(--stage-intervene);
+      transition: background 300ms ease, box-shadow 300ms ease;
+    }
+
+    .status-dot.connected {
+      background: var(--stage-nominal);
+      box-shadow: 0 0 10px var(--stage-nominal);
+      animation: pulse-dot 2s infinite ease-in-out;
+    }
+
+    .status-dot.connecting {
+      background: var(--stage-monitoring);
+      box-shadow: 0 0 10px var(--stage-monitoring);
+      animation: pulse-dot 1s infinite ease-in-out;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+    }
+
+    /* Single Source of Truth Banner */
+    .truth-banner {
+      background: linear-gradient(90deg, rgba(63, 166, 224, 0.12) 0%, rgba(18, 24, 31, 0.6) 100%);
+      border: 1px solid rgba(63, 166, 224, 0.3);
+      border-radius: 8px;
+      padding: 12px 18px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 12px;
+    }
+
+    .truth-banner-text {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text);
+    }
+
+    .truth-icon {
+      color: var(--accent-blue);
+      font-size: 16px;
+    }
+
+    .truth-badge {
+      background: var(--accent-blue);
+      color: #06121B;
+      font-weight: 700;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+    }
+
+    /* Layout Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    @media (min-width: 1024px) {
+      .dashboard-grid {
+        grid-template-columns: 7fr 5fr;
+      }
+    }
+
+    /* Card Panels */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(35, 43, 53, 0.6);
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Track SVG Viewport */
+    .track-canvas-container {
+      position: relative;
+      width: 100%;
+      background: #080C10;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    svg.track-svg {
+      width: 100%;
+      height: auto;
+      max-height: 420px;
+      overflow: visible;
+    }
+
+    /* Animated Kart Dot */
+    #kart-dot {
+      transition: cx 120ms linear, cy 120ms linear, fill 200ms ease;
+    }
+
+    #kart-pulse {
+      animation: pulse-kart 1.2s infinite ease-out;
+      transform-origin: center;
+    }
+
+    @keyframes pulse-kart {
+      0% { r: 8; opacity: 0.9; }
+      100% { r: 24; opacity: 0; }
+    }
+
+    /* Zone Badges below track */
+    .zone-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .zone-pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: var(--panel-elevated);
+      border: 1px solid var(--line);
+      color: var(--text-muted);
+      transition: all 200ms ease;
+    }
+
+    .zone-pill.active {
+      border-color: var(--accent-blue);
+      color: var(--text);
+      background: rgba(63, 166, 224, 0.15);
+      font-weight: 600;
+    }
+
+    /* Metric Readouts Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: var(--panel-elevated);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .metric-unit {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    .metric-sub {
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-top: 4px;
+    }
+
+    /* 5-Segment Signal Strip */
+    .signal-strip-card {
+      background: var(--panel-elevated);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .signal-strip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .signal-strip {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .signal-segment {
+      flex: 1;
+      height: 18px;
+      border-radius: 3px;
+      background: var(--segment-off);
+      transition: background 120ms ease, box-shadow 120ms ease;
+    }
+
+    /* Progressive lighting */
+    .signal-segment.lit-green {
+      background: var(--stage-nominal);
+      box-shadow: 0 0 12px var(--stage-nominal-glow);
+    }
+
+    .signal-segment.lit-amber {
+      background: var(--stage-monitoring);
+      box-shadow: 0 0 14px var(--stage-monitoring-glow);
+    }
+
+    .signal-segment.lit-red {
+      background: var(--stage-intervene);
+      box-shadow: 0 0 16px var(--stage-intervene-glow);
+      animation: pulse-red-seg 0.5s infinite alternate ease-in-out;
+    }
+
+    @keyframes pulse-red-seg {
+      0% { opacity: 0.85; filter: brightness(1); }
+      100% { opacity: 1; filter: brightness(1.3); }
+    }
+
+    .stage-pill {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      padding: 3px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      transition: all 150ms ease;
+    }
+
+    .stage-pill.nominal {
+      background: rgba(51, 209, 126, 0.15);
+      border: 1px solid rgba(51, 209, 126, 0.4);
+      color: var(--stage-nominal);
+    }
+
+    .stage-pill.monitoring {
+      background: rgba(242, 169, 59, 0.15);
+      border: 1px solid rgba(242, 169, 59, 0.4);
+      color: var(--stage-monitoring);
+    }
+
+    .stage-pill.intervene {
+      background: rgba(229, 71, 60, 0.2);
+      border: 1px solid rgba(229, 71, 60, 0.5);
+      color: var(--stage-intervene);
+      animation: pulse-intervene-badge 0.8s infinite alternate;
+    }
+
+    @keyframes pulse-intervene-badge {
+      0% { box-shadow: 0 0 4px rgba(229, 71, 60, 0.3); }
+      100% { box-shadow: 0 0 14px rgba(229, 71, 60, 0.8); }
+    }
+
+    /* Live Waveform Canvas */
+    .chart-container {
+      width: 100%;
+      height: 110px;
+      background: #080C10;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      position: relative;
+      margin-top: 10px;
+    }
+
+    canvas#g-chart {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Scrolling Alert Log */
+    .alert-log-card {
+      background: var(--panel-elevated);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 250px;
+    }
+
+    .alert-log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .alert-log-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-right: 4px;
+    }
+
+    /* Custom scrollbar */
+    .alert-log-list::-webkit-scrollbar {
+      width: 5px;
+    }
+    .alert-log-list::-webkit-scrollbar-track {
+      background: var(--panel);
+    }
+    .alert-log-list::-webkit-scrollbar-thumb {
+      background: var(--line-bright);
+      border-radius: 4px;
+    }
+
+    .alert-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(229, 71, 60, 0.08);
+      border-left: 3px solid var(--stage-intervene);
+      border-top: 1px solid rgba(229, 71, 60, 0.2);
+      border-right: 1px solid rgba(229, 71, 60, 0.2);
+      border-bottom: 1px solid rgba(229, 71, 60, 0.2);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      animation: alert-slide-in 200ms ease-out;
+    }
+
+    @keyframes alert-slide-in {
+      from { transform: translateX(10px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .alert-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .alert-title {
+      font-weight: 600;
+      color: #FFA49E;
+    }
+
+    .alert-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .alert-badge {
+      background: var(--stage-intervene);
+      color: #FFFFFF;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    .empty-alerts {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-faint);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Settings Collapsible / Endpoint Bar */
+    .footer-bar {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .endpoint-input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .endpoint-input {
+      background: var(--panel-elevated);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      width: 200px;
+      outline: none;
+    }
+
+    .endpoint-input:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .btn-connect {
+      background: var(--accent-blue);
+      color: #06121B;
+      font-weight: 600;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: opacity 150ms ease;
+    }
+
+    .btn-connect:hover {
+      opacity: 0.9;
+    }
+
+    .btn-clear {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text-muted);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .btn-clear:hover {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <!-- Motorsport Hazard Accent -->
+  <div class="hazard-stripe"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header>
+      <div class="brand-group">
+        <span class="brand-tag mono">Trackside · Real-Time Telemetry</span>
+        <div class="brand-title">
+          <span>Pit-Wall Track Visualizer</span>
+          <span class="brand-badge mono">DEMO TOOLING</span>
+        </div>
+      </div>
+
+      <div class="connection-status-pill mono">
+        <span id="status-indicator" class="status-dot"></span>
+        <span id="status-text">CONNECTING...</span>
+      </div>
+    </header>
+
+    <!-- Single Source of Truth Banner -->
+    <div class="truth-banner">
+      <div class="truth-banner-text">
+        <span class="truth-icon">⚡</span>
+        <div>
+          <strong>SINGLE SOURCE OF TRUTH:</strong> Live data streamed directly from 
+          <code class="mono" style="color: var(--accent-blue);">virtual_lap_simulator.py</code> via local WebSocket. 
+          Synchronized at the identical microsecond with physical Bridge ESP32 Serial and backend telemetry ingestion.
+        </div>
+      </div>
+      <span class="truth-badge mono">ESP-NOW SYNC</span>
+    </div>
+
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
+      <!-- Left Column: SVG Track Viewport -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title mono">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="12 6 12 12 16 14"></polygon>
+            </svg>
+            Circuit Trajectory &amp; Sector Progress
+          </span>
+          <span id="lap-pill" class="mono" style="font-size: 12px; font-weight: 600; color: var(--accent-blue);">LAP 01</span>
+        </div>
+
+        <div class="track-canvas-container">
+          <svg class="track-svg" viewBox="0 0 520 300">
+            <!-- Defs for glow and gradients -->
+            <defs>
+              <filter id="dot-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Outer Asphalt Border -->
+            <path
+              d="M 60,180 C 60,90 130,40 230,40 C 320,40 340,90 300,120 C 270,143 250,120 230,140 C 205,165 240,190 290,190 C 380,190 420,150 420,100 C 420,55 385,30 330,30 C 300,30 300,10 340,10 C 420,10 460,60 460,120 C 460,200 400,260 300,260 C 180,260 60,270 60,180 Z"
+              fill="none"
+              stroke="#0D131A"
+              stroke-width="26"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+
+            <!-- Track Tarmac Surface -->
+            <path
+              id="track-path"
+              d="M 60,180 C 60,90 130,40 230,40 C 320,40 340,90 300,120 C 270,143 250,120 230,140 C 205,165 240,190 290,190 C 380,190 420,150 420,100 C 420,55 385,30 330,30 C 300,30 300,10 340,10 C 420,10 460,60 460,120 C 460,200 400,260 300,260 C 180,260 60,270 60,180 Z"
+              fill="none"
+              stroke="#1A232F"
+              stroke-width="16"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+
+            <!-- Centerline Dashes -->
+            <path
+              d="M 60,180 C 60,90 130,40 230,40 C 320,40 340,90 300,120 C 270,143 250,120 230,140 C 205,165 240,190 290,190 C 380,190 420,150 420,100 C 420,55 385,30 330,30 C 300,30 300,10 340,10 C 420,10 460,60 460,120 C 460,200 400,260 300,260 C 180,260 60,270 60,180 Z"
+              fill="none"
+              stroke="#2B394A"
+              stroke-width="1.5"
+              stroke-dasharray="5 7"
+            />
+
+            <!-- Start / Finish Line Marker -->
+            <line x1="52" y1="180" x2="68" y2="180" stroke="#3FA6E0" stroke-width="4" stroke-linecap="round" />
+            <text x="35" y="195" fill="#3FA6E0" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="700">S/F</text>
+
+            <!-- Zone Label Annotations on SVG -->
+            <text x="60" y="80" fill="#7C8898" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="600">TURN 1 (HAIRPIN)</text>
+            <text x="210" y="25" fill="#7C8898" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="600">MAIN STRAIGHT</text>
+            <text x="340" y="145" fill="#7C8898" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="600">SWEEPER</text>
+            <text x="320" y="280" fill="#7C8898" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="600">CHICANE</text>
+
+            <!-- Animated Kart Halo & Moving Dot -->
+            <circle id="kart-pulse" cx="60" cy="180" r="14" fill="#33D17E" opacity="0.4" />
+            <circle id="kart-dot" cx="60" cy="180" r="7" fill="#33D17E" stroke="#0A0E13" stroke-width="2.5" filter="url(#dot-glow)" />
+          </svg>
+
+          <!-- Zone Indicators below track -->
+          <div class="zone-pills-row mono">
+            <span id="zone-pill-hairpin" class="zone-pill">HAIRPIN (1.15g)</span>
+            <span id="zone-pill-straight1" class="zone-pill">STRAIGHT</span>
+            <span id="zone-pill-sweeper" class="zone-pill">SWEEPER (1.55g)</span>
+            <span id="zone-pill-straight2" class="zone-pill">BACK STRAIGHT</span>
+            <span id="zone-pill-chicane" class="zone-pill">CHICANE (1.30g)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Live Telemetry, 5-Segment Glove Strip & Alert Log -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Metrics Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title mono">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+              </svg>
+              Live Telemetry Readings
+            </span>
+            <span id="progress-text" class="mono" style="font-size: 11px; color: var(--text-muted);">PROGRESS 0.0%</span>
+          </div>
+
+          <!-- 4 Big Numbers -->
+          <div class="metrics-grid">
+            <!-- Lateral G -->
+            <div class="metric-card">
+              <span class="metric-label mono">Lateral Acceleration</span>
+              <div>
+                <span id="g-value" class="metric-value mono">0.00</span>
+                <span class="metric-unit mono">g</span>
+              </div>
+              <span id="threshold-sub" class="metric-sub mono">Threshold: 1.15 g</span>
+            </div>
+
+            <!-- Kart Speed -->
+            <div class="metric-card">
+              <span class="metric-label mono">Kart Velocity</span>
+              <div>
+                <span id="speed-value" class="metric-value mono">0.0</span>
+                <span class="metric-unit mono">km/h</span>
+              </div>
+              <span id="zone-sub" class="metric-sub mono">Sector: Hairpin</span>
+            </div>
+
+            <!-- Current Lap -->
+            <div class="metric-card">
+              <span class="metric-label mono">Current Lap</span>
+              <div>
+                <span id="lap-value" class="metric-value mono">1</span>
+                <span class="metric-unit mono">/ 5</span>
+              </div>
+              <span class="metric-sub mono">Session Mode: Active</span>
+            </div>
+
+            <!-- Current Zone -->
+            <div class="metric-card">
+              <span class="metric-label mono">Active Track Zone</span>
+              <div>
+                <span id="zone-name-display" class="metric-value mono" style="font-size: 20px;">Hairpin</span>
+              </div>
+              <span id="corner-type-sub" class="metric-sub mono">High-Force Corner</span>
+            </div>
+          </div>
+
+          <!-- 5-Segment Glove Signal Strip (Matches Hardware Exactly) -->
+          <div class="signal-strip-card">
+            <div class="signal-strip-header">
+              <span class="mono" style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">
+                Glove LED Signal Strip (Hardware Mirror)
+              </span>
+              <span id="stage-badge" class="stage-pill nominal mono">Nominal</span>
+            </div>
+            
+            <div class="signal-strip">
+              <!-- Segments: Green, Green, Amber, Amber, Red -->
+              <div id="seg-0" class="signal-segment lit-green" title="Nominal Green 1"></div>
+              <div id="seg-1" class="signal-segment lit-green" title="Nominal Green 2"></div>
+              <div id="seg-2" class="signal-segment" title="Monitoring Amber 1"></div>
+              <div id="seg-3" class="signal-segment" title="Monitoring Amber 2"></div>
+              <div id="seg-4" class="signal-segment" title="Intervene Red"></div>
+            </div>
+          </div>
+
+          <!-- Real-Time G-Force Waveform -->
+          <div style="margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span class="mono" style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Lateral-g Waveform (Live Stream)</span>
+              <span class="mono" style="font-size: 10px; color: var(--text-faint);">3.0s ROLLING WINDOW</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="g-chart" width="450" height="110"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scrolling Alert Log Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title mono">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              Intervene Alert Log
+            </span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="alert-counter" class="mono" style="font-size: 11px; color: var(--stage-intervene); font-weight: 700;">0 ALERTS</span>
+              <button id="btn-clear-log" class="btn-clear mono">CLEAR</button>
+            </div>
+          </div>
+
+          <div class="alert-log-card">
+            <div id="alert-list" class="alert-log-list mono">
+              <div id="empty-state" class="empty-alerts mono">
+                No Intervene Alerts Recorded Yet
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Bar & Config -->
+    <div class="footer-bar mono">
+      <div class="endpoint-input-group">
+        <span>BROADCAST STREAM:</span>
+        <input type="text" id="ws-url-input" class="endpoint-input mono" value="ws://127.0.0.1:8765" />
+        <button id="btn-reconnect" class="btn-connect mono">RECONNECT</button>
+      </div>
+      <div>
+        <span>TRACKSIDE · 2026 APEX SYSTEMS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    (function () {
+      // Configuration & DOM Elements
+      let ws = null;
+      let reconnectTimer = null;
+      let alertCount = 0;
+      const MAX_ALERTS = 40;
+
+      const trackPath = document.getElementById("track-path");
+      const kartDot = document.getElementById("kart-dot");
+      const kartPulse = document.getElementById("kart-pulse");
+      const pathLength = trackPath.getTotalLength();
+
+      const statusIndicator = document.getElementById("status-indicator");
+      const statusText = document.getElementById("status-text");
+      const wsUrlInput = document.getElementById("ws-url-input");
+      const btnReconnect = document.getElementById("btn-reconnect");
+      const btnClearLog = document.getElementById("btn-clear-log");
+
+      const gValueEl = document.getElementById("g-value");
+      const speedValueEl = document.getElementById("speed-value");
+      const lapValueEl = document.getElementById("lap-value");
+      const lapPillEl = document.getElementById("lap-pill");
+      const zoneNameDisplay = document.getElementById("zone-name-display");
+      const zoneSubEl = document.getElementById("zone-sub");
+      const thresholdSubEl = document.getElementById("threshold-sub");
+      const progressTextEl = document.getElementById("progress-text");
+      const stageBadge = document.getElementById("stage-badge");
+      const alertList = document.getElementById("alert-list");
+      const emptyState = document.getElementById("empty-state");
+      const alertCounter = document.getElementById("alert-counter");
+
+      // Segments
+      const segments = [
+        document.getElementById("seg-0"),
+        document.getElementById("seg-1"),
+        document.getElementById("seg-2"),
+        document.getElementById("seg-3"),
+        document.getElementById("seg-4"),
+      ];
+
+      // Zone Pills Map
+      const zonePills = {
+        hairpin: document.getElementById("zone-pill-hairpin"),
+        straight1: document.getElementById("zone-pill-straight1"),
+        sweeper: document.getElementById("zone-pill-sweeper"),
+        straight2: document.getElementById("zone-pill-straight2"),
+        chicane: document.getElementById("zone-pill-chicane"),
+      };
+
+      // Chart setup
+      const canvas = document.getElementById("g-chart");
+      const ctx = canvas.getContext("2d");
+      const gHistory = [];
+      const MAX_CHART_POINTS = 60;
+
+      // Initialize waveform buffer with 0.2g baseline
+      for (let i = 0; i < MAX_CHART_POINTS; i++) {
+        gHistory.push(0.2);
+      }
+
+      function drawChart(activeThreshold) {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        // Grid lines
+        ctx.strokeStyle = "#161D26";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, h * 0.33);
+        ctx.lineTo(w, h * 0.33);
+        ctx.moveTo(0, h * 0.66);
+        ctx.lineTo(w, h * 0.66);
+        ctx.stroke();
+
+        // Threshold dashed line
+        if (activeThreshold) {
+          const maxG = 2.0;
+          const threshY = h - (activeThreshold / maxG) * (h - 10) - 5;
+          ctx.strokeStyle = "rgba(229, 71, 60, 0.4)";
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(0, threshY);
+          ctx.lineTo(w, threshY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // Draw waveform line
+        ctx.beginPath();
+        const step = w / (MAX_CHART_POINTS - 1);
+        for (let i = 0; i < gHistory.length; i++) {
+          const val = Math.min(2.0, gHistory[i]);
+          const x = i * step;
+          const y = h - (val / 2.0) * (h - 12) - 6;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+
+        const latestG = gHistory[gHistory.length - 1] || 0;
+        let strokeColor = "#33D17E";
+        if (activeThreshold && latestG >= activeThreshold) {
+          strokeColor = "#E5473C";
+        } else if (activeThreshold && latestG >= activeThreshold * 0.82) {
+          strokeColor = "#F2A93B";
+        }
+
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+
+      // 5-Segment progressive lighting update
+      function updateSignalStrip(stage) {
+        const stageUpper = (stage || "NOMINAL").toUpperCase();
+
+        // Clear all segment active classes
+        segments.forEach((seg) => {
+          seg.className = "signal-segment";
+        });
+
+        if (stageUpper === "INTERVENE") {
+          // All 5 lit: Green, Green, Amber, Amber, Red (Pulsing)
+          segments[0].className = "signal-segment lit-green";
+          segments[1].className = "signal-segment lit-green";
+          segments[2].className = "signal-segment lit-amber";
+          segments[3].className = "signal-segment lit-amber";
+          segments[4].className = "signal-segment lit-red";
+
+          stageBadge.textContent = "INTERVENE";
+          stageBadge.className = "stage-pill intervene mono";
+        } else if (stageUpper === "MONITORING") {
+          // 4 lit: Green, Green, Amber, Amber
+          segments[0].className = "signal-segment lit-green";
+          segments[1].className = "signal-segment lit-green";
+          segments[2].className = "signal-segment lit-amber";
+          segments[3].className = "signal-segment lit-amber";
+
+          stageBadge.textContent = "MONITORING";
+          stageBadge.className = "stage-pill monitoring mono";
+        } else {
+          // Nominal: 2 lit (Green, Green)
+          segments[0].className = "signal-segment lit-green";
+          segments[1].className = "signal-segment lit-green";
+
+          stageBadge.textContent = "NOMINAL";
+          stageBadge.className = "stage-pill nominal mono";
+        }
+      }
+
+      // Update Zone highlights
+      function updateZonePill(zoneName) {
+        const zn = (zoneName || "").toLowerCase();
+        Object.keys(zonePills).forEach((k) => {
+          if (zonePills[k]) zonePills[k].classList.remove("active");
+        });
+
+        if (zn.includes("hairpin")) {
+          zonePills.hairpin && zonePills.hairpin.classList.add("active");
+        } else if (zn.includes("sweeper")) {
+          zonePills.sweeper && zonePills.sweeper.classList.add("active");
+        } else if (zn.includes("chicane")) {
+          zonePills.chicane && zonePills.chicane.classList.add("active");
+        } else {
+          zonePills.straight1 && zonePills.straight1.classList.add("active");
+        }
+      }
+
+      // Add Alert to scrolling log
+      function recordInterveneAlert(data) {
+        if (emptyState && emptyState.parentElement) {
+          emptyState.remove();
+        }
+
+        alertCount++;
+        alertCounter.textContent = `${alertCount} ALERT${alertCount === 1 ? '' : 'S'}`;
+
+        const item = document.createElement("div");
+        item.className = "alert-item mono";
+
+        const now = new Date();
+        const timeStr = now.toTimeString().split(" ")[0] + "." + Math.floor(now.getMilliseconds() / 100);
+
+        item.innerHTML = `
+          <div class="alert-details">
+            <span class="alert-title">⚠ INTERVENE: ${data.zone || 'Turn'} Threshold Exceeded</span>
+            <span class="alert-meta">Lap ${data.lap || 1} · Force: ${data.g_force ? data.g_force.toFixed(2) : '--'}g (Limit: ${data.threshold ? data.threshold.toFixed(2) : '1.15'}g) · ${timeStr}</span>
+          </div>
+          <span class="alert-badge">RED ALERT</span>
+        `;
+
+        alertList.insertBefore(item, alertList.firstChild);
+
+        // Keep list bounded
+        while (alertList.children.length > MAX_ALERTS) {
+          alertList.removeChild(alertList.lastChild);
+        }
+      }
+
+      // Apply Telemetry Reading from Single Source of Truth
+      function applyReading(data) {
+        // Expected payload: {lap, zone, g_force, stage, speed_kmh, track_progress, threshold}
+        const g = typeof data.g_force === "number" ? data.g_force : 0.0;
+        const speed = typeof data.speed_kmh === "number" ? data.speed_kmh : 0.0;
+        const lap = data.lap || 1;
+        const zone = data.zone || "Straight";
+        const stage = (data.stage || "NOMINAL").toUpperCase();
+        const progress = Math.max(0.0, Math.min(1.0, typeof data.track_progress === "number" ? data.track_progress : 0.0));
+        const threshold = data.threshold || 1.15;
+
+        // 1. Position Moving Dot on SVG Track
+        const dist = progress * pathLength;
+        const pt = trackPath.getPointAtLength(dist);
+
+        kartDot.setAttribute("cx", pt.x);
+        kartDot.setAttribute("cy", pt.y);
+        kartPulse.setAttribute("cx", pt.x);
+        kartPulse.setAttribute("cy", pt.y);
+
+        // Color dot by stage
+        let dotColor = "#33D17E";
+        if (stage === "INTERVENE") dotColor = "#E5473C";
+        else if (stage === "MONITORING") dotColor = "#F2A93B";
+
+        kartDot.setAttribute("fill", dotColor);
+        kartPulse.setAttribute("fill", dotColor);
+
+        // 2. Update Metrics
+        gValueEl.textContent = g.toFixed(2);
+        speedValueEl.textContent = speed.toFixed(1);
+        lapValueEl.textContent = lap;
+        lapPillEl.textContent = `LAP ${lap.toString().padStart(2, "0")}`;
+        zoneNameDisplay.textContent = zone;
+        zoneSubEl.textContent = `Sector: ${zone}`;
+        thresholdSubEl.textContent = `Threshold: ${threshold.toFixed(2)} g`;
+        progressTextEl.textContent = `PROGRESS ${(progress * 100).toFixed(1)}%`;
+
+        // 3. Update 5-Segment Glove Strip
+        updateSignalStrip(stage);
+
+        // 4. Update Active Zone Pill
+        updateZonePill(zone);
+
+        // 5. Append to Rolling Waveform Chart
+        gHistory.shift();
+        gHistory.push(g);
+        drawChart(threshold);
+
+        // 6. Log Intervene Reading
+        if (stage === "INTERVENE") {
+          recordInterveneAlert(data);
+        }
+      }
+
+      // WebSocket Connection with Resilient Auto-Reconnect
+      function connectWebSocket() {
+        const url = wsUrlInput.value.trim() || "ws://127.0.0.1:8765";
+
+        if (ws) {
+          try { ws.close(); } catch (e) {}
+        }
+
+        statusIndicator.className = "status-dot connecting";
+        statusText.textContent = `CONNECTING TO ${url}...`;
+
+        try {
+          ws = new WebSocket(url);
+        } catch (err) {
+          scheduleReconnect();
+          return;
+        }
+
+        ws.onopen = function () {
+          statusIndicator.className = "status-dot connected";
+          statusText.textContent = `LIVE TELEMETRY STREAM ACTIVE (${url.replace("ws://", "")})`;
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+          }
+        };
+
+        ws.onmessage = function (event) {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "connection_ack") {
+              console.log("[Trackside WS Handshake]", data.message);
+              return;
+            }
+            applyReading(data);
+          } catch (e) {
+            console.error("[Trackside WS Parse Error]", e);
+          }
+        };
+
+        ws.onclose = function () {
+          statusIndicator.className = "status-dot";
+          statusText.textContent = "DISCONNECTED · RECONNECTING IN 2s...";
+          scheduleReconnect();
+        };
+
+        ws.onerror = function () {
+          statusIndicator.className = "status-dot";
+          statusText.textContent = "STREAM OFFLINE · CHECK SIMULATOR SCRIPT";
+          // onclose will fire right after
+        };
+      }
+
+      function scheduleReconnect() {
+        if (!reconnectTimer) {
+          reconnectTimer = setTimeout(function () {
+            reconnectTimer = null;
+            connectWebSocket();
+          }, 2000);
+        }
+      }
+
+      // Event Listeners
+      btnReconnect.addEventListener("click", function () {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        connectWebSocket();
+      });
+
+      btnClearLog.addEventListener("click", function () {
+        alertList.innerHTML = '<div id="empty-state" class="empty-alerts mono">No Intervene Alerts Recorded Yet</div>';
+        alertCount = 0;
+        alertCounter.textContent = "0 ALERTS";
+      });
+
+      // Initial Canvas Render
+      drawChart(1.15);
+
+      // Start Connection
+      connectWebSocket();
+    })();
+  </script>
+</body>
+</html>
