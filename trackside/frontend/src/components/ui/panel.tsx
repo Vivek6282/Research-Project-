@@ -14,11 +14,14 @@ interface PanelProps {
   right?: ReactNode;
   children: ReactNode;
   className?: string;
+  testId?: string;
 }
 
-export function Panel({ title, icon: Icon, right, children, className = "" }: PanelProps) {
+export function Panel({ title, icon: Icon, right, children, className = "", testId }: PanelProps) {
+  const panelTestId = testId || `panel-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   return (
     <div
+      data-testid={panelTestId}
       className={`rounded-lg p-4 transition-all duration-150 ${className}`}
       style={{
         background: "#12181F",

@@ -146,7 +146,7 @@ class SessionNoteSerializer(serializers.ModelSerializer):
             "id", "session", "coach", "coach_name",
             "zone", "zone_label", "note_text", "created_at",
         ]
-        read_only_fields = ["id", "coach", "coach_name", "zone_label", "created_at"]
+        read_only_fields = ["id", "session", "coach", "coach_name", "zone_label", "created_at"]
 
     def get_coach_name(self, obj):
         return obj.coach.name if obj.coach else None

@@ -14,8 +14,10 @@ interface DevBannerProps {
 }
 
 export function DevBanner({ phase, children }: DevBannerProps) {
+  const bannerId = `dev-banner-${phase.toLowerCase().replace(/[^a-z0-9.]+/g, "-")}`;
   return (
     <div
+      data-testid={bannerId}
       className="rounded-lg overflow-hidden relative shadow-lg"
       style={{ border: "1px solid #E8C54744" }}
     >
@@ -30,6 +32,7 @@ export function DevBanner({ phase, children }: DevBannerProps) {
         <div className="flex items-center gap-2">
           <Construction size={14} style={{ color: "#E8C547" }} />
           <span
+            data-testid={`${bannerId}-title`}
             className="text-[11px] font-mono font-bold uppercase tracking-widest"
             style={{ color: "#E8C547" }}
           >
@@ -50,6 +53,7 @@ export function DevBanner({ phase, children }: DevBannerProps) {
 
       {/* Muted content container */}
       <div
+        data-testid={`${bannerId}-content`}
         className="p-4 pointer-events-none select-none"
         style={{ background: "#12181F", opacity: 0.7 }}
       >

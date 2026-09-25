@@ -45,7 +45,10 @@ export function TopBar() {
               <span className="text-xs sm:text-sm font-bold font-sans tracking-[0.2em] sm:tracking-[0.25em] uppercase text-[#E7EDF3]">
                 TRACKSIDE
               </span>
-              <span className="text-[9px] sm:text-[10px] font-sans font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider bg-[#3FA6E0] text-[#0A0E13]">
+              <span
+                data-testid="topbar-role-badge"
+                className="text-[9px] sm:text-[10px] font-sans font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider bg-[#3FA6E0] text-[#0A0E13]"
+              >
                 {roleLabel}
               </span>
             </div>
@@ -59,7 +62,10 @@ export function TopBar() {
 
           {/* Right: User Profile, Settings Gear & Sign Out */}
           <div className="flex items-center gap-1.5 sm:gap-3">
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#161D26] border border-[#232B35] text-xs font-mono text-[#E7EDF3] max-w-[120px] xs:max-w-[160px] sm:max-w-[220px]">
+            <div
+              data-testid="topbar-user-badge"
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#161D26] border border-[#232B35] text-xs font-mono text-[#E7EDF3] max-w-[120px] xs:max-w-[160px] sm:max-w-[220px]"
+            >
               <span className="w-5 h-5 rounded-[2px] bg-[#232B35] text-[#3FA6E0] font-bold flex-shrink-0 flex items-center justify-center text-[10px]">
                 {userInitials}
               </span>
@@ -68,6 +74,7 @@ export function TopBar() {
 
             {/* Settings Gear Button */}
             <button
+              data-testid="topbar-settings-btn"
               onClick={openSettings}
               title="Display Settings"
               className="flex items-center justify-center w-8 h-8 rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#7C8898] hover:text-[#3FA6E0] hover:border-[#3FA6E0] transition-all cursor-pointer min-h-[36px] min-w-[36px]"
@@ -77,6 +84,7 @@ export function TopBar() {
 
             {/* Sign Out Button */}
             <button
+              data-testid="topbar-signout-btn"
               onClick={logout}
               title="Sign Out"
               className="flex items-center gap-1 text-[11px] font-mono px-2.5 py-1.5 min-h-[36px] rounded cursor-pointer transition-colors hover:text-[#E5473C] text-[#7C8898] border border-[#232B35] bg-[#161D26]"

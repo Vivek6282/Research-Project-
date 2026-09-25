@@ -56,21 +56,27 @@ export function ConfirmDialog({
   return (
     <div
       onClick={onCancel}
+      data-testid="confirm-dialog-backdrop"
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm select-none p-3 sm:p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        data-testid="confirm-dialog"
         className="w-full max-w-md max-h-[90vh] flex flex-col bg-[#12181F] border border-[#232B35] rounded-[4px] shadow-2xl overflow-hidden font-mono text-[#E7EDF3] animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#232B35] bg-[#161D26] flex-shrink-0">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} style={{ color: iconColor }} />
-            <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]">
+            <span
+              data-testid="confirm-dialog-title"
+              className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]"
+            >
               {title}
             </span>
           </div>
           <button
+            data-testid="confirm-dialog-close-btn"
             onClick={onCancel}
             className="text-[#7C8898] hover:text-[#E7EDF3] p-1.5 rounded hover:bg-[#232B35] transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
           >
@@ -80,17 +86,24 @@ export function ConfirmDialog({
 
         {/* Message Body */}
         <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
-          <p className="text-xs text-[#C5D1DE] leading-relaxed font-mono">{message}</p>
+          <p
+            data-testid="confirm-dialog-message"
+            className="text-xs text-[#C5D1DE] leading-relaxed font-mono"
+          >
+            {message}
+          </p>
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
+              data-testid="confirm-dialog-cancel-btn"
               onClick={onCancel}
               className="px-4 py-2.5 min-h-[44px] rounded text-xs font-mono font-semibold uppercase tracking-wider cursor-pointer bg-[#1A222D] hover:bg-[#232B35] text-[#7C8898] border border-[#232B35] transition-colors"
             >
               {cancelText}
             </button>
             <button
+              data-testid="confirm-dialog-confirm-btn"
               onClick={onConfirm}
               className={`px-4 py-2.5 min-h-[44px] rounded text-xs font-mono font-bold uppercase tracking-wider cursor-pointer transition-colors ${btnBgClass}`}
             >

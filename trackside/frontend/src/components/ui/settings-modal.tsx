@@ -30,7 +30,10 @@ export function SettingsModal() {
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm select-none p-3 sm:p-4">
+    <div
+      data-testid="settings-modal"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm select-none p-3 sm:p-4"
+    >
       <div className="w-full max-w-md max-h-[90vh] flex flex-col bg-[#12181F] border border-[#232B35] rounded-[4px] shadow-2xl overflow-hidden font-mono text-[#E7EDF3] animate-in fade-in zoom-in-95 duration-150">
         {/* Header Bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#232B35] bg-[#161D26] flex-shrink-0">
@@ -41,6 +44,7 @@ export function SettingsModal() {
             </span>
           </div>
           <button
+            data-testid="settings-close-btn"
             onClick={closeSettings}
             className="text-[#7C8898] hover:text-[#E7EDF3] p-1.5 rounded hover:bg-[#232B35] transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
           >
@@ -65,6 +69,7 @@ export function SettingsModal() {
                   <button
                     key={preset.value}
                     type="button"
+                    data-testid={`settings-font-size-${preset.label.toLowerCase()}`}
                     onClick={() => updatePreferences({ font_size: preset.value })}
                     className={`flex flex-col items-center justify-center py-3 px-2 min-h-[44px] rounded-[2px] border cursor-pointer transition-all ${
                       isActive
@@ -91,6 +96,7 @@ export function SettingsModal() {
             </div>
             <button
               type="button"
+              data-testid="settings-replay-tutorial-btn"
               onClick={replayTutorial}
               className="w-full flex items-center justify-center gap-2 py-2.5 px-3 min-h-[44px] rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#3FA6E0] hover:border-[#3FA6E0] hover:bg-[#3FA6E0]/10 text-xs font-bold cursor-pointer transition-all"
             >
@@ -104,6 +110,7 @@ export function SettingsModal() {
         <div className="px-4 sm:px-5 py-3 border-t border-[#232B35] bg-[#161D26] flex justify-end flex-shrink-0">
           <button
             type="button"
+            data-testid="settings-done-btn"
             onClick={closeSettings}
             className="px-6 py-2 min-h-[40px] rounded-[2px] bg-[#3FA6E0] text-[#0A0E13] font-bold text-xs hover:bg-[#3FA6E0]/90 transition-colors cursor-pointer"
           >

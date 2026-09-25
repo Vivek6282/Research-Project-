@@ -223,14 +223,17 @@ export function LiveTrackView({
   /* ─── Fallback: no track selected ─── */
   if (!trackId) {
     return (
-      <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
+      <div
+        data-testid="coach-panel-live-track-view"
+        className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono"
+      >
         <div className="flex items-center gap-2 mb-3 border-b border-[#232B35]/60 pb-2">
           <span className="text-[#3FA6E0] font-bold">|</span>
           <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]">
             LIVE TRACK VIEW
           </span>
         </div>
-        <div className="flex items-center justify-center h-[180px] text-[#7C8898] text-xs">
+        <div data-testid="live-track-fallback" className="flex items-center justify-center h-[180px] text-[#7C8898] text-xs">
           No active track selected.
         </div>
       </div>
@@ -240,14 +243,17 @@ export function LiveTrackView({
   /* ─── Fallback: loading ─── */
   if (loading) {
     return (
-      <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
+      <div
+        data-testid="coach-panel-live-track-view"
+        className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono"
+      >
         <div className="flex items-center gap-2 mb-3 border-b border-[#232B35]/60 pb-2">
           <span className="text-[#3FA6E0] font-bold">|</span>
           <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]">
             LIVE TRACK VIEW
           </span>
         </div>
-        <div className="flex items-center justify-center h-[180px] text-[#7C8898] text-xs">
+        <div data-testid="live-track-fallback" className="flex items-center justify-center h-[180px] text-[#7C8898] text-xs">
           <span className="animate-pulse">Loading track shape…</span>
         </div>
       </div>
@@ -257,14 +263,17 @@ export function LiveTrackView({
   /* ─── Fallback: error ─── */
   if (error) {
     return (
-      <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
+      <div
+        data-testid="coach-panel-live-track-view"
+        className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono"
+      >
         <div className="flex items-center gap-2 mb-3 border-b border-[#232B35]/60 pb-2">
           <span className="text-[#3FA6E0] font-bold">|</span>
           <span className="text-xs font-bold uppercase tracking-wider text-[#E7EDF3]">
             LIVE TRACK VIEW
           </span>
         </div>
-        <div className="flex items-center justify-center h-[180px] text-[#E5473C] text-xs">
+        <div data-testid="live-track-fallback" className="flex items-center justify-center h-[180px] text-[#E5473C] text-xs">
           Failed to load track data.
         </div>
       </div>
@@ -275,7 +284,7 @@ export function LiveTrackView({
   if (!referenceLine || referenceLine.length < 2) {
     return (
       <div
-        data-testid="live-track-fallback"
+        data-testid="coach-panel-live-track-view"
         className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono"
       >
         <div className="flex items-center gap-2 mb-3 border-b border-[#232B35]/60 pb-2">
@@ -284,7 +293,7 @@ export function LiveTrackView({
             LIVE TRACK VIEW
           </span>
         </div>
-        <div className="flex flex-col items-center justify-center h-[180px] gap-3">
+        <div data-testid="live-track-fallback" className="flex flex-col items-center justify-center h-[180px] gap-3">
           {/* Track icon placeholder */}
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
             <circle cx="20" cy="20" r="16" stroke="#232B35" strokeWidth="2" strokeDasharray="4 3" />
@@ -304,7 +313,10 @@ export function LiveTrackView({
 
   /* ─── Main render: SVG track with driver dot ─── */
   return (
-    <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
+    <div
+      data-testid="coach-panel-live-track-view"
+      className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono"
+    >
       {/* Panel Header */}
       <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2">
         <div className="flex items-center gap-2">

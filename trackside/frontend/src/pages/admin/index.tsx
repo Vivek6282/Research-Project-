@@ -70,7 +70,7 @@ function DeviceDiagnosticPanel({ device }: { device: any }) {
   const isOnline = device.status === "connected";
 
   return (
-    <Panel title={device.device_type.replace("_", " ").toUpperCase()} icon={getIcon(device.device_type).type}>
+    <Panel title={device.device_type.replace("_", " ").toUpperCase()} icon={getIcon(device.device_type).type} testId={`admin-device-panel-${device.id}`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-[#33D17E] animate-pulse' : 'bg-[#E5473C]'}`} />
@@ -83,6 +83,7 @@ function DeviceDiagnosticPanel({ device }: { device: any }) {
 
       <div className="border-t border-[#232B35] pt-3">
         <button
+          data-testid="admin-run-diagnostic-btn"
           onClick={handleRunDiagnostic}
           disabled={!!pollingId || !isOnline}
           className={`w-full py-1.5 rounded text-[11px] font-bold font-mono transition-colors ${
@@ -91,11 +92,15 @@ function DeviceDiagnosticPanel({ device }: { device: any }) {
             'bg-[#3FA6E0] text-[#0A0E13] hover:bg-[#3FA6E0]/90 cursor-pointer'
           }`}
         >
-          {pollingId ? "WAITING FOR DEVICE..." : "RUN DIAGNOSTIC"}
+          {pollingId ? (
+            <span data-testid="admin-diagnostic-waiting">WAITING FOR DEVICE...</span>
+          ) : (
+            "RUN DIAGNOSTIC"
+          )}
         </button>
 
         {result && (
-          <div className="mt-3 bg-[#0A0E13] border border-[#232B35] rounded p-2 text-[10px] font-mono">
+          <div data-testid="admin-diagnostic-result" className="mt-3 bg-[#0A0E13] border border-[#232B35] rounded p-2 text-[10px] font-mono">
             <div className="font-bold mb-1 text-[#3FA6E0]">DIAGNOSTIC RESULT: {result.status.toUpperCase()}</div>
             <ul className="space-y-1 mb-2 text-[#7C8898]">
               <li className="flex justify-between">Boot Check: <span className={result.result?.boot ? 'text-[#33D17E]' : 'text-[#E5473C]'}>{result.result?.boot ? '✓ PASS' : '✗ FAIL'}</span></li>
@@ -391,10 +396,12 @@ export function AdminDashboard() {
 
           {/* Intradomain User Management Table */}
           <Panel
+            testId="admin-user-management-panel"
             title="User Management & Role Provisioning"
             icon={Users}
             right={
               <button
+                data-testid="admin-add-account-btn"
                 onClick={() => setShowCreateForm(!showCreateForm)}
                 className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1 rounded cursor-pointer transition-colors"
                 style={{
@@ -410,15 +417,17 @@ export function AdminDashboard() {
           >
             {/* Inline Account Creation Form (Admin Only) */}
             {showCreateForm && (
-              <div className="mb-4 p-4 rounded-lg space-y-3 animate-fade-in bg-[#161D26] border border-[#232B35]">
+              <div data-testid="admin-create-form" className="mb-4 p-4 rounded-lg space-y-3 animate-fade-in bg-[#161D26] border border-[#232B35]">
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <input
+                    data-testid="admin-create-name-input"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Full Name"
                     className="px-3 py-2 rounded text-xs font-mono outline-none bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] focus:border-[#3FA6E0]"
                   />
                   <select
+                    data-testid="admin-create-role-select"
                     value={role}
                     onChange={(e) => setRole(e.target.value as "coach" | "driver")}
                     className="px-3 py-2 rounded text-xs font-mono outline-none bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] focus:border-[#3FA6E0]"
@@ -427,6 +436,7 @@ export function AdminDashboard() {
                     <option value="coach">Role: Coach</option>
                   </select>
                   <input
+                    data-testid="admin-create-email-input"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={role === "driver" ? "Email (optional for Drivers)" : "Email address (required)"}
@@ -434,6 +444,7 @@ export function AdminDashboard() {
                     className="px-3 py-2 rounded text-xs font-mono outline-none bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] focus:border-[#3FA6E0]"
                   />
                   <input
+                    data-testid="admin-create-password-input"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Access Password (min 8 chars)"
@@ -447,6 +458,7 @@ export function AdminDashboard() {
                     {role === "driver" ? "💡 Driver ID username will be auto-generated server-side (e.g. TRK-DRV-000042)" : "💡 Coach email is required for alert & session notifications."}
                   </span>
                   <button
+                    data-testid="admin-create-submit-btn"
                     onClick={handleCreateAccount}
                     className="px-4 py-2 rounded text-xs font-bold font-mono uppercase tracking-wider cursor-pointer bg-[#3FA6E0] text-[#06121B] hover:bg-[#3FA6E0]/90 transition-colors"
                   >
@@ -455,7 +467,7 @@ export function AdminDashboard() {
                 </div>
 
                 {errorMsg && (
-                  <div className="p-2 rounded text-xs font-mono bg-[#E5473C]/15 border border-[#E5473C]/40 text-[#E5473C]">
+                  <div data-testid="admin-create-error" className="p-2 rounded text-xs font-mono bg-[#E5473C]/15 border border-[#E5473C]/40 text-[#E5473C]">
                     {errorMsg}
                   </div>
                 )}
@@ -464,7 +476,7 @@ export function AdminDashboard() {
 
             {/* Generated Credentials Confirmation Panel */}
             {successData && (
-              <div className="mb-4 p-4 rounded-lg font-mono bg-[#33D17E]/10 border border-[#33D17E]/40 text-[#E7EDF3]">
+              <div data-testid="admin-create-success" className="mb-4 p-4 rounded-lg font-mono bg-[#33D17E]/10 border border-[#33D17E]/40 text-[#E7EDF3]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Check size={16} className="text-[#33D17E]" />
@@ -473,6 +485,7 @@ export function AdminDashboard() {
                     </span>
                   </div>
                   <button
+                    data-testid="admin-create-copy-btn"
                     onClick={copyCredentials}
                     className="flex items-center gap-1 text-[11px] text-[#33D17E] bg-[#33D17E]/20 border border-[#33D17E]/50 px-2.5 py-1 rounded cursor-pointer hover:bg-[#33D17E]/30"
                   >
@@ -483,7 +496,7 @@ export function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4 text-xs bg-[#0A0E13] p-3 rounded border border-[#232B35]">
                   <div>
                     <span className="text-[#7C8898] block text-[10px]">USERNAME / DRIVER ID:</span>
-                    <span className="text-[#3FA6E0] font-extrabold text-sm">{successData.username}</span>
+                    <span data-testid="admin-create-success-username" className="text-[#3FA6E0] font-extrabold text-sm">{successData.username}</span>
                   </div>
                   <div>
                     <span className="text-[#7C8898] block text-[10px]">ACCESS PASSWORD:</span>
@@ -508,7 +521,7 @@ export function AdminDashboard() {
 
 
               {/* Mobile Card-Based Layout (< md) */}
-              <div className="block md:hidden space-y-3 font-mono">
+              <div data-testid="admin-user-cards-container" className="block md:hidden space-y-3 font-mono">
                 {users.map((u) => {
                   const isEditing = editingUserId === u.id;
                   const isActive = u.is_active !== false && u.status !== "Inactive";
@@ -518,11 +531,12 @@ export function AdminDashboard() {
 
                   if (isEditing) {
                     return (
-                      <div key={`card-${u.id}`} className="bg-[#161D26] border border-[#3FA6E0] p-3.5 rounded-lg space-y-2.5">
+                      <div key={`card-${u.id}`} data-testid="admin-user-card" className="bg-[#161D26] border border-[#3FA6E0] p-3.5 rounded-lg space-y-2.5">
                         <div className="text-xs font-bold text-[#3FA6E0]">EDITING USER</div>
                         <div>
                           <label className="text-[10px] text-[#7C8898] block mb-1">FULL NAME</label>
                           <input
+                            data-testid="admin-edit-name-input"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             placeholder="Full Name"
@@ -532,21 +546,24 @@ export function AdminDashboard() {
                         <div>
                           <label className="text-[10px] text-[#7C8898] block mb-1">EMAIL ADDRESS</label>
                           <input
+                            data-testid="admin-edit-email-input"
                             value={editEmail}
                             onChange={(e) => setEditEmail(e.target.value)}
                             placeholder={u.role === "driver" ? "Email (optional)" : "Email (required)"}
                             className="w-full px-3 py-2 rounded text-xs bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
                           />
-                          {editError && <div className="text-[10px] text-[#E5473C] mt-1">{editError}</div>}
+                          {editError && <div data-testid="admin-edit-error" className="text-[10px] text-[#E5473C] mt-1">{editError}</div>}
                         </div>
                         <div className="flex gap-2 pt-1">
                           <button
+                            data-testid="admin-edit-save-btn"
                             onClick={handleSaveEdit}
                             className="flex-1 py-2 rounded font-bold text-xs bg-[#33D17E] text-[#0A0E13] min-h-[40px] cursor-pointer"
                           >
                             Save Changes
                           </button>
                           <button
+                            data-testid="admin-edit-cancel-btn"
                             onClick={() => setEditingUserId(null)}
                             className="px-4 py-2 rounded text-xs text-[#7C8898] border border-[#232B35] bg-[#0A0E13] min-h-[40px] cursor-pointer"
                           >
@@ -560,15 +577,17 @@ export function AdminDashboard() {
                   return (
                     <div
                       key={`card-${u.id}`}
+                      data-testid="admin-user-card"
                       className="bg-[#161D26] border border-[#232B35] p-3.5 rounded-lg space-y-2.5 hover:border-[#3A4553] transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="font-bold text-sm text-[#E7EDF3]">{u.name}</div>
-                          <div className="text-xs text-[#3FA6E0] font-bold">{u.username || "—"}</div>
+                          <div data-testid={`admin-user-name-${u.id}`} className="font-bold text-sm text-[#E7EDF3]">{u.name}</div>
+                          <div data-testid={`admin-user-username-${u.id}`} className="text-xs text-[#3FA6E0] font-bold">{u.username || "—"}</div>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span
+                            data-testid={`admin-user-role-${u.id}`}
                             className="px-2 py-0.5 rounded text-[10px] uppercase font-bold"
                             style={{
                               color: roleColor,
@@ -578,18 +597,21 @@ export function AdminDashboard() {
                           >
                             {u.role}
                           </span>
-                          <Chip color={isActive ? "#33D17E" : "#E5473C"}>
-                            {isActive ? "Active" : "Inactive"}
-                          </Chip>
+                          <span data-testid={`admin-user-status-${u.id}`}>
+                            <Chip color={isActive ? "#33D17E" : "#E5473C"}>
+                              {isActive ? "Active" : "Inactive"}
+                            </Chip>
+                          </span>
                         </div>
                       </div>
 
                       <div className="text-xs text-[#7C8898] border-t border-[#232B35]/60 pt-2 flex items-center justify-between">
-                        <span className="truncate max-w-[200px]">{u.email || "No email assigned"}</span>
+                        <span data-testid={`admin-user-email-${u.id}`} className="truncate max-w-[200px]">{u.email || "No email assigned"}</span>
                       </div>
 
                       <div className="flex gap-2 pt-1 border-t border-[#232B35]/60">
                         <button
+                          data-testid={`admin-user-edit-btn-${u.id}`}
                           disabled={!!fetchError}
                           onClick={() => startEdit(u)}
                           className={`flex-1 py-2 min-h-[40px] rounded text-xs font-bold transition-colors ${
@@ -600,6 +622,7 @@ export function AdminDashboard() {
                           Edit
                         </button>
                         <button
+                          data-testid={`admin-user-deactivate-btn-${u.id}`}
                           disabled={!!fetchError || isSelfDeactivating}
                           onClick={() => handleToggleDeactivate(u)}
                           className={`flex-1 py-2 min-h-[40px] rounded text-xs font-bold transition-colors font-mono ${
@@ -621,7 +644,7 @@ export function AdminDashboard() {
 
               {/* Desktop Tabular View (>= md) */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-xs font-mono">
+                <table data-testid="admin-user-table" className="w-full text-xs font-mono">
                   <thead>
                     <tr className="text-[10px] uppercase text-left border-b border-[#232B35]" style={{ color: "#7C8898" }}>
                       <th className="pb-2 font-semibold">User</th>
@@ -642,9 +665,10 @@ export function AdminDashboard() {
 
                       if (isEditing) {
                         return (
-                          <tr key={`tbl-${u.id}`} className="bg-[#161D26]">
+                          <tr key={`tbl-${u.id}`} data-testid="admin-user-row" data-user-id={u.id} className="bg-[#161D26]">
                             <td className="py-2.5 px-1" colSpan={2}>
                               <input
+                                data-testid="admin-edit-name-input"
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
                                 placeholder="Full Name"
@@ -653,24 +677,27 @@ export function AdminDashboard() {
                             </td>
                             <td className="py-2.5 px-1" colSpan={2}>
                               <input
+                                data-testid="admin-edit-email-input"
                                 value={editEmail}
                                 onChange={(e) => setEditEmail(e.target.value)}
                                 placeholder={u.role === "driver" ? "Email (optional)" : "Email (required)"}
                                 className="w-full px-2 py-1 rounded text-xs font-mono bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
                               />
-                              {editError && <div className="text-[10px] text-[#E5473C] mt-0.5">{editError}</div>}
+                              {editError && <div data-testid="admin-edit-error" className="text-[10px] text-[#E5473C] mt-0.5">{editError}</div>}
                             </td>
                             <td className="py-2.5 text-center font-mono text-[10px] text-[#7C8898]">
                               {u.role.toUpperCase()}
                             </td>
                             <td className="py-2.5 text-right space-x-2">
                               <button
+                                data-testid="admin-edit-save-btn"
                                 onClick={handleSaveEdit}
                                 className="text-[10px] px-2 py-1 rounded cursor-pointer font-bold bg-[#33D17E] text-[#0A0E13]"
                               >
                                 Save
                               </button>
                               <button
+                                data-testid="admin-edit-cancel-btn"
                                 onClick={() => setEditingUserId(null)}
                                 className="text-[10px] px-2 py-1 rounded cursor-pointer text-[#7C8898] border border-[#232B35]"
                               >
@@ -682,12 +709,13 @@ export function AdminDashboard() {
                       }
 
                       return (
-                        <tr key={`tbl-${u.id}`} className="hover:bg-[#161D26] transition-colors">
-                          <td className="py-2.5 font-bold">{u.name}</td>
-                          <td className="py-2.5 text-[#3FA6E0] font-bold">{u.username || "—"}</td>
-                          <td className="py-2.5 text-[#7C8898]">{u.email || "—"}</td>
+                        <tr key={`tbl-${u.id}`} data-testid="admin-user-row" data-user-id={u.id} className="hover:bg-[#161D26] transition-colors">
+                          <td data-testid={`admin-user-name-${u.id}`} className="py-2.5 font-bold">{u.name}</td>
+                          <td data-testid={`admin-user-username-${u.id}`} className="py-2.5 text-[#3FA6E0] font-bold">{u.username || "—"}</td>
+                          <td data-testid={`admin-user-email-${u.id}`} className="py-2.5 text-[#7C8898]">{u.email || "—"}</td>
                           <td className="py-2.5">
                             <span
+                              data-testid={`admin-user-role-${u.id}`}
                               className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold"
                               style={{
                                 color: roleColor,
@@ -699,12 +727,15 @@ export function AdminDashboard() {
                             </span>
                           </td>
                           <td className="py-2.5">
-                            <Chip color={isActive ? "#33D17E" : "#E5473C"}>
-                              {isActive ? "Active" : "Inactive"}
-                            </Chip>
+                            <span data-testid={`admin-user-status-${u.id}`}>
+                              <Chip color={isActive ? "#33D17E" : "#E5473C"}>
+                                {isActive ? "Active" : "Inactive"}
+                              </Chip>
+                            </span>
                           </td>
                           <td className="py-2.5 text-right space-x-2">
                             <button
+                              data-testid={`admin-user-edit-btn-${u.id}`}
                               disabled={!!fetchError}
                               onClick={() => startEdit(u)}
                               className={`text-[10px] px-2.5 py-1.5 rounded transition-colors ${
@@ -716,6 +747,7 @@ export function AdminDashboard() {
                               Edit
                             </button>
                             <button
+                              data-testid={`admin-user-deactivate-btn-${u.id}`}
                               disabled={!!fetchError || isSelfDeactivating}
                               onClick={() => handleToggleDeactivate(u)}
                               className={`text-[10px] px-2.5 py-1.5 rounded transition-colors font-mono ${
@@ -751,7 +783,7 @@ export function AdminDashboard() {
 
           {/* System Analytics & Audit Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Panel title="Security & Audit Trail" icon={Shield}>
+            <Panel testId="admin-audit-log-panel" title="Security & Audit Trail" icon={Shield}>
               <div className="space-y-3">
                 <p className="text-xs font-mono text-[#E7EDF3] flex items-center justify-between">
                   <span>
@@ -776,7 +808,7 @@ export function AdminDashboard() {
                           : "#3FA6E0";
 
                       return (
-                        <div key={entry.id} className="py-1.5 px-1 text-[11px] font-mono flex items-center justify-between">
+                        <div key={entry.id} data-testid="admin-audit-log-entry" className="py-1.5 px-1 text-[11px] font-mono flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span
                               className="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold"

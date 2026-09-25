@@ -21,3 +21,7 @@ class LoginRateThrottle(AnonRateThrottle):
     """
 
     scope = "login"
+
+    def get_rate(self):
+        import os
+        return os.environ.get("LOGIN_THROTTLE_RATE") or super().get_rate()

@@ -105,16 +105,25 @@ export function TutorialCallout({ role }: { role: "coach" | "driver" | "admin" }
   };
 
   return (
-    <div className="bg-[#12181F] border-b border-[#3FA6E0]/40 px-4 py-2.5 font-mono select-none animate-in fade-in duration-200">
+    <div
+      data-testid="tutorial-callout"
+      className="bg-[#12181F] border-b border-[#3FA6E0]/40 px-4 py-2.5 font-mono select-none animate-in fade-in duration-200"
+    >
       <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
         {/* Left: Step Badge, Role Tag & Description */}
         <div className="flex items-center gap-3 flex-1">
-          <span className="bg-[#3FA6E0] text-[#0A0E13] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase flex items-center gap-1 shrink-0">
+          <span
+            data-testid="tutorial-step-badge"
+            className="bg-[#3FA6E0] text-[#0A0E13] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase flex items-center gap-1 shrink-0"
+          >
             <Sparkles size={11} />
             {step.badge}
           </span>
 
-          <span className="text-[#3FA6E0] font-bold text-[11px] uppercase tracking-wider shrink-0">
+          <span
+            data-testid="tutorial-step-title"
+            className="text-[#3FA6E0] font-bold text-[11px] uppercase tracking-wider shrink-0"
+          >
             {step.title}:
           </span>
 
@@ -127,6 +136,7 @@ export function TutorialCallout({ role }: { role: "coach" | "driver" | "admin" }
         <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
           {!isFirst && (
             <button
+              data-testid="tutorial-back-btn"
               onClick={handleBack}
               className="flex items-center gap-1 px-2.5 py-1 rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#7C8898] hover:text-[#E7EDF3] hover:border-[#3A4553] cursor-pointer text-[11px] font-bold transition-all"
             >
@@ -136,6 +146,7 @@ export function TutorialCallout({ role }: { role: "coach" | "driver" | "admin" }
           )}
 
           <button
+            data-testid="tutorial-next-btn"
             onClick={handleNext}
             className="flex items-center gap-1 px-3 py-1 rounded-[2px] bg-[#3FA6E0] text-[#0A0E13] hover:bg-[#3FA6E0]/90 cursor-pointer text-[11px] font-bold transition-all"
           >
@@ -144,6 +155,7 @@ export function TutorialCallout({ role }: { role: "coach" | "driver" | "admin" }
           </button>
 
           <button
+            data-testid="tutorial-skip-btn"
             onClick={handleFinish}
             className="text-[11px] text-[#7C8898] hover:text-[#E5473C] px-2 py-1 cursor-pointer transition-colors"
           >

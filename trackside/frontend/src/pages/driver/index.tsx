@@ -122,14 +122,14 @@ export function DriverDashboard() {
 
       <main className="max-w-6xl mx-auto px-4 py-5 space-y-4 animate-fade-in">
         {/* Live Telemetry & 5-Segment Glove Signal Strip Panel */}
-        <Panel title="Live Driver Telemetry & Glove LED Feed" icon={Activity}>
+        <Panel testId="driver-panel-telemetry" title="Live Driver Telemetry & Glove LED Feed" icon={Activity}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 bg-[#161D26] border border-[#232B35] rounded-[2px] font-mono">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-[10px] text-[#7C8898] uppercase">Active Zone: Turn 4 Hairpin</p>
                 <StaleDataBadge lastSyncedTimestamp={lastSyncTime} />
                 {USE_MOCK_TELEMETRY && (
-                  <span className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                  <span data-testid="driver-simulated-data-badge" className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
                     SIMULATED DATA — not live
                   </span>
                 )}
@@ -144,6 +144,7 @@ export function DriverDashboard() {
             <div className="flex flex-col items-start sm:items-end gap-1">
               <span className="text-[10px] text-[#7C8898] uppercase">GLOVE LED HARDWARE STATUS</span>
               <SignalStrip
+                testId="driver-signal-strip"
                 currentG={currentG}
                 threshold={activeThreshold}
                 size="lg"
@@ -154,10 +155,11 @@ export function DriverDashboard() {
         </Panel>
 
         {/* Session Setup Mode Selector */}
-        <Panel title="Session Mode Setup" icon={Flag}>
+        <Panel testId="driver-panel-mode" title="Session Mode Setup" icon={Flag}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto font-mono">
               <button
+                data-testid="driver-mode-safety-btn"
                 onClick={() => setMode("safety")}
                 className="text-xs font-mono font-bold px-4 py-2.5 min-h-[44px] flex-1 sm:flex-initial rounded transition-all duration-150 cursor-pointer flex items-center justify-center"
                 style={{
@@ -170,6 +172,7 @@ export function DriverDashboard() {
                 SAFETY MODE
               </button>
               <button
+                data-testid="driver-mode-performance-btn"
                 onClick={() => setMode("performance")}
                 className="text-xs font-mono font-bold px-4 py-2.5 min-h-[44px] flex-1 sm:flex-initial rounded transition-all duration-150 cursor-pointer flex items-center justify-center"
                 style={{
@@ -186,7 +189,7 @@ export function DriverDashboard() {
 
             <span className="text-xs font-mono text-[#7C8898]">
               Active Focus:{" "}
-              <span className="text-[#3FA6E0] font-bold uppercase">
+              <span data-testid="driver-active-mode-text" className="text-[#3FA6E0] font-bold uppercase">
                 {mode} Focus
               </span>
             </span>
@@ -194,13 +197,13 @@ export function DriverDashboard() {
         </Panel>
 
         {/* Zone-by-Zone Breakdown Cards */}
-        <Panel title="Zone Risk Heatmap (Last 5 Sessions)" icon={Gauge}>
+        <Panel testId="driver-panel-zone-heatmap" title="Zone Risk Heatmap (Last 5 Sessions)" icon={Gauge}>
           {loading ? (
             <div className="text-center py-6 text-xs font-mono text-[#7C8898]">
               Loading zone alert summary…
             </div>
           ) : !hasSessions || zones.length === 0 ? (
-            <div className="rounded-lg p-6 text-center border border-[#232B35] bg-[#161D26] font-mono text-[#7C8898]">
+            <div data-testid="driver-no-sessions-msg" className="rounded-lg p-6 text-center border border-[#232B35] bg-[#161D26] font-mono text-[#7C8898]">
               <Gauge className="mx-auto mb-2 opacity-50 text-[#3FA6E0]" size={28} />
               <p className="text-sm font-bold text-[#E7EDF3]">No sessions recorded yet</p>
               <p className="text-xs text-[#7C8898] mt-1">
@@ -248,7 +251,7 @@ export function DriverDashboard() {
 
         {/* Best Lap & Session Goal Progress */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Panel title="Best Lap Highlight (Raw Telemetry)" icon={Trophy}>
+          <Panel testId="driver-panel-best-lap" title="Best Lap Highlight (Raw Telemetry)" icon={Trophy}>
             {latestSession ? (
               <div className="space-y-1 font-mono">
                 <div className="flex items-baseline justify-between">
@@ -268,7 +271,7 @@ export function DriverDashboard() {
             )}
           </Panel>
 
-          <Panel title="Session Target Evaluation" icon={Target}>
+          <Panel testId="driver-panel-target-evaluation" title="Session Target Evaluation" icon={Target}>
             {latestSession ? (
               <div className="space-y-1 font-mono">
                 <div className="flex items-center justify-between">

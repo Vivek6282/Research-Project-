@@ -166,7 +166,7 @@ REST_FRAMEWORK = {
     # Requirement #9: login rate limiting
     "DEFAULT_THROTTLE_CLASSES": [],
     "DEFAULT_THROTTLE_RATES": {
-        "login": "5/min",
+        "login": env("LOGIN_THROTTLE_RATE", default="1000/min" if DEBUG else "5/min"),
     },
     # JSON only — no browsable API in production
     "DEFAULT_RENDERER_CLASSES": [

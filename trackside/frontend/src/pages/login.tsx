@@ -206,12 +206,15 @@ export function LoginPage() {
 
             {/* Error Banner */}
             {error && (
-              <div className="rounded-[2px] px-3 py-1.5 mb-3 text-[11px] font-mono bg-[#E5473C]/15 border border-[#E5473C]/40 text-[#E5473C]">
+              <div
+                data-testid="login-error"
+                className="rounded-[2px] px-3 py-1.5 mb-3 text-[11px] font-mono bg-[#E5473C]/15 border border-[#E5473C]/40 text-[#E5473C]"
+              >
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-3.5">
+            <form onSubmit={handleSubmit} className="space-y-3.5" data-testid="login-form">
               {/* Segmented Role Selector */}
               <div>
                 <label className="block text-[9px] font-mono uppercase tracking-wider mb-1 text-[#7C8898]">
@@ -224,6 +227,7 @@ export function LoginPage() {
                       <button
                         key={role}
                         type="button"
+                        data-testid={`login-role-tab-${role}`}
                         onClick={() => handleRoleSelect(role)}
                         className="py-2.5 min-h-[40px] text-[10px] font-sans font-bold uppercase tracking-wider transition-all duration-150 rounded-[2px] cursor-pointer"
                         style={{
@@ -245,6 +249,7 @@ export function LoginPage() {
                 </label>
                 <input
                   type="text"
+                  data-testid="login-identifier-input"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="Email or Driver ID (e.g. TRK-DRV-000042)"
@@ -260,6 +265,7 @@ export function LoginPage() {
                 </label>
                 <input
                   type="password"
+                  data-testid="login-password-input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -271,6 +277,7 @@ export function LoginPage() {
               {/* Primary Electric Blue Sign In Button */}
               <button
                 type="submit"
+                data-testid="login-submit-btn"
                 disabled={isSubmitting}
                 className="w-full py-3 min-h-[44px] rounded-[2px] text-xs font-bold font-sans uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50 mt-1 shadow-md bg-[#3FA6E0] text-white hover:bg-[#3595cb] flex items-center justify-center"
               >

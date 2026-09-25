@@ -45,6 +45,7 @@ interface SignalStripProps {
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
   className?: string;
+  testId?: string;
 }
 
 export function SignalStrip({
@@ -54,6 +55,7 @@ export function SignalStrip({
   size = "md",
   showLabel = true,
   className = "",
+  testId,
 }: SignalStripProps) {
   let details: StageDetails;
 
@@ -73,15 +75,25 @@ export function SignalStrip({
   const h = size === "sm" ? 8 : size === "lg" ? 14 : 10;
   const w = h * 1.6;
 
+  const baseTestId = testId || "signal-strip";
+
   return (
-    <div className={`inline-flex items-center gap-2 font-mono ${className}`}>
+    <div
+      data-testid={baseTestId}
+      className={`inline-flex items-center gap-2 font-mono ${className}`}
+    >
       {/* 5 Fixed Segment LEDs */}
-      <div className="flex items-center gap-1">
+      <div
+        data-testid={`${baseTestId}-segments`}
+        className="flex items-center gap-1"
+      >
         {SEGMENT_COLORS.map((baseColor, i) => {
           const isLit = i < details.litCount;
           return (
             <div
               key={i}
+              data-testid={`${baseTestId}-segment-${i}`}
+              data-lit={isLit ? "true" : "false"}
               style={{
                 width: w,
                 height: h,
@@ -98,6 +110,7 @@ export function SignalStrip({
       {/* Synchronized Status Label */}
       {showLabel && (
         <span
+          data-testid={`${baseTestId}-stage-label`}
           className="text-xs font-bold uppercase tracking-wider transition-colors duration-150"
           style={{ color: details.color }}
         >

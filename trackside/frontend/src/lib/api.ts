@@ -53,7 +53,15 @@ async function request<T>(url: string, config: RequestConfig = {}): Promise<T> {
 
   // Handle common error codes
   if (response.status === 401) {
-    // Session expired or not authenticated — redirect to login
+    if (url.includes("/api/auth/login/") || url.includes("/api/auth/me/")) {
+      const errorData = await response.json().catch(() => ({}));
+      const message =
+        errorData.detail ||
+        errorData.message ||
+        "Invalid email/username or password.";
+      throw new Error(message);
+    }
+    // Session expired or not authenticated on protected endpoint — redirect to login
     window.location.href = "/login";
     throw new Error("Authentication required");
   }

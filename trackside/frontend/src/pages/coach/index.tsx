@@ -549,6 +549,7 @@ const HISTORICAL_SESSIONS = [
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 font-mono text-xs">
             <button
+              data-testid="coach-tab-live"
               onClick={() => setActiveTab("live")}
               className={`px-3 py-1 rounded-[2px] font-bold cursor-pointer transition-all ${
                 activeTab === "live"
@@ -559,6 +560,7 @@ const HISTORICAL_SESSIONS = [
               LIVE PIT-WALL CONSOLE
             </button>
             <button
+              data-testid="coach-tab-history"
               onClick={() => setActiveTab("history")}
               className={`px-3 py-1 rounded-[2px] font-bold cursor-pointer transition-all ${
                 activeTab === "history"
@@ -603,7 +605,7 @@ const HISTORICAL_SESSIONS = [
             {/* Main content column (75% on desktop) — independent internal grid */}
             <div className="col-span-12 lg:col-span-9 grid grid-cols-1 gap-3 sm:gap-4">
               {/* LIVE TRAJECTORY Panel */}
-              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
+              <div data-testid="coach-panel-live-trajectory" className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
                 {/* Header & Metadata */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 border-b border-[#232B35]/60 pb-2.5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -615,13 +617,14 @@ const HISTORICAL_SESSIONS = [
                       KART #{selectedDriver.kart} · SESSION 3 · LAP 7/12
                     </span>
                     {USE_MOCK_TELEMETRY && (
-                      <span className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase tracking-wider animate-pulse">
+                      <span data-testid="coach-simulated-data-badge" className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase tracking-wider animate-pulse">
                         SIMULATED DATA — not live
                       </span>
                     )}
                   </div>
                   {/* Live Signal Indicator & Stage Label */}
                   <SignalStrip
+                    testId="coach-signal-strip"
                     currentG={currentGForce}
                     threshold={currentThreshold}
                     size="md"
@@ -719,7 +722,7 @@ const HISTORICAL_SESSIONS = [
               />
 
               {/* BIOMETRICS 3-Card Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div data-testid="coach-panel-biometrics" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Heart Rate */}
                 <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3">
                   <div className="flex items-center justify-between text-[10px] font-mono mb-2">
@@ -776,7 +779,7 @@ const HISTORICAL_SESSIONS = [
               </div>
 
               {/* CUSTOM ZONE THRESHOLD CONTROL Panel */}
-              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4">
+              <div data-testid="coach-panel-threshold-control" className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4">
                 <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
                   <div className="flex items-center gap-2">
                     <span className="text-[#3FA6E0] font-bold">|</span>
@@ -794,6 +797,7 @@ const HISTORICAL_SESSIONS = [
                       <span className="text-[#E7EDF3] font-bold">DRIVER: {selectedDriver.name.toUpperCase()}</span>
                     </div>
                     <input
+                      data-testid="coach-threshold-slider"
                       type="range"
                       min={sliderMin}
                       max={sliderMax}
@@ -812,7 +816,7 @@ const HISTORICAL_SESSIONS = [
                   <div className="bg-[#161D26] border border-[#232B35] p-3 rounded-[2px] flex items-center justify-between">
                     <div>
                       <p className="text-[10px] text-[#7C8898]">CALIBRATED LIMIT</p>
-                      <p className="text-xl font-bold text-[#3FA6E0]">{currentThreshold.toFixed(2)} g</p>
+                      <p data-testid="coach-calibrated-limit-value" className="text-xl font-bold text-[#3FA6E0]">{currentThreshold.toFixed(2)} g</p>
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] text-[#7C8898]">SERVER STATUS</p>
@@ -825,7 +829,7 @@ const HISTORICAL_SESSIONS = [
               </div>
 
               {/* SESSION NOTES Panel */}
-              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
+              <div data-testid="coach-panel-session-notes" className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 sm:p-4 font-mono">
                 <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[#3FA6E0] font-bold">|</span>
@@ -837,6 +841,7 @@ const HISTORICAL_SESSIONS = [
                 <div className="space-y-2 mb-3">
                   <div className="flex flex-col sm:flex-row gap-2">
                     <select
+                      data-testid="coach-zone-select"
                       value={selectedZoneId}
                       onChange={handleZoneSelectChange}
                       className="bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[44px] rounded-[2px] outline-none cursor-pointer"
@@ -850,6 +855,7 @@ const HISTORICAL_SESSIONS = [
                     </select>
 
                     <input
+                      data-testid="coach-note-input"
                       type="text"
                       placeholder="Record coach observation for this lap/zone..."
                       value={newNoteText}
@@ -858,6 +864,7 @@ const HISTORICAL_SESSIONS = [
                     />
 
                     <button
+                      data-testid="coach-save-note-btn"
                       onClick={handleAddNote}
                       className="bg-[#3FA6E0] text-[#0A0E13] font-bold text-xs px-5 py-2 min-h-[44px] rounded-[2px] hover:bg-[#3FA6E0]/90 cursor-pointer flex items-center justify-center"
                     >
@@ -867,9 +874,10 @@ const HISTORICAL_SESSIONS = [
 
                   {/* Extensible New Zone Creation Form */}
                   {isCreatingZone && (
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 bg-[#161D26] border border-[#3FA6E0]/50 rounded-[2px] text-xs animate-fade-in">
+                    <div data-testid="coach-new-zone-form" className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 bg-[#161D26] border border-[#3FA6E0]/50 rounded-[2px] text-xs animate-fade-in">
                       <span className="text-[#3FA6E0] font-bold">NEW ZONE:</span>
                       <input
+                        data-testid="coach-new-zone-name-input"
                         type="text"
                         placeholder="Zone Name (e.g. Turn 7 Kink)"
                         value={newZoneName}
@@ -877,6 +885,7 @@ const HISTORICAL_SESSIONS = [
                         className="bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[40px] rounded-[2px] flex-1 outline-none focus:border-[#3FA6E0]"
                       />
                       <select
+                        data-testid="coach-new-zone-corner-select"
                         value={newCornerType}
                         onChange={(e) => setNewCornerType(e.target.value)}
                         className="bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[40px] rounded-[2px] outline-none cursor-pointer"
@@ -888,6 +897,7 @@ const HISTORICAL_SESSIONS = [
                         <option value="other">Other</option>
                       </select>
                       <button
+                        data-testid="coach-new-zone-add-btn"
                         type="button"
                         onClick={handleCreateZone}
                         disabled={isSavingZone}
@@ -896,6 +906,7 @@ const HISTORICAL_SESSIONS = [
                         {isSavingZone ? "SAVING..." : "ADD ZONE"}
                       </button>
                       <button
+                        data-testid="coach-new-zone-cancel-btn"
                         type="button"
                         onClick={() => {
                           setIsCreatingZone(false);
@@ -910,9 +921,9 @@ const HISTORICAL_SESSIONS = [
                 </div>
 
                 {/* Session Notes Feed */}
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                <div data-testid="coach-notes-list" className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                   {notes.map((n) => (
-                    <div key={n.id} className="bg-[#161D26] border border-[#232B35] p-2 rounded-[2px] flex items-center justify-between text-xs">
+                    <div key={n.id} data-testid="coach-note-item" className="bg-[#161D26] border border-[#232B35] p-2 rounded-[2px] flex items-center justify-between text-xs">
                       <div>
                         <span className="text-[#3FA6E0] font-bold mr-2">[{n.timestamp}]</span>
                         <span className="text-[#E7EDF3] font-semibold">{n.driverName} ({n.zone}):</span>
@@ -941,9 +952,9 @@ const HISTORICAL_SESSIONS = [
             </div>
 
             {/* Sidebar column (25% on desktop) — independent internal grid */}
-            <div className="col-span-12 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-4">
+            <div data-testid="coach-sidebar-column" className="col-span-12 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-4">
               {/* TIMING TOWER Panel */}
-              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 font-mono">
+              <div data-testid="coach-panel-timing-tower" className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 font-mono">
                 <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-[#E7EDF3]">
                     <span className="text-[#3FA6E0]">|</span> TIMING TOWER
@@ -1004,7 +1015,7 @@ const HISTORICAL_SESSIONS = [
               </div>
 
               {/* SECTOR DELTAS Panel */}
-              <div className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 font-mono">
+              <div data-testid="coach-panel-sector-deltas" className="bg-[#12181F] border border-[#232B35] rounded-[2px] p-3 font-mono">
                 <div className="flex items-center justify-between mb-3 border-b border-[#232B35]/60 pb-2 font-mono">
                   <span className="text-xs font-bold text-[#E7EDF3]">
                     <span className="text-[#3FA6E0]">|</span> SECTOR DELTAS
@@ -1058,13 +1069,13 @@ const HISTORICAL_SESSIONS = [
                 <h2 className="text-sm font-bold text-[#E7EDF3]">HISTORICAL ACADEMY SESSIONS</h2>
                 <p className="text-xs text-[#7C8898]">Raw session telemetry records and historical coach notes</p>
               </div>
-              <span className="text-xs text-[#3FA6E0] font-bold bg-[#3FA6E0]/10 border border-[#3FA6E0]/30 px-2 py-1 rounded-[2px]">
+              <span data-testid="coach-historical-count" className="text-xs text-[#3FA6E0] font-bold bg-[#3FA6E0]/10 border border-[#3FA6E0]/30 px-2 py-1 rounded-[2px]">
                 {historicalSessions.length} SESSIONS RECORDED
               </span>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table data-testid="coach-historical-table" className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-[#232B35] text-[#7C8898]">
                     <th className="py-2 px-3">SESSION ID</th>
@@ -1080,7 +1091,7 @@ const HISTORICAL_SESSIONS = [
                 </thead>
                 <tbody>
                   {historicalSessions.map((s) => (
-                    <tr key={s.id} className="border-b border-[#232B35]/60 hover:bg-[#161D26]">
+                    <tr key={s.id} data-testid="coach-historical-row" className="border-b border-[#232B35]/60 hover:bg-[#161D26]">
                       <td className="py-2.5 px-3 font-bold text-[#3FA6E0]">{s.id}</td>
                       <td className="py-2.5 px-3 text-[#E7EDF3] font-semibold">{s.driver}</td>
                       <td className="py-2.5 px-3 text-[#7C8898]">{s.kart}</td>
