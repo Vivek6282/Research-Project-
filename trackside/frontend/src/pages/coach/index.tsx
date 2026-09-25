@@ -523,13 +523,13 @@ const HISTORICAL_SESSIONS = [
       <TopBar />
 
       {/* Mode Sub-Navigation Bar */}
-      <div className="bg-[#12181F] border-b border-[#232B35] px-4 py-2">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 font-mono text-xs">
+      <div className="bg-[#12181F] border-b border-[#232B35] px-3 sm:px-4 py-2">
+        <div className="max-w-[1400px] mx-auto flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 font-mono text-xs">
             <button
               data-testid="coach-tab-live"
               onClick={() => setActiveTab("live")}
-              className={`px-3 py-1 rounded-[2px] font-bold cursor-pointer transition-all ${
+              className={`px-2.5 sm:px-3 py-1 rounded-[2px] font-bold cursor-pointer transition-all text-[11px] sm:text-xs ${
                 activeTab === "live"
                   ? "bg-[#3FA6E0] text-[#0A0E13]"
                   : "bg-[#161D26] text-[#7C8898] border border-[#232B35] hover:text-[#E7EDF3]"
@@ -540,17 +540,17 @@ const HISTORICAL_SESSIONS = [
             <button
               data-testid="coach-tab-history"
               onClick={() => setActiveTab("history")}
-              className={`px-3 py-1 rounded-[2px] font-bold cursor-pointer transition-all ${
+              className={`px-2.5 sm:px-3 py-1 rounded-[2px] font-bold cursor-pointer transition-all text-[11px] sm:text-xs ${
                 activeTab === "history"
                   ? "bg-[#3FA6E0] text-[#0A0E13]"
                   : "bg-[#161D26] text-[#7C8898] border border-[#232B35] hover:text-[#E7EDF3]"
               }`}
             >
-              HISTORICAL SESSIONS ({historicalSessions.length})
+              HISTORICAL ({historicalSessions.length})
             </button>
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-mono">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-mono">
             {wsStatus === "connected" ? (
               <span className="flex items-center gap-1.5 text-[10px] text-[#33D17E] bg-[#33D17E]/10 border border-[#33D17E]/30 px-2 py-0.5 rounded-[2px] font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#33D17E] animate-pulse" />
@@ -567,8 +567,10 @@ const HISTORICAL_SESSIONS = [
                 OFFLINE FALLBACK
               </span>
             )}
-            <span className="text-[#7C8898]">ACADEMY TRACK:</span>
-            <span className="text-[#3FA6E0] font-bold">APEX CIRCUIT NODE 7</span>
+            <div className="flex items-center gap-1 text-[11px] sm:text-xs truncate max-w-[180px] sm:max-w-none">
+              <span className="text-[#7C8898] hidden md:inline">ACADEMY TRACK:</span>
+              <span className="text-[#3FA6E0] font-bold truncate">APEX CIRCUIT NODE 7</span>
+            </div>
           </div>
         </div>
       </div>

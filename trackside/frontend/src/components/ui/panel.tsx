@@ -29,7 +29,7 @@ export function Panel({ title, icon: Icon, right, children, className = "", test
         boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
       }}
     >
-      <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-[#232B35]">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5 pb-2 border-b border-[#232B35]">
         <div className="flex items-center gap-2">
           {Icon && <Icon size={14} style={{ color: "#3FA6E0" }} />}
           <h3

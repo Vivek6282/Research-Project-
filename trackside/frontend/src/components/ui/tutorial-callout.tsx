@@ -107,14 +107,14 @@ export function TutorialCallout({ role }: { role: "coach" | "driver" | "admin" }
   return (
     <div
       data-testid="tutorial-callout"
-      className="bg-[#12181F] border-b border-[#3FA6E0]/40 px-4 py-2.5 font-mono select-none animate-in fade-in duration-200"
+      className="bg-[#12181F] border-b border-[#3FA6E0]/40 px-3 sm:px-4 py-2.5 font-mono select-none animate-in fade-in duration-200 overflow-hidden"
     >
       <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
         {/* Left: Step Badge, Role Tag & Description */}
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex flex-wrap items-baseline gap-2 flex-1 min-w-0">
           <span
             data-testid="tutorial-step-badge"
-            className="bg-[#3FA6E0] text-[#0A0E13] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase flex items-center gap-1 shrink-0"
+            className="bg-[#3FA6E0] text-[#0A0E13] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase inline-flex items-center gap-1 shrink-0"
           >
             <Sparkles size={11} />
             {step.badge}
@@ -122,12 +122,12 @@ export function TutorialCallout({ role }: { role: "coach" | "driver" | "admin" }
 
           <span
             data-testid="tutorial-step-title"
-            className="text-[#3FA6E0] font-bold text-[11px] uppercase tracking-wider shrink-0"
+            className="text-[#3FA6E0] font-bold text-[11px] uppercase tracking-wider break-words"
           >
             {step.title}:
           </span>
 
-          <span className="text-[#E7EDF3] text-[11px] leading-relaxed">
+          <span className="text-[#E7EDF3] text-[11px] leading-relaxed break-words">
             {step.description}
           </span>
         </div>

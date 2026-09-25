@@ -4,33 +4,41 @@ import pytest
 from e2e.pages.login_page import LoginPage
 from e2e.pages.admin_page import AdminDashboardPage
 from e2e.pages.coach_page import CoachDashboardPage
-from e2e.conftest import ADMIN_CREDENTIALS, COACH_CREDENTIALS
+from e2e.conftest import ADMIN_CREDENTIALS, COACH_CREDENTIALS, DRIVER1_CREDENTIALS
 
 
 def test_tc_resp_01_no_horizontal_overflow_at_any_viewport(driver, base_url):
-    """TC-RESP-01: No horizontal page overflow at any width (375px, 768px, 1440px) (document.body.scrollWidth <= window.innerWidth)."""
-    login_page = LoginPage(driver, base_url)
-    login_page.open()
-    login_page.login(
-        role="coach",
-        identifier=COACH_CREDENTIALS["identifier"],
-        password=COACH_CREDENTIALS["password"],
-    )
-    login_page.wait_for_url_contains("/coach")
-
+    """TC-RESP-01: No horizontal page overflow at any width (375px, 768px, 1440px) on Coach, Admin, and Driver dashboards."""
     viewports = [
         (375, 812),   # Mobile (iPhone X / SE)
         (768, 1024),  # Tablet (iPad)
         (1440, 900),  # Desktop
     ]
 
-    for width, height in viewports:
-        driver.set_window_size(width, height)
-        # Check horizontal scroll overflow
-        is_overflowing = driver.execute_script(
-            "return (document.documentElement.scrollWidth > window.innerWidth + 2) || (document.body.scrollWidth > window.innerWidth + 2);"
+    roles = [
+        ("coach", COACH_CREDENTIALS, "/coach"),
+        ("admin", ADMIN_CREDENTIALS, "/admin"),
+        ("driver", DRIVER1_CREDENTIALS, "/driver"),
+    ]
+
+    login_page = LoginPage(driver, base_url)
+
+    for role, creds, target_url in roles:
+        driver.delete_all_cookies()
+        login_page.open()
+        login_page.login(
+            role=role,
+            identifier=creds["identifier"],
+            password=creds["password"],
         )
-        assert not is_overflowing, f"Horizontal scroll overflow detected at viewport {width}x{height}"
+        login_page.wait_for_url_contains(target_url)
+
+        for width, height in viewports:
+            driver.set_window_size(width, height)
+            is_overflowing = driver.execute_script(
+                "return (document.documentElement.scrollWidth > window.innerWidth + 2) || (document.body.scrollWidth > window.innerWidth + 2);"
+            )
+            assert not is_overflowing, f"Horizontal scroll overflow detected on {role} at viewport {width}x{height}"
 
 
 def test_tc_resp_02_admin_user_table_transforms_to_cards_on_mobile(driver, base_url):

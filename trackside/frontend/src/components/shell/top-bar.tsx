@@ -37,12 +37,12 @@ export function TopBar() {
           boxShadow: "0 4px 20px rgba(0, 0, 0, 0.6)",
         }}
       >
-        <div className="max-w-[1400px] mx-auto px-4 py-2.5 flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-3 sm:px-4 py-2 sm:py-2.5 flex flex-wrap items-center justify-between gap-2">
           {/* Left: Brand, Role Badge & Circuit Meta */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2">
               <span className="text-sm sm:text-base">🏁</span>
-              <span className="text-xs sm:text-sm font-bold font-sans tracking-[0.2em] sm:tracking-[0.25em] uppercase text-[#E7EDF3]">
+              <span className="text-xs sm:text-sm font-bold font-sans tracking-[0.15em] sm:tracking-[0.25em] uppercase text-[#E7EDF3]">
                 TRACKSIDE
               </span>
               <span
@@ -61,10 +61,10 @@ export function TopBar() {
           </div>
 
           {/* Right: User Profile, Settings Gear & Sign Out */}
-          <div className="flex items-center gap-1.5 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <div
               data-testid="topbar-user-badge"
-              className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#161D26] border border-[#232B35] text-xs font-mono text-[#E7EDF3] max-w-[120px] xs:max-w-[160px] sm:max-w-[220px]"
+              className="flex items-center gap-1.5 px-1.5 sm:px-2 py-1 rounded bg-[#161D26] border border-[#232B35] text-xs font-mono text-[#E7EDF3] max-w-[100px] xs:max-w-[140px] sm:max-w-[220px]"
             >
               <span className="w-5 h-5 rounded-[2px] bg-[#232B35] text-[#3FA6E0] font-bold flex-shrink-0 flex items-center justify-center text-[10px]">
                 {userInitials}
@@ -77,7 +77,7 @@ export function TopBar() {
               data-testid="topbar-settings-btn"
               onClick={openSettings}
               title="Display Settings"
-              className="flex items-center justify-center w-8 h-8 rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#7C8898] hover:text-[#3FA6E0] hover:border-[#3FA6E0] transition-all cursor-pointer min-h-[36px] min-w-[36px]"
+              className="flex items-center justify-center w-8 h-8 rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#7C8898] hover:text-[#3FA6E0] hover:border-[#3FA6E0] transition-all cursor-pointer min-h-[32px] min-w-[32px] sm:min-h-[36px] sm:min-w-[36px]"
             >
               <Settings size={15} />
             </button>
@@ -87,7 +87,7 @@ export function TopBar() {
               data-testid="topbar-signout-btn"
               onClick={logout}
               title="Sign Out"
-              className="flex items-center gap-1 text-[11px] font-mono px-2.5 py-1.5 min-h-[36px] rounded cursor-pointer transition-colors hover:text-[#E5473C] text-[#7C8898] border border-[#232B35] bg-[#161D26]"
+              className="flex items-center gap-1 text-[11px] font-mono px-2 py-1.5 min-h-[32px] sm:min-h-[36px] rounded cursor-pointer transition-colors hover:text-[#E5473C] text-[#7C8898] border border-[#232B35] bg-[#161D26]"
             >
               <LogOut size={14} />
               <span className="hidden sm:inline">Sign out</span>
