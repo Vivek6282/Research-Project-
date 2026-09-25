@@ -2,104 +2,90 @@
 Trackside — Unit tests for Account Deactivation & Login Prevention.
 """
 
-import pytest
+import os
+from unittest import mock
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.core.management import call_command
 from rest_framework import status
-from rest_framework.test import APIClient
+from rest_framework.test import APITestCase
 
 User = get_user_model()
 
 
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def admin_user(db):
-    return User.objects.create_superuser(
-        email="admin_deact@trackside.local",
-        name="Admin User",
-        password="AdminPassword123!",
-    )
-
-
-@pytest.fixture
-def coach_user(db):
-    return User.objects.create_user(
-        email="coach_deact@trackside.local",
-        name="Coach User",
-        role="coach",
-        password="CoachPassword123!",
-    )
-
-
-@pytest.fixture
-def driver_user(db):
-    return User.objects.create_user(
-        email="driver_deact@trackside.local",
-        name="Driver User",
-        role="driver",
-        password="DriverPassword123!",
-    )
-
-
-@pytest.mark.django_db
-class TestUserDeactivationAndLoginPrevention:
+class TestUserDeactivationAndLoginPrevention(APITestCase):
     """Suite verifying Admin-only deactivation enforcement and login blocking for deactivated users."""
 
-    def test_deactivate_user_requires_admin_role(self, api_client, admin_user, coach_user, driver_user):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            email="admin_deact@trackside.local",
+            name="Admin User",
+            password="AdminPassword123!",
+        )
+        self.coach_user = User.objects.create_user(
+            email="coach_deact@trackside.local",
+            name="Coach User",
+            role="coach",
+            password="CoachPassword123!",
+        )
+        self.driver_user = User.objects.create_user(
+            email="driver_deact@trackside.local",
+            name="Driver User",
+            role="driver",
+            password="DriverPassword123!",
+        )
+
+    def test_deactivate_user_requires_admin_role(self):
         """Only Admin can deactivate users via PATCH /api/auth/users/<id>/; non-admins get 403."""
         # Non-admin (Coach) attempting to deactivate Driver -> 403 Forbidden
-        api_client.force_authenticate(user=coach_user)
-        res_forbidden = api_client.patch(
-            f"/api/auth/users/{driver_user.id}/",
+        self.client.force_authenticate(user=self.coach_user)
+        res_forbidden = self.client.patch(
+            f"/api/auth/users/{self.driver_user.id}/",
             {"is_active": False},
             format="json",
         )
-        assert res_forbidden.status_code == status.HTTP_403_FORBIDDEN
+        self.assertEqual(res_forbidden.status_code, status.HTTP_403_FORBIDDEN)
 
         # Admin deactivating Driver -> 200 OK
-        api_client.force_authenticate(user=admin_user)
-        res_ok = api_client.patch(
-            f"/api/auth/users/{driver_user.id}/",
+        self.client.force_authenticate(user=self.admin_user)
+        res_ok = self.client.patch(
+            f"/api/auth/users/{self.driver_user.id}/",
             {"is_active": False},
             format="json",
         )
-        assert res_ok.status_code == status.HTTP_200_OK
-        assert res_ok.data["is_active"] is False
+        self.assertEqual(res_ok.status_code, status.HTTP_200_OK)
+        self.assertFalse(res_ok.data["is_active"])
 
         # Reload driver_user from db
-        driver_user.refresh_from_db()
-        assert driver_user.is_active is False
+        self.driver_user.refresh_from_db()
+        self.assertFalse(self.driver_user.is_active)
 
-    def test_deactivated_user_cannot_login(self, api_client, admin_user, driver_user):
+    def test_deactivated_user_cannot_login(self):
         """A deactivated user attempting to log in receives HTTP 401 Unauthorized."""
         # Deactivate driver
-        driver_user.is_active = False
-        driver_user.save()
+        self.driver_user.is_active = False
+        self.driver_user.save()
 
         # Attempt login
-        from django.core.cache import cache
         cache.clear()
 
-        res = api_client.post(
+        res = self.client.post(
             "/api/auth/login/",
             {
-                "identifier": driver_user.username or driver_user.email,
+                "identifier": self.driver_user.username or self.driver_user.email,
                 "password": "DriverPassword123!",
             },
             format="json",
         )
-        assert res.status_code == status.HTTP_401_UNAUTHORIZED
-        assert res.data["detail"] == "This account has been deactivated."
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(res.data["detail"], "This account has been deactivated.")
 
-    def test_created_user_persists_in_paginated_list_fetch(self, api_client, admin_user):
+    def test_created_user_persists_in_paginated_list_fetch(self):
         """Creating a user and subsequently fetching GET /api/auth/users/ returns the created user in paginated results."""
-        api_client.force_authenticate(user=admin_user)
+        self.client.force_authenticate(user=self.admin_user)
 
         # 1. Create a new driver account
-        create_res = api_client.post(
+        create_res = self.client.post(
             "/api/auth/users/",
             {
                 "name": "Persisted Driver Test",
@@ -109,52 +95,50 @@ class TestUserDeactivationAndLoginPrevention:
             },
             format="json",
         )
-        assert create_res.status_code == status.HTTP_201_CREATED
+        self.assertEqual(create_res.status_code, status.HTTP_201_CREATED)
         created_id = create_res.data["id"]
         created_username = create_res.data["username"]
 
         # 2. Fetch GET /api/auth/users/
-        list_res = api_client.get("/api/auth/users/")
-        assert list_res.status_code == status.HTTP_200_OK
+        list_res = self.client.get("/api/auth/users/")
+        self.assertEqual(list_res.status_code, status.HTTP_200_OK)
 
         # Handle DRF paginated structure
         results = list_res.data.get("results") if isinstance(list_res.data, dict) else list_res.data
-        assert isinstance(results, list)
+        self.assertIsInstance(results, list)
 
         # 3. Verify created user exists in results list
         matching = [u for u in results if u["id"] == created_id]
-        assert len(matching) == 1
-        assert matching[0]["name"] == "Persisted Driver Test"
-        assert matching[0]["username"] == created_username
+        self.assertEqual(len(matching), 1)
+        self.assertEqual(matching[0]["name"], "Persisted Driver Test")
+        self.assertEqual(matching[0]["username"], created_username)
 
-    def test_admin_cannot_deactivate_self(self, api_client, admin_user):
+    def test_admin_cannot_deactivate_self(self):
         """Admin user attempting to deactivate their own account via PATCH receives HTTP 400 Bad Request."""
-        api_client.force_authenticate(user=admin_user)
-        res = api_client.patch(
-            f"/api/auth/users/{admin_user.id}/",
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.patch(
+            f"/api/auth/users/{self.admin_user.id}/",
             {"is_active": False},
             format="json",
         )
-        assert res.status_code == status.HTTP_400_BAD_REQUEST
-        assert "is_active" in res.data
-        assert "cannot deactivate your own admin account" in str(res.data["is_active"])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("is_active", res.data)
+        self.assertIn("cannot deactivate your own admin account", str(res.data["is_active"]))
 
-    def test_update_existing_admin_account_with_admin_role_succeeds(self, api_client, admin_user):
+    def test_update_existing_admin_account_with_admin_role_succeeds(self):
         """Updating an existing Admin account while providing role='admin' succeeds and does not raise validation error."""
-        api_client.force_authenticate(user=admin_user)
-        res = api_client.patch(
-            f"/api/auth/users/{admin_user.id}/",
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.patch(
+            f"/api/auth/users/{self.admin_user.id}/",
             {"name": "Updated Admin Name", "role": "admin"},
             format="json",
         )
-        assert res.status_code == status.HTTP_200_OK
-        assert res.data["name"] == "Updated Admin Name"
-        assert res.data["role"] == "admin"
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["name"], "Updated Admin Name")
+        self.assertEqual(res.data["role"], "admin")
 
-    def test_seed_admin_reactivates_deactivated_admin(self, monkeypatch, db):
+    def test_seed_admin_reactivates_deactivated_admin(self):
         """Running seed_admin management command reactivates an existing deactivated admin account."""
-        from django.core.management import call_command
-
         # Create deactivated admin
         deact_admin = User.objects.create_superuser(
             email="seed_reactivate@trackside.local",
@@ -162,35 +146,35 @@ class TestUserDeactivationAndLoginPrevention:
             password="SeedAdminPassword123!",
             is_active=False,
         )
-        assert deact_admin.is_active is False
+        self.assertFalse(deact_admin.is_active)
 
-        monkeypatch.setenv("ADMIN_EMAIL", "seed_reactivate@trackside.local")
-        monkeypatch.setenv("ADMIN_PASSWORD", "SeedAdminPassword123!")
-        monkeypatch.setenv("ADMIN_NAME", "Deactivated Seed Admin")
-
-        call_command("seed_admin")
+        with mock.patch.dict(os.environ, {
+            "ADMIN_EMAIL": "seed_reactivate@trackside.local",
+            "ADMIN_PASSWORD": "SeedAdminPassword123!",
+            "ADMIN_NAME": "Deactivated Seed Admin",
+        }):
+            call_command("seed_admin")
 
         deact_admin.refresh_from_db()
-        assert deact_admin.is_active is True
-        assert deact_admin.username is not None
-        assert deact_admin.username.startswith("TRK-ADMIN-")
+        self.assertTrue(deact_admin.is_active)
+        self.assertIsNotNone(deact_admin.username)
+        self.assertTrue(deact_admin.username.startswith("TRK-ADMIN-"))
 
         # Also verify fresh seed_admin run generates TRK-ADMIN login ID
-        monkeypatch.setenv("ADMIN_EMAIL", "seed_fresh_admin@trackside.local")
-        monkeypatch.setenv("ADMIN_PASSWORD", "FreshAdminPass123!")
-        monkeypatch.setenv("ADMIN_NAME", "Fresh Seed Admin")
+        with mock.patch.dict(os.environ, {
+            "ADMIN_EMAIL": "seed_fresh_admin@trackside.local",
+            "ADMIN_PASSWORD": "FreshAdminPass123!",
+            "ADMIN_NAME": "Fresh Seed Admin",
+        }):
+            call_command("seed_admin")
 
-        call_command("seed_admin")
         fresh_admin = User.objects.get(email="seed_fresh_admin@trackside.local")
-        assert fresh_admin.username is not None
-        assert fresh_admin.username.startswith("TRK-ADMIN-")
+        self.assertIsNotNone(fresh_admin.username)
+        self.assertTrue(fresh_admin.username.startswith("TRK-ADMIN-"))
 
-    def test_delete_user_returns_405_method_not_allowed(self, api_client, admin_user, driver_user):
+    def test_delete_user_returns_405_method_not_allowed(self):
         """DELETE /api/auth/users/<id>/ returns 405 Method Not Allowed to prevent cascading data loss."""
-        api_client.force_authenticate(user=admin_user)
-        res = api_client.delete(f"/api/auth/users/{driver_user.id}/")
-        assert res.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
-        assert User.objects.filter(id=driver_user.id).exists()
-
-
-
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.delete(f"/api/auth/users/{self.driver_user.id}/")
+        self.assertEqual(res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertTrue(User.objects.filter(id=self.driver_user.id).exists())

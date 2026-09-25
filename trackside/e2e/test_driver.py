@@ -75,7 +75,56 @@ def test_tc_driver_02_safety_performance_mode_toggle(driver, base_url):
 
 def test_tc_driver_03_idor_data_isolation_between_drivers(driver, base_url, backend_url):
     """TC-DRIVER-03: Driver A cannot see Driver B's data (IDOR check at the UI level)."""
-    # 1. Login as Driver 1
+    import datetime
+    session = requests.Session()
+
+    # 1. Authenticate as Admin via API to provision Driver 2's session
+    csrf_res = session.get(f"{backend_url}/api/auth/csrf/", timeout=5)
+    csrf_token = csrf_res.cookies.get("csrftoken", "")
+
+    login_res = session.post(
+        f"{backend_url}/api/auth/login/",
+        json={"identifier": ADMIN_CREDENTIALS["identifier"], "password": ADMIN_CREDENTIALS["password"]},
+        headers={"X-CSRFToken": csrf_token, "Referer": backend_url},
+        timeout=5,
+    )
+    assert login_res.status_code == 200, f"Admin login failed: {login_res.text}"
+    csrf_token = session.cookies.get("csrftoken", csrf_token)
+
+    # 2. Retrieve Driver 2 user and active track
+    users_res = session.get(f"{backend_url}/api/auth/users/", timeout=5)
+    user_list = users_res.json()
+    users = user_list if isinstance(user_list, list) else user_list.get("results", [])
+    driver2 = next((u for u in users if u.get("email") == DRIVER2_CREDENTIALS["identifier"]), None)
+    assert driver2 is not None, "Driver 2 account not found"
+
+    tracks_res = session.get(f"{backend_url}/api/tracks/", timeout=5)
+    track_list = tracks_res.json()
+    tracks = track_list if isinstance(track_list, list) else track_list.get("results", [])
+    assert len(tracks) > 0, "No track found for session creation"
+    track_id = tracks[0]["id"]
+
+    # 3. Create a real session with a distinctive goal_text for Driver 2
+    unique_goal_token = f"SECRET-GOAL-DRIVER2-{int(datetime.datetime.now().timestamp() * 1000)}"
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    create_sess = session.post(
+        f"{backend_url}/api/sessions/",
+        json={
+            "driver": driver2["id"],
+            "track": track_id,
+            "mode": "performance",
+            "started_at": now_iso,
+            "kart_number": "#88",
+            "goal_text": unique_goal_token,
+        },
+        headers={"X-CSRFToken": session.cookies.get("csrftoken", csrf_token), "Referer": backend_url},
+        timeout=5,
+    )
+    assert create_sess.status_code in (200, 201), f"Failed to create Driver 2 session: {create_sess.text}"
+    driver2_session_id = create_sess.json()["id"]
+
+    # 4. Log in as Driver 1 via UI
     login_page = LoginPage(driver, base_url)
     login_page.open()
     login_page.login(
@@ -86,10 +135,15 @@ def test_tc_driver_03_idor_data_isolation_between_drivers(driver, base_url, back
     driver_page = DriverDashboardPage(driver, base_url)
     driver_page.wait_for_visible("driver-panel-telemetry")
 
-    # Driver 2's specific identifier/name must NOT appear on Driver 1's personal telemetry dashboard
-    driver2_secret = "R. Iyer"
+    # 5. Assert that neither Driver 2's session nor distinctive goal_text appears anywhere
     page_text = driver.execute_script("return document.body.innerText;")
-    assert driver2_secret not in page_text, f"IDOR leak: Found {driver2_secret} in Driver 1's dashboard"
+    page_source = driver.page_source
+
+    assert unique_goal_token not in page_text, f"IDOR leak: Found Driver 2 goal_text {unique_goal_token} in Driver 1 page text"
+    assert unique_goal_token not in page_source, f"IDOR leak: Found Driver 2 goal_text {unique_goal_token} in Driver 1 page source"
+    assert driver2_session_id not in page_text, f"IDOR leak: Found Driver 2 session ID {driver2_session_id} in Driver 1 page text"
+    assert driver2_session_id not in page_source, f"IDOR leak: Found Driver 2 session ID {driver2_session_id} in Driver 1 page source"
+    assert DRIVER2_CREDENTIALS["identifier"] not in page_text, f"IDOR leak: Found Driver 2 email in Driver 1 dashboard"
 
 
 def test_tc_driver_04_development_ongoing_banners_visible(driver, base_url):

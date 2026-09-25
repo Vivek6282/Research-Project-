@@ -1,105 +1,98 @@
-import pytest
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APIClient
+from rest_framework.test import APITestCase
 from devices.models import Device, DeviceCommand
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-@pytest.fixture
-def api_client():
-    return APIClient()
 
-@pytest.fixture
-def admin_user():
-    return User.objects.create_user(email="admin@test.com", password="pwd", name="Admin", role="admin")
+class DeviceCommandsAPITestCase(APITestCase):
 
-@pytest.fixture
-def driver_user():
-    return User.objects.create_user(email="driver@test.com", password="pwd", name="Driver", role="driver")
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            email="admin@test.com", password="pwd", name="Admin", role="admin"
+        )
+        self.driver_user = User.objects.create_user(
+            email="driver@test.com", password="pwd", name="Driver", role="driver"
+        )
+        self.test_device = Device.objects.create(device_type=Device.DeviceType.GLOVE)
+        self.device_token = self.test_device.set_api_key()
+        self.test_device.save()
 
-@pytest.fixture
-def test_device():
-    device = Device.objects.create(device_type=Device.DeviceType.GLOVE)
-    return device
+    def test_admin_can_trigger_command(self):
+        self.client.force_authenticate(user=self.admin_user)
+        url = reverse("device-commands", kwargs={"pk": self.test_device.pk})
+        response = self.client.post(url, {"command_type": DeviceCommand.CommandType.SELF_TEST})
 
-@pytest.fixture
-def device_token(test_device):
-    token = test_device.set_api_key()
-    test_device.save()
-    return token
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(DeviceCommand.objects.count(), 1)
+        self.assertEqual(DeviceCommand.objects.first().requested_by, self.admin_user)
 
-@pytest.mark.django_db
-def test_admin_can_trigger_command(api_client, admin_user, test_device):
-    api_client.force_authenticate(user=admin_user)
-    url = reverse("device-commands", kwargs={"pk": test_device.pk})
-    response = api_client.post(url, {"command_type": DeviceCommand.CommandType.SELF_TEST})
-    
-    assert response.status_code == status.HTTP_201_CREATED
-    assert DeviceCommand.objects.count() == 1
-    assert DeviceCommand.objects.first().requested_by == admin_user
+    def test_non_admin_cannot_trigger_command(self):
+        self.client.force_authenticate(user=self.driver_user)
+        url = reverse("device-commands", kwargs={"pk": self.test_device.pk})
+        response = self.client.post(url, {"command_type": DeviceCommand.CommandType.SELF_TEST})
 
-@pytest.mark.django_db
-def test_non_admin_cannot_trigger_command(api_client, driver_user, test_device):
-    api_client.force_authenticate(user=driver_user)
-    url = reverse("device-commands", kwargs={"pk": test_device.pk})
-    response = api_client.post(url, {"command_type": DeviceCommand.CommandType.SELF_TEST})
-    
-    assert response.status_code == status.HTTP_403_FORBIDDEN
-    assert DeviceCommand.objects.count() == 0
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(DeviceCommand.objects.count(), 0)
 
-@pytest.mark.django_db
-def test_device_can_fetch_pending_commands(api_client, test_device, device_token, admin_user):
-    DeviceCommand.objects.create(
-        device=test_device,
-        command_type=DeviceCommand.CommandType.SELF_TEST,
-        requested_by=admin_user
-    )
-    
-    url = reverse("device-commands-pending")
-    api_client.credentials(HTTP_AUTHORIZATION=f"Device-Token {device_token}")
-    response = api_client.get(url)
-    
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.data["results"]) == 1
-    assert response.data["results"][0]["command_type"] == "self_test"
+    def test_device_can_fetch_pending_commands(self):
+        DeviceCommand.objects.create(
+            device=self.test_device,
+            command_type=DeviceCommand.CommandType.SELF_TEST,
+            requested_by=self.admin_user,
+        )
 
-@pytest.mark.django_db
-def test_device_can_complete_own_command(api_client, test_device, device_token, admin_user):
-    cmd = DeviceCommand.objects.create(
-        device=test_device,
-        command_type=DeviceCommand.CommandType.SELF_TEST,
-        requested_by=admin_user
-    )
-    
-    url = reverse("device-commands-complete", kwargs={"pk": cmd.pk})
-    api_client.credentials(HTTP_AUTHORIZATION=f"Device-Token {device_token}")
-    response = api_client.post(url, {
-        "status": DeviceCommand.Status.COMPLETED,
-        "result": {"boot": True, "ping_latency_ms": 15}
-    }, format='json')
-    
-    assert response.status_code == status.HTTP_200_OK
-    cmd.refresh_from_db()
-    assert cmd.status == DeviceCommand.Status.COMPLETED
-    assert cmd.result["boot"] is True
-    assert cmd.completed_at is not None
+        url = reverse("device-commands-pending")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.device_token}")
+        response = self.client.get(url)
 
-@pytest.mark.django_db
-def test_device_cannot_complete_other_device_command(api_client, test_device, device_token, admin_user):
-    other_device = Device.objects.create(device_type=Device.DeviceType.KART_UNIT)
-    cmd = DeviceCommand.objects.create(
-        device=other_device,
-        command_type=DeviceCommand.CommandType.SELF_TEST,
-        requested_by=admin_user
-    )
-    
-    url = reverse("device-commands-complete", kwargs={"pk": cmd.pk})
-    api_client.credentials(HTTP_AUTHORIZATION=f"Device-Token {device_token}")
-    response = api_client.post(url, {
-        "status": DeviceCommand.Status.COMPLETED,
-        "result": {"boot": True}
-    }, format='json')
-    
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["command_type"], "self_test")
+
+    def test_device_can_complete_own_command(self):
+        cmd = DeviceCommand.objects.create(
+            device=self.test_device,
+            command_type=DeviceCommand.CommandType.SELF_TEST,
+            requested_by=self.admin_user,
+        )
+
+        url = reverse("device-commands-complete", kwargs={"pk": cmd.pk})
+        self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.device_token}")
+        response = self.client.post(
+            url,
+            {
+                "status": DeviceCommand.Status.COMPLETED,
+                "result": {"boot": True, "ping_latency_ms": 15},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        cmd.refresh_from_db()
+        self.assertEqual(cmd.status, DeviceCommand.Status.COMPLETED)
+        self.assertTrue(cmd.result["boot"])
+        self.assertIsNotNone(cmd.completed_at)
+
+    def test_device_cannot_complete_other_device_command(self):
+        other_device = Device.objects.create(device_type=Device.DeviceType.KART_UNIT)
+        cmd = DeviceCommand.objects.create(
+            device=other_device,
+            command_type=DeviceCommand.CommandType.SELF_TEST,
+            requested_by=self.admin_user,
+        )
+
+        url = reverse("device-commands-complete", kwargs={"pk": cmd.pk})
+        self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.device_token}")
+        response = self.client.post(
+            url,
+            {
+                "status": DeviceCommand.Status.COMPLETED,
+                "result": {"boot": True},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
