@@ -172,6 +172,18 @@ class TestUserDeactivationAndLoginPrevention:
 
         deact_admin.refresh_from_db()
         assert deact_admin.is_active is True
+        assert deact_admin.username is not None
+        assert deact_admin.username.startswith("TRK-ADMIN-")
+
+        # Also verify fresh seed_admin run generates TRK-ADMIN login ID
+        monkeypatch.setenv("ADMIN_EMAIL", "seed_fresh_admin@trackside.local")
+        monkeypatch.setenv("ADMIN_PASSWORD", "FreshAdminPass123!")
+        monkeypatch.setenv("ADMIN_NAME", "Fresh Seed Admin")
+
+        call_command("seed_admin")
+        fresh_admin = User.objects.get(email="seed_fresh_admin@trackside.local")
+        assert fresh_admin.username is not None
+        assert fresh_admin.username.startswith("TRK-ADMIN-")
 
     def test_delete_user_returns_405_method_not_allowed(self, api_client, admin_user, driver_user):
         """DELETE /api/auth/users/<id>/ returns 405 Method Not Allowed to prevent cascading data loss."""

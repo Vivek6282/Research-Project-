@@ -45,6 +45,18 @@ class UserSerializer(serializers.ModelSerializer):
         return None
 
 
+def generate_username(role: str) -> str:
+    """Auto-generate role-scoped username sequence TRK-{ROLE}-{6-digit}."""
+    role_code_map = {"driver": "DRV", "coach": "COACH", "admin": "ADMIN"}
+    role_code = role_code_map.get(role.lower(), role.upper())
+    count = User.objects.filter(role=role).count() + 1
+    while True:
+        candidate = f"TRK-{role_code}-{count:06d}"
+        if not User.objects.filter(username=candidate).exists():
+            return candidate
+        count += 1
+
+
 class UserCreateSerializer(serializers.ModelSerializer):
     """
     Write serializer for Admin-only user creation (POST /api/users/).
@@ -116,19 +128,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         validated_data.pop("username", None)
 
         role = validated_data.get("role", "driver")
-        role_code_map = {"driver": "DRV", "coach": "COACH", "admin": "ADMIN"}
-        role_code = role_code_map.get(role.lower(), role.upper())
-
-        # Auto-generate role-scoped username sequence TRK-{ROLE}-{6-digit}
-        count = User.objects.filter(role=role).count() + 1
-        while True:
-            candidate = f"TRK-{role_code}-{count:06d}"
-            if not User.objects.filter(username=candidate).exists():
-                username = candidate
-                break
-            count += 1
-
-        validated_data["username"] = username
+        validated_data["username"] = generate_username(role)
         password = validated_data.pop("password")
         request = self.context.get("request")
 

@@ -18,6 +18,8 @@ import os
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
+from accounts.serializers import generate_username
+
 User = get_user_model()
 
 
@@ -45,12 +47,18 @@ class Command(BaseCommand):
         # Check if admin already exists — idempotent & reactivates if deactivated
         existing_user = User.objects.filter(email=email).first()
         if existing_user:
+            updated = False
+            if not existing_user.username:
+                existing_user.username = generate_username("admin")
+                updated = True
             if not existing_user.is_active:
                 existing_user.is_active = True
+                updated = True
+            if updated:
                 existing_user.save()
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"Admin account '{email}' was deactivated — reactivated successfully."
+                        f"Admin account '{email}' updated — active={existing_user.is_active}, username={existing_user.username}."
                     )
                 )
             else:
@@ -61,15 +69,17 @@ class Command(BaseCommand):
                 )
             return
 
+        username = generate_username("admin")
         # Create the admin using the manager, which hashes the password
         user = User.objects.create_superuser(
             email=email,
             name=name,
             password=password,
+            username=username,
         )
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Admin account created: {user.email} ({user.name})"
+                f"Admin account created: {user.email} ({user.name}) with login ID {user.username}"
             )
         )
