@@ -67,10 +67,6 @@ interface SessionNote {
   text: string;
 }
 
-const INITIAL_NOTES: SessionNote[] = [
-  { id: "n1", timestamp: "12:02:15", driverName: "Marco Ferretti", kart: "12", zone: "Turn 4 Hairpin", lap: "Lap 5", text: "Apex entry late by 0.3s. Good exit throttle control." },
-  { id: "n2", timestamp: "11:58:40", driverName: "Lena Hartmann", kart: "7", zone: "Sector 2 Chicane", lap: "Lap 3", text: "G-force peak 1.42g near safety limit. Instructed tighter kerb line." },
-];
 
 const HISTORICAL_SESSIONS = [
   { id: "SESS-1092", driver: "Marco Ferretti", kart: "#12", date: "2026-08-08", duration: "42 min", mode: "Performance", laps: 28, bestLap: "1:23.104", maxG: "1.42g", alerts: 3 },
@@ -89,18 +85,15 @@ const HISTORICAL_SESSIONS = [
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
-  const [zones, setZones] = useState<{ id: string; label: string; corner_type?: string; threshold_g?: number; min_threshold_g?: number }[]>([
-    { id: "z1", label: "Turn 4 Hairpin", corner_type: "hairpin", threshold_g: DEFAULT_SPRINT_CEILING, min_threshold_g: DEFAULT_SPRINT_FLOOR },
-    { id: "z2", label: "Sector 2 Chicane", corner_type: "chicane", threshold_g: DEFAULT_SPRINT_CEILING, min_threshold_g: DEFAULT_SPRINT_FLOOR },
-    { id: "z3", label: "Main Straight", corner_type: "straight", threshold_g: DEFAULT_SPRINT_CEILING, min_threshold_g: DEFAULT_SPRINT_FLOOR },
-  ]);
-  const [selectedZoneId, setSelectedZoneId] = useState<string>("z1");
+  const [zones, setZones] = useState<{ id: string; label: string; corner_type?: string; threshold_g?: number; min_threshold_g?: number }[]>([]);
+  const [selectedZoneId, setSelectedZoneId] = useState<string>("");
   const [isCreatingZone, setIsCreatingZone] = useState<boolean>(false);
   const [newZoneName, setNewZoneName] = useState<string>("");
   const [newCornerType, setNewCornerType] = useState<string>("hairpin");
   const [isSavingZone, setIsSavingZone] = useState<boolean>(false);
 
-  const [notes, setNotes] = useState<SessionNote[]>(INITIAL_NOTES);
+  const [notes, setNotes] = useState<SessionNote[]>([]);
+  const [noteError, setNoteError] = useState<string | null>(null);
   const [newNoteText, setNewNoteText] = useState("");
 
   const [rosterMap, setRosterMap] = useState<Record<string, { current_g: number; active_threshold: number; stage: string }>>({});
@@ -253,20 +246,18 @@ const HISTORICAL_SESSIONS = [
       try {
         const res = await api.get<any>(`/api/sessions/${activeSessionId}/notes/`);
         const noteList = Array.isArray(res) ? res : res.results || [];
-        if (noteList.length > 0) {
-          const mapped: SessionNote[] = noteList.map((n: any) => ({
-            id: n.id,
-            timestamp: n.created_at ? new Date(n.created_at).toLocaleTimeString("en-GB") : new Date().toLocaleTimeString("en-GB"),
-            driverName: n.coach_name || selectedDriver.name,
-            kart: selectedDriver.kart,
-            zone: n.zone_label || "General",
-            lap: "Lap 5",
-            text: n.note_text || n.text || "",
-          }));
-          setNotes(mapped);
-        }
+        const mapped: SessionNote[] = noteList.map((n: any) => ({
+          id: n.id,
+          timestamp: n.created_at ? new Date(n.created_at).toLocaleTimeString("en-GB") : new Date().toLocaleTimeString("en-GB"),
+          driverName: n.coach_name || selectedDriver.name,
+          kart: selectedDriver.kart,
+          zone: n.zone_label || "General",
+          lap: "Lap 5",
+          text: n.note_text || n.text || "",
+        }));
+        setNotes(mapped);
       } catch (err) {
-        console.warn("Using default session notes:", err);
+        console.error("Failed loading session notes:", err);
       }
     }
     loadNotes();
@@ -460,25 +451,16 @@ const HISTORICAL_SESSIONS = [
         }
       }
     } catch (err) {
-      console.warn("Failed creating zone via API, adding locally:", err);
+      console.error("Failed creating zone via API:", err);
     } finally {
       setIsSavingZone(false);
     }
-
-    const localZone = {
-      id: `z-${Date.now()}`,
-      label: name,
-      corner_type: newCornerType,
-    };
-    setZones((prev) => [...prev, localZone]);
-    setSelectedZoneId(localZone.id);
-    setIsCreatingZone(false);
-    setNewZoneName("");
-    return localZone;
+    return null;
   };
 
   // Handle adding session note via POST /api/sessions/<uuid>/notes/
   const handleAddNote = async () => {
+    setNoteError(null);
     if (!newNoteText.trim()) return;
 
     let currentZoneId = selectedZoneId;
@@ -486,46 +468,42 @@ const HISTORICAL_SESSIONS = [
       const created = await handleCreateZone();
       if (created) {
         currentZoneId = created.id;
+      } else {
+        setNoteError("Failed to create new zone for note.");
+        return;
       }
     }
 
-    const selectedZoneObj = zones.find((z) => z.id === currentZoneId) || zones[0];
+    const selectedZoneObj = zones.find((z) => z.id === currentZoneId);
     const noteText = newNoteText.trim();
 
-    if (activeSessionId) {
-      try {
-        const res = await api.post<any>(`/api/sessions/${activeSessionId}/notes/`, {
-          note_text: noteText,
-          zone: selectedZoneObj ? selectedZoneObj.id : undefined,
-        });
-        const createdNote: SessionNote = {
-          id: res.id || `n-${Date.now()}`,
-          timestamp: new Date().toLocaleTimeString("en-GB"),
-          driverName: selectedDriver.name,
-          kart: selectedDriver.kart,
-          zone: selectedZoneObj ? selectedZoneObj.label : "General",
-          lap: "Lap 7",
-          text: noteText,
-        };
-        setNotes((prev) => [createdNote, ...prev]);
-        setNewNoteText("");
-        return;
-      } catch (err) {
-        console.warn("Failed posting note to API, adding locally:", err);
-      }
+    if (!activeSessionId) {
+      setNoteError("No active driving session available to record notes.");
+      return;
     }
 
-    const localNote: SessionNote = {
-      id: `n-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString("en-GB"),
-      driverName: selectedDriver.name,
-      kart: selectedDriver.kart,
-      zone: selectedZoneObj ? selectedZoneObj.label : "General",
-      lap: "Lap 7",
-      text: noteText,
-    };
-    setNotes((prev) => [localNote, ...prev]);
-    setNewNoteText("");
+    try {
+      const payload: any = {
+        note_text: noteText,
+      };
+      if (selectedZoneObj && selectedZoneObj.id) {
+        payload.zone = selectedZoneObj.id;
+      }
+      const res = await api.post<any>(`/api/sessions/${activeSessionId}/notes/`, payload);
+      const createdNote: SessionNote = {
+        id: res.id,
+        timestamp: res.created_at ? new Date(res.created_at).toLocaleTimeString("en-GB") : new Date().toLocaleTimeString("en-GB"),
+        driverName: res.coach_name || selectedDriver.name,
+        kart: selectedDriver.kart,
+        zone: res.zone_label || (selectedZoneObj ? selectedZoneObj.label : "General"),
+        lap: "Lap 7",
+        text: noteText,
+      };
+      setNotes((prev) => [createdNote, ...prev]);
+      setNewNoteText("");
+    } catch (err: any) {
+      setNoteError(err.message || "Failed to save note to server.");
+    }
   };
 
   const buildSvgPath = (points: number[]) => {
@@ -846,11 +824,18 @@ const HISTORICAL_SESSIONS = [
                       onChange={handleZoneSelectChange}
                       className="bg-[#161D26] border border-[#232B35] text-[#E7EDF3] text-xs px-3 py-2 min-h-[44px] rounded-[2px] outline-none cursor-pointer"
                     >
-                      {zones.map((z) => (
-                        <option key={z.id} value={z.id}>
-                          {z.label} {z.corner_type ? `(${z.corner_type})` : ""}
-                        </option>
-                      ))}
+                      {zones.length === 0 ? (
+                        <option value="">General (no zone)</option>
+                      ) : (
+                        <>
+                          <option value="">General (no zone)</option>
+                          {zones.map((z) => (
+                            <option key={z.id} value={z.id}>
+                              {z.label} {z.corner_type ? `(${z.corner_type})` : ""}
+                            </option>
+                          ))}
+                        </>
+                      )}
                       <option value="__new__">+ New Zone...</option>
                     </select>
 
@@ -871,6 +856,12 @@ const HISTORICAL_SESSIONS = [
                       SAVE NOTE
                     </button>
                   </div>
+
+                  {noteError && (
+                    <div data-testid="coach-note-error" className="p-2 rounded text-xs font-mono bg-[#E5473C]/15 border border-[#E5473C]/40 text-[#E5473C]">
+                      {noteError}
+                    </div>
+                  )}
 
                   {/* Extensible New Zone Creation Form */}
                   {isCreatingZone && (
