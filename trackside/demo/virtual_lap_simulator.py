@@ -270,12 +270,15 @@ def classify_stage(g_value, threshold):
     return "NOMINAL"
 
 
-def send_to_bridge(ser, g_value):
+def send_to_bridge(ser, g_value, stage=None):
     """Fault-tolerant dispatch of g-force over USB Serial to Bridge ESP32."""
     if not ser:
         return
     try:
-        ser.write(f"{g_value}\n".encode())
+        if stage:
+            ser.write(f"{g_value},{stage}\n".encode())
+        else:
+            ser.write(f"{g_value}\n".encode())
     except Exception as e:
         print(f"  [!] Serial send failed: {e}")
 
@@ -348,7 +351,7 @@ def run_lap(ser, session_id, lap_number, total_laps, delay):
             broadcast_reading(payload)
 
             # 2. Output to physical Bridge ESP32 via Serial (if connected)
-            send_to_bridge(ser, g)
+            send_to_bridge(ser, g, stage)
 
             # 3. Post to backend HTTP REST API (if session configured)
             send_to_backend(session_id, g, turn["name"], stage, speed_kmh)
