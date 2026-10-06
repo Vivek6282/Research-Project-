@@ -24,16 +24,18 @@ pip install websockets pyserial requests python-dotenv
 You can launch the live browser visualizer in under 10 seconds:
 
 ### Step 1: Open the Visualizer in your Browser
-Simply double-click or open `track_visualization.html` in Chrome/Edge/Firefox:
+The live visualizer now lives at `frontend/public/demo/track_visualization.html` and opens at `/demo/track_visualization.html` when the frontend is running.
+
+Opening the file directly still works:
 ```bash
 # Windows
-start track_visualization.html
+start ../frontend/public/demo/track_visualization.html
 
 # macOS
-open track_visualization.html
+open ../frontend/public/demo/track_visualization.html
 
 # Linux
-xdg-open track_visualization.html
+xdg-open ../frontend/public/demo/track_visualization.html
 ```
 The page connects automatically to `ws://127.0.0.1:8765` and will wait for telemetry.
 
