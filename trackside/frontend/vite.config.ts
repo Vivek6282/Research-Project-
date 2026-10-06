@@ -32,6 +32,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        navigateFallbackDenylist: [/^\/demo\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\/api\/(sessions|tracks|auth).*/i,
