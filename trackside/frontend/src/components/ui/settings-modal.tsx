@@ -10,8 +10,10 @@
 
 import { X, RotateCcw } from "lucide-react";
 import { usePreferences, type FontSizePreset } from "../../context/PreferencesContext";
+import { useAuth } from "../../lib/auth";
 
 export function SettingsModal() {
+  const { user } = useAuth();
   const {
     fontSize,
     isSettingsOpen,
@@ -104,6 +106,35 @@ export function SettingsModal() {
               <span>SHOW TUTORIAL AGAIN</span>
             </button>
           </div>
+
+          {/* DEMO TOOLS SECTION */}
+          {/* Note: The role check only hides the UI. The page is public static content with no tokens or API data, which is acceptable. */}
+          {user?.role === "coach" && import.meta.env.VITE_ENABLE_DEMO_TOOLS === "true" && (
+            <div className="pt-2 border-t border-[#232B35]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-[#7C8898] uppercase tracking-wider">
+                  | DEMO TOOLS
+                </span>
+              </div>
+              <button
+                type="button"
+                data-testid="settings-open-demo-visualizer-btn"
+                onClick={() =>
+                  window.open(
+                    "/demo/track_visualization.html",
+                    "_blank",
+                    "noopener,noreferrer"
+                  )
+                }
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 min-h-[44px] rounded-[2px] bg-[#161D26] border border-[#232B35] text-[#3FA6E0] hover:border-[#3FA6E0] hover:bg-[#3FA6E0]/10 text-xs font-bold cursor-pointer transition-all"
+              >
+                <span>Open Live Demo Visualizer</span>
+              </button>
+              <p className="mt-2 text-[10px] text-[#7C8898] leading-relaxed">
+                Start the simulator first, in trackside\demo: py virtual_lap_simulator.py --continuous. The page then connects to ws://127.0.0.1:8765.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Modal Footer Bar */}
