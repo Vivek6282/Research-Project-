@@ -2,9 +2,9 @@
  * Trackside — Settings Modal Component
  *
  * Pit-Wall styled settings modal for user preferences:
- * - Theme selection: Dark / Light
  * - Font Size presets: S (Small), M (Medium), L (Large), XL (Extra Large)
  * - Show tutorial again option
+ * - Demo Tools launcher (Coach only, behind VITE_ENABLE_DEMO_TOOLS)
  * - Done button to close and persist preferences
  */
 

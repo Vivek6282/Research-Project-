@@ -394,7 +394,7 @@ def main():
     print("\nStarting local WebSocket telemetry broadcaster...")
     ws_thread = start_websocket_server(host=args.ws_host, port=args.ws_port)
     if ws_thread:
-        print(f"  [i] Open 'track_visualization.html' in your browser to view the live synchronized visualizer.")
+        print(f"  [i] Open the visualizer: Coach Settings > Open Live Demo Visualizer, or frontend/public/demo/track_visualization.html")
 
     # 2. Setup Bridge ESP32 Serial connection (Fault-Tolerant)
     ser = None
