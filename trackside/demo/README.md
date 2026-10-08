@@ -21,7 +21,10 @@ pip install websockets pyserial requests python-dotenv
 
 ## 2. Quick Start: Visual Demo (No Hardware Required)
 
-You can launch the live browser visualizer in under 10 seconds:
+### One-Click Demo Launcher (Windows)
+Double-click `run_demo.bat` in this `trackside/demo` directory to automatically launch the live browser visualizer and start the virtual lap simulator in continuous mode.
+
+Alternatively, launch manually:
 
 ### Step 1: Open the Visualizer in your Browser
 The live visualizer now lives at `frontend/public/demo/track_visualization.html` and opens at `/demo/track_visualization.html` when the frontend is running.
