@@ -20,7 +20,7 @@
 //  CHANGE THIS LINE: paste the GLOVE MAC ADDRESS between the quotes.
 //  You get it from the glove's Serial Monitor. Example: "A0:B7:65:12:34:56"
 // =====================================================================
-const char* GLOVE_MAC = "AA:BB:CC:DD:EE:FF";
+const char* GLOVE_MAC = "B0:CB:D8:0A:4F:20";
 
 // Used only when the line has no stage in it (plain number).
 const float FALLBACK_THRESHOLD = 1.15;
