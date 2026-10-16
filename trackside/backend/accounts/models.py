@@ -113,6 +113,9 @@ class AuditLogEntry(models.Model):
         DEACTIVATE_USER = "DEACTIVATE_USER", "Deactivate User"
         REACTIVATE_USER = "REACTIVATE_USER", "Reactivate User"
         DELETE_USER = "DELETE_USER", "Delete User"
+        SIMULATOR_START = "SIMULATOR_START", "Simulator Start"
+        SIMULATOR_STOP = "SIMULATOR_STOP", "Simulator Stop"
+
 
     id = models.UUIDField(
         primary_key=True,

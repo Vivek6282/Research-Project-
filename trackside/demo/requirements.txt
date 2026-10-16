@@ -1,0 +1,4 @@
+pyserial
+websockets
+requests
+python-dotenv

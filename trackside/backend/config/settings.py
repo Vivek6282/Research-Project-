@@ -57,7 +57,9 @@ INSTALLED_APPS = [
     "drivers",
     "devices",
     "preferences",
+    "demo_control",
 ]
+
 
 ASGI_APPLICATION = "config.asgi.application"
 

@@ -613,6 +613,13 @@
       color: var(--text);
       border-color: var(--text-muted);
     }
+
+    .btn-connect:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      filter: grayscale(0.6);
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -647,6 +654,59 @@
         </div>
       </div>
       <span class="truth-badge mono">ESP-NOW SYNC</span>
+    </div>
+
+    <!-- Demo Control Panel -->
+    <div id="demo-control-panel" class="panel" style="margin-bottom: 24px;">
+      <div class="panel-header">
+        <span class="panel-title mono">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          DEMO CONTROL
+        </span>
+        <span id="demo-control-badge" class="brand-badge mono" style="color: var(--accent-blue);">SIMULATOR PROCESS</span>
+      </div>
+
+      <div id="demo-controls-body" style="display: flex; flex-direction: column; gap: 14px;">
+        <div id="demo-control-inputs" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+          <!-- Laps Input -->
+          <div id="demo-laps-group" style="display: flex; align-items: center; gap: 8px;">
+            <label for="input-laps" class="mono" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">LAPS:</label>
+            <input type="number" id="input-laps" class="endpoint-input mono" min="1" max="20" value="3" style="width: 70px; text-align: center;" />
+          </div>
+
+          <!-- Run Continuously Checkbox -->
+          <label id="demo-continuous-label" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text); cursor: pointer;" class="mono">
+            <input type="checkbox" id="chk-continuous" style="cursor: pointer; accent-color: var(--accent-blue);" />
+            <span>Run continuously</span>
+          </label>
+
+          <!-- Buttons -->
+          <div id="demo-action-buttons" style="display: flex; gap: 10px;">
+            <button id="btn-start-demo" class="btn-connect mono" style="background: var(--stage-nominal); color: #0A0E13; font-weight: 700;">
+              START DEMO
+            </button>
+            <button id="btn-stop-demo" class="btn-connect mono" style="background: var(--stage-intervene); color: #FFFFFF; font-weight: 700;" disabled>
+              STOP
+            </button>
+          </div>
+        </div>
+
+        <!-- Status Line -->
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 10px 14px; background: var(--panel-elevated); border: 1px solid var(--line); border-radius: 6px;" class="mono">
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">STATUS:</span>
+          <span id="demo-status-text" style="color: var(--text-muted); font-weight: 600;">Checking simulator status...</span>
+        </div>
+
+        <!-- Collapsible Console Output (Last 6 Lines) -->
+        <details id="demo-output-details" style="background: #080C10; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-size: 11px;" class="mono">
+          <summary style="cursor: pointer; color: var(--text-muted); font-weight: 600; outline: none; user-select: none;">
+            Simulator Console Output (Last 6 Lines)
+          </summary>
+          <pre id="demo-output-lines" style="margin-top: 8px; padding: 8px; background: #05080B; border-radius: 4px; color: #9EABB8; white-space: pre-wrap; font-size: 11px; max-height: 140px; overflow-y: auto; line-height: 1.4;">(No process output yet)</pre>
+        </details>
+      </div>
     </div>
 
     <!-- Main Dashboard Grid -->
@@ -1196,7 +1256,204 @@
 
       // Start Connection
       connectWebSocket();
+
+      // ===================================================================
+      // DEMO CONTROL LOGIC
+      // ===================================================================
+      const inputLaps = document.getElementById("input-laps");
+      const chkContinuous = document.getElementById("chk-continuous");
+      const btnStartDemo = document.getElementById("btn-start-demo");
+      const btnStopDemo = document.getElementById("btn-stop-demo");
+      const demoStatusText = document.getElementById("demo-status-text");
+      const demoOutputLines = document.getElementById("demo-output-lines");
+      const demoActionButtons = document.getElementById("demo-action-buttons");
+
+      let csrfTokenCached = null;
+
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+          const cookies = document.cookie.split(";");
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === name + "=") {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+
+      async function ensureCsrfToken() {
+        if (!csrfTokenCached) {
+          try {
+            await fetch("/api/auth/csrf/", { credentials: "include" });
+          } catch (e) {
+            console.warn("[Demo Control] Could not fetch CSRF token:", e);
+          }
+          csrfTokenCached = getCookie("csrftoken");
+        }
+        return csrfTokenCached || getCookie("csrftoken") || "";
+      }
+
+      function updateDemoStatusUI(data) {
+        // Start is disabled while running and Stop while stopped
+        if (data.running) {
+          btnStartDemo.disabled = true;
+          btnStopDemo.disabled = false;
+
+          if (data.bridge_connected === true) {
+            demoStatusText.textContent = data.port_hint
+              ? `Running, bridge connected (${data.port_hint})`
+              : "Running, bridge connected";
+            demoStatusText.style.color = "var(--stage-nominal)";
+          } else if (data.bridge_connected === false) {
+            demoStatusText.textContent =
+              "Running, but the bridge is NOT connected: close the Arduino Serial Monitor and check SERIAL_PORT in trackside/demo/.env";
+            demoStatusText.style.color = "var(--stage-monitoring)";
+          } else {
+            demoStatusText.textContent = "Running, bridge connected";
+            demoStatusText.style.color = "var(--stage-nominal)";
+          }
+        } else {
+          btnStartDemo.disabled = false;
+          btnStopDemo.disabled = true;
+
+          if (data.error) {
+            demoStatusText.textContent = data.error;
+            demoStatusText.style.color = "var(--stage-intervene)";
+          } else if (data.exit_code === 0 && data.mode === "laps" && data.laps) {
+            demoStatusText.textContent = `Finished ${data.laps} laps`;
+            demoStatusText.style.color = "var(--accent-blue)";
+          } else {
+            demoStatusText.textContent = "Stopped";
+            demoStatusText.style.color = "var(--text-muted)";
+          }
+        }
+
+        // Collapsible box with the last 6 output lines
+        if (data.last_lines && Array.isArray(data.last_lines) && data.last_lines.length > 0) {
+          demoOutputLines.textContent = data.last_lines.slice(-6).join("\n");
+        } else {
+          demoOutputLines.textContent = "(No process output yet)";
+        }
+      }
+
+      async function pollDemoStatus() {
+        try {
+          const res = await fetch("/api/demo/simulator/status/", { credentials: "include" });
+
+          if (res.status === 200) {
+            demoActionButtons.style.display = "flex";
+            const data = await res.json();
+            updateDemoStatusUI(data);
+          } else if (res.status === 404) {
+            demoActionButtons.style.display = "none";
+            demoStatusText.textContent = "Demo control is switched off on this server (DEMO_TOOLS_ENABLED).";
+            demoStatusText.style.color = "var(--text-muted)";
+          } else if (res.status === 401 || res.status === 403) {
+            demoActionButtons.style.display = "none";
+            demoStatusText.textContent = "Log in as a Coach in this browser, then reload.";
+            demoStatusText.style.color = "var(--stage-monitoring)";
+          } else {
+            demoStatusText.textContent = `Server error (${res.status})`;
+            demoStatusText.style.color = "var(--stage-intervene)";
+          }
+        } catch (err) {
+          demoActionButtons.style.display = "none";
+          demoStatusText.textContent =
+            "Open this page from Coach Settings (http://localhost:5173/demo/track_visualization.html) to use Start/Stop.";
+          demoStatusText.style.color = "var(--stage-monitoring)";
+        }
+      }
+
+      // Checkbox "Run continuously" disables the number input
+      chkContinuous.addEventListener("change", function () {
+        inputLaps.disabled = chkContinuous.checked;
+      });
+
+      // Start demo click
+      btnStartDemo.addEventListener("click", async function () {
+        btnStartDemo.disabled = true;
+        const isContinuous = chkContinuous.checked;
+        let payload = {};
+
+        if (isContinuous) {
+          payload = { mode: "continuous" };
+        } else {
+          const lapsVal = parseInt(inputLaps.value, 10);
+          if (isNaN(lapsVal) || lapsVal < 1 || lapsVal > 20) {
+            alert("Laps must be an integer between 1 and 20.");
+            btnStartDemo.disabled = false;
+            return;
+          }
+          payload = { mode: "laps", laps: lapsVal };
+        }
+
+        try {
+          const token = await ensureCsrfToken();
+          const res = await fetch("/api/demo/simulator/start/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": token,
+            },
+            credentials: "include",
+            body: JSON.stringify(payload),
+          });
+
+          if (res.status === 200) {
+            demoStatusText.textContent = "Starting simulator...";
+            demoStatusText.style.color = "var(--accent-blue)";
+            setTimeout(pollDemoStatus, 400);
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            demoStatusText.textContent = errData.error || `Error starting simulator (${res.status})`;
+            demoStatusText.style.color = "var(--stage-intervene)";
+            pollDemoStatus();
+          }
+        } catch (err) {
+          demoStatusText.textContent = `Network error starting simulator: ${err.message}`;
+          demoStatusText.style.color = "var(--stage-intervene)";
+          pollDemoStatus();
+        }
+      });
+
+      // Stop demo click
+      btnStopDemo.addEventListener("click", async function () {
+        btnStopDemo.disabled = true;
+
+        try {
+          const token = await ensureCsrfToken();
+          const res = await fetch("/api/demo/simulator/stop/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": token,
+            },
+            credentials: "include",
+          });
+
+          if (res.status === 200) {
+            demoStatusText.textContent = "Stopping simulator...";
+            demoStatusText.style.color = "var(--text-muted)";
+            setTimeout(pollDemoStatus, 400);
+          } else {
+            pollDemoStatus();
+          }
+        } catch (err) {
+          demoStatusText.textContent = `Network error stopping simulator: ${err.message}`;
+          demoStatusText.style.color = "var(--stage-intervene)";
+          pollDemoStatus();
+        }
+      });
+
+      // Poll status immediately and every 2 seconds while page is open
+      pollDemoStatus();
+      setInterval(pollDemoStatus, 2000);
     })();
   </script>
+
 </body>
 </html>

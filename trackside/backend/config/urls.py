@@ -16,4 +16,6 @@ urlpatterns = [
     path("api/drivers/", include("drivers.urls")),
     path("api/devices/", include("devices.urls")),
     path("api/preferences/", include("preferences.urls")),
+    path("api/demo/", include("demo_control.urls")),
 ]
+
