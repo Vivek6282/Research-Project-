@@ -28,6 +28,7 @@ import json
 import threading
 import asyncio
 import queue
+import uuid
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
@@ -63,11 +64,66 @@ SESSION_ID = os.getenv("SESSION_ID", "")
 WS_HOST = os.getenv("WS_HOST", "127.0.0.1")
 WS_PORT = int(os.getenv("WS_PORT", "8765"))
 
+
+def is_valid_uuid(val):
+    """Checks whether a value is a valid UUID string representation."""
+    if not isinstance(val, str):
+        return False
+    try:
+        uuid.UUID(val)
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
+def validate_demo_zones(raw_demo_zones, session_id):
+    """
+    Validates DEMO_ZONES configuration.
+    If DEMO_ZONES is set but is not valid JSON, or is not an object, or any value
+    is not a UUID: print ONE clear warning at start-up naming the problem, and say
+    'readings will be stored WITHOUT zones, so no alerts will be created'.
+    If SESSION_ID is set but DEMO_ZONES is empty, print the same warning.
+    """
+    warning_suffix = "readings will be stored WITHOUT zones, so no alerts will be created."
+
+    # If DEMO_ZONES is not set or empty string
+    if raw_demo_zones is None or (isinstance(raw_demo_zones, str) and not raw_demo_zones.strip()):
+        if session_id:
+            print(f"  [!] Warning: DEMO_ZONES is empty: {warning_suffix}")
+        return {}
+
+    parsed = raw_demo_zones
+    if isinstance(raw_demo_zones, str):
+        try:
+            parsed = json.loads(raw_demo_zones)
+        except Exception:
+            print(f"  [!] Warning: DEMO_ZONES is not valid JSON: {warning_suffix}")
+            return {}
+
+    if not isinstance(parsed, dict):
+        print(f"  [!] Warning: DEMO_ZONES is not an object: {warning_suffix}")
+        return {}
+
+    if not parsed:
+        if session_id:
+            print(f"  [!] Warning: DEMO_ZONES is empty: {warning_suffix}")
+        return {}
+
+    for corner, zone_id in parsed.items():
+        if not is_valid_uuid(zone_id):
+            print(f"  [!] Warning: DEMO_ZONES value for '{corner}' is not a UUID: {warning_suffix}")
+            return {}
+
+    return parsed
+
+
 # DEMO_ZONES mapping corner name to zone UUID (e.g. {"Hairpin":"uuid","Sweeper":"uuid","Chicane":"uuid"})
-DEMO_ZONES_RAW = os.getenv("DEMO_ZONES", "{}")
+DEMO_ZONES_RAW = os.getenv("DEMO_ZONES")
 try:
-    DEMO_ZONES = json.loads(DEMO_ZONES_RAW) if isinstance(DEMO_ZONES_RAW, str) else (DEMO_ZONES_RAW or {})
-    if not isinstance(DEMO_ZONES, dict):
+    if DEMO_ZONES_RAW:
+        _d = json.loads(DEMO_ZONES_RAW) if isinstance(DEMO_ZONES_RAW, str) else DEMO_ZONES_RAW
+        DEMO_ZONES = _d if isinstance(_d, dict) else {}
+    else:
         DEMO_ZONES = {}
 except Exception:
     DEMO_ZONES = {}
@@ -210,6 +266,7 @@ TELEMETRY_QUEUE = queue.Queue(maxsize=500)
 SENT_COUNT = 0
 FAILED_COUNT = 0
 DROPPED_COUNT = 0
+IN_FLIGHT_COUNT = 0
 STATS_LOCK = threading.Lock()
 
 LAST_WARNING_TIME = 0.0
@@ -293,7 +350,7 @@ def _backend_worker(session_id, device_token, backend_url):
     Single daemon worker thread that batches up to 10 readings or 1 second,
     whichever comes first, and posts them to the backend.
     """
-    global SENT_COUNT, FAILED_COUNT
+    global SENT_COUNT, FAILED_COUNT, IN_FLIGHT_COUNT
 
     while not SHUTDOWN_EVENT.is_set() or not TELEMETRY_QUEUE.empty():
         batch = []
@@ -315,8 +372,13 @@ def _backend_worker(session_id, device_token, backend_url):
         if not batch:
             continue
 
-        success = _post_batch(batch, session_id, device_token, backend_url)
         with STATS_LOCK:
+            IN_FLIGHT_COUNT += len(batch)
+
+        success = _post_batch(batch, session_id, device_token, backend_url)
+
+        with STATS_LOCK:
+            IN_FLIGHT_COUNT -= len(batch)
             if success:
                 SENT_COUNT += len(batch)
             else:
@@ -344,7 +406,8 @@ def start_backend_worker(session_id, device_token, backend_url=BACKEND_URL):
 def flush_backend_telemetry(timeout=5.0):
     """
     Signals worker to stop, waits up to timeout seconds to flush remaining queue,
-    and prints summary: sent N, failed M, dropped K.
+    and prints summary: sent N, failed M, dropped K, unsent U.
+    where U = readings still queued or in flight when the program exits.
     """
     SHUTDOWN_EVENT.set()
     if BACKEND_WORKER_THREAD and BACKEND_WORKER_THREAD.is_alive():
@@ -354,7 +417,13 @@ def flush_backend_telemetry(timeout=5.0):
         remaining_timeout = max(0.1, end_time - time.time())
         BACKEND_WORKER_THREAD.join(timeout=remaining_timeout)
 
-    print(f"\nBackend summary: sent {SENT_COUNT}, failed {FAILED_COUNT}, dropped {DROPPED_COUNT}")
+    with STATS_LOCK:
+        unsent = TELEMETRY_QUEUE.qsize() + IN_FLIGHT_COUNT
+        sent = SENT_COUNT
+        failed = FAILED_COUNT
+        dropped = DROPPED_COUNT
+
+    print(f"\nBackend summary: sent {sent}, failed {failed}, dropped {dropped}, unsent {unsent}")
 
 
 def send_to_backend(session_id, g_value, zone_label, stage, speed_kmh, lap_number=1):
@@ -375,7 +444,11 @@ def send_to_backend(session_id, g_value, zone_label, stage, speed_kmh, lap_numbe
 # Backend & Hardware Integration
 # ---------------------------------------------------------------------------
 def fetch_zones_for_session(session_id, admin_token=None):
-    """Fetches real zone thresholds from the backend and updates TRACK."""
+    """
+    Fetches real zone thresholds from the backend and updates TRACK.
+    Must never block start-up for more than 1 second (timeout 1 s, no retry).
+    If it times out, print one notice and continue.
+    """
     if not session_id:
         return
 
@@ -385,9 +458,20 @@ def fetch_zones_for_session(session_id, admin_token=None):
         headers["Authorization"] = f"Bearer {admin_token}"
 
     auth_headers = headers if admin_token else {"Authorization": f"Device-Token {DEVICE_TOKEN}"}
+    start_time = time.time()
+    total_timeout = 1.0
 
     try:
-        res = requests.get(f"{BACKEND_URL}/api/sessions/{session_id}/", headers=auth_headers, timeout=5)
+        remaining = total_timeout - (time.time() - start_time)
+        if remaining <= 0:
+            print("  [!] Notice: Fetching session zones timed out (1s). Continuing with default thresholds.")
+            return
+
+        res = requests.get(
+            f"{BACKEND_URL}/api/sessions/{session_id}/",
+            headers=auth_headers,
+            timeout=max(0.001, remaining),
+        )
         if res.status_code != 200:
             print(f"  [!] Could not fetch session (status {res.status_code}). Using default thresholds.")
             return
@@ -397,7 +481,16 @@ def fetch_zones_for_session(session_id, admin_token=None):
         if not track_id:
             return
 
-        z_res = requests.get(f"{BACKEND_URL}/api/tracks/{track_id}/zones/", headers=auth_headers, timeout=5)
+        remaining = total_timeout - (time.time() - start_time)
+        if remaining <= 0:
+            print("  [!] Notice: Fetching session zones timed out (1s). Continuing with default thresholds.")
+            return
+
+        z_res = requests.get(
+            f"{BACKEND_URL}/api/tracks/{track_id}/zones/",
+            headers=auth_headers,
+            timeout=max(0.001, remaining),
+        )
         if z_res.status_code == 200:
             data = z_res.json()
             zones = data.get("results", data) if isinstance(data, dict) else data
@@ -411,6 +504,9 @@ def fetch_zones_for_session(session_id, admin_token=None):
                         old = turn["threshold"]
                         turn["threshold"] = z_thresh
                         print(f"  -> Updated {turn['name']} threshold: {old}g -> {z_thresh}g")
+    except requests.exceptions.Timeout:
+        print("  [!] Notice: Fetching session zones timed out (1s). Continuing with default thresholds.")
+        return
     except Exception as e:
         print(f"  [!] Failed to fetch zones: {e}")
 
@@ -581,12 +677,14 @@ def main():
     parser.add_argument("--ws-host", type=str, default=WS_HOST, help=f"Host for local WebSocket telemetry broadcaster (default: {WS_HOST})")
     args = parser.parse_args()
 
-    global SESSION_ID
+    global SESSION_ID, DEMO_ZONES
     if args.create_session:
         if not args.admin_token:
             print("Error: --create-session requires --admin-token to authenticate.")
             sys.exit(1)
         SESSION_ID = create_session(args.admin_token)
+
+    DEMO_ZONES = validate_demo_zones(DEMO_ZONES_RAW, SESSION_ID)
 
     # Informative warnings for optional backend components
     if not SESSION_ID:
