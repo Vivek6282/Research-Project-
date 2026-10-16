@@ -81,8 +81,69 @@ class SessionSerializer(serializers.ModelSerializer):
         return res.get("max_lap")
 
     def get_best_lap(self, obj):
-        """Placeholder for best lap duration once lap boundary ingestion is active."""
+        """Shortest completed lap duration formatted as 'm:ss.mmm', or None."""
+        return compute_best_lap(obj)
+
+
+def compute_best_lap(session):
+    """
+    Compute the best (shortest) completed lap duration for a session.
+    Lap time = max(recorded_at) - min(recorded_at) of telemetry sharing a lap_number.
+    A lap is completed if a higher lap_number exists or the session has ended_at.
+    Ignore laps with fewer than 5 readings.
+    Format 'm:ss.mmm', or None if no qualifying lap exists.
+    """
+    from django.db.models import Min, Max, Count
+
+    res = session.telemetry_readings.aggregate(max_lap=Max("lap_number"))
+    max_lap = res.get("max_lap")
+    if max_lap is None:
         return None
+
+    session_ended = session.ended_at is not None
+
+    lap_stats = (
+        session.telemetry_readings.filter(lap_number__isnull=False)
+        .values("lap_number")
+        .annotate(
+            min_time=Min("recorded_at"),
+            max_time=Max("recorded_at"),
+            readings_count=Count("id"),
+        )
+    )
+
+    best_duration_ms = None
+
+    for item in lap_stats:
+        lap_num = item["lap_number"]
+        count = item["readings_count"]
+        if count < 5:
+            continue
+
+        is_completed = (lap_num < max_lap) or session_ended
+        if not is_completed:
+            continue
+
+        min_time = item["min_time"]
+        max_time = item["max_time"]
+        if not min_time or not max_time:
+            continue
+
+        duration_ms = int(round((max_time - min_time).total_seconds() * 1000))
+        if duration_ms < 0:
+            continue
+
+        if best_duration_ms is None or duration_ms < best_duration_ms:
+            best_duration_ms = duration_ms
+
+    if best_duration_ms is None:
+        return None
+
+    minutes = best_duration_ms // 60000
+    rem_ms = best_duration_ms % 60000
+    seconds = rem_ms // 1000
+    millis = rem_ms % 1000
+    return f"{minutes}:{seconds:02d}.{millis:03d}"
 
 
 

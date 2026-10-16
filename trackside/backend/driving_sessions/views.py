@@ -335,7 +335,7 @@ class AlertSummaryView(APIView):
             "goal_passed": latest_session.goal_passed,
             "started_at": latest_session.started_at,
             "track_name": latest_session.track.name if latest_session.track else "Standard Track",
-            "best_lap_time": "48.32s",
+            "best_lap_time": SessionSerializer(latest_session).data.get("best_lap"),
         }
 
         return Response(

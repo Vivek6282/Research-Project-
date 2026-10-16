@@ -256,7 +256,7 @@ export function DriverDashboard() {
               <div className="space-y-1 font-mono">
                 <div className="flex items-baseline justify-between">
                   <span className="text-2xl font-mono font-bold text-[#33D17E]">
-                    {latestSession.best_lap_time || "48.32s"}
+                    {latestSession.best_lap_time || "—"}
                   </span>
                   <span className="text-xs font-mono text-[#7C8898]">SESSION BEST</span>
                 </div>
