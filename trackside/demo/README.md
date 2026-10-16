@@ -68,32 +68,31 @@ python virtual_lap_simulator.py --continuous
 
 ---
 
-## 4. Full-Stack Setup (Hardware & Backend Integration)
+## 4. Storing a demo run
 
-To connect the simulator to real hardware and persist telemetry into the Trackside database:
+The physical glove and companion browser visualizer work seamlessly with or without the backend connected. When the backend is configured, the simulator asynchronously batches and records telemetry into the database without slowing down the simulation or the physical glove, allowing live session results, zone breakdowns, and alert logs to appear in the Coach and Driver dashboards.
 
-### 1. Configure Environment Variables
-Create or edit `.env` in this directory (or use root `.env`):
-```env
-SERIAL_PORT=COM5
-SERIAL_BAUD=115200
-BACKEND_URL=http://localhost:8000
-DEVICE_TOKEN=your_device_token_here
-SESSION_ID=your_session_uuid_here
-WS_HOST=127.0.0.1
-WS_PORT=8765
-```
-
-### 2. Auto-Create Session via Token
-Instead of manually copying a Session UUID, the script can create one on the fly using an Admin or Coach token:
-```bash
-python virtual_lap_simulator.py --create-session --admin-token <JWT_TOKEN>
-```
-
-### 3. Dry-Run (Skip Serial Port Explicitly)
-```bash
-python virtual_lap_simulator.py --dry-run
-```
+To store a demo run:
+1. **Seed Demo Circuit & Session:**
+   In `trackside/backend`, run:
+   ```bash
+   python manage.py seed_demo --driver-email <driver>
+   ```
+2. **Configure Environment:**
+   Paste the printed lines directly into `trackside/demo/.env` (see `.env.example` for placeholders and reference).
+3. **Start the Backend:**
+   In `trackside/backend`:
+   ```bash
+   python manage.py runserver
+   ```
+4. **Run the Simulator:**
+   In `trackside/demo`:
+   ```bash
+   python virtual_lap_simulator.py --continuous
+   ```
+   *(Or double-click `run_demo.bat` on Windows)*.
+5. **Open Dashboards:**
+   Open the Driver and Coach dashboards in your browser to inspect live lap times, speed graphs, zone thresholds, and alert events.
 
 ---
 

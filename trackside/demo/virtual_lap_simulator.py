@@ -13,7 +13,8 @@ This script synchronizes THREE destinations simultaneously for every single read
      to companion visualizations like track_visualization.html.
   2. USB Serial (Bridge ESP32): Relays lateral-g over ESP-NOW to the physical
      glove (LED + buzzer react live). Optional & fault-tolerant if hardware isn't attached.
-  3. Django Backend (HTTP POST): POSTs authenticated device telemetry so real
+  3. Django Backend (HTTP POST): Asynchronously batches and POSTs authenticated
+     device telemetry without blocking the simulation loop so real
      Session/Telemetry/Alert records are stored and visible on the Coach/Driver dashboards.
 """
 
@@ -26,6 +27,8 @@ import math
 import json
 import threading
 import asyncio
+import queue
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 # Try importing serial; pyserial might not be present in every environment
@@ -44,7 +47,12 @@ except ImportError:
 
 import requests
 
-load_dotenv()
+# Load .env from script directory if present, else fallback to current directory
+env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+else:
+    load_dotenv()
 
 # Configuration from environment / defaults
 SERIAL_PORT = os.getenv("SERIAL_PORT", "COM5")
@@ -55,15 +63,24 @@ SESSION_ID = os.getenv("SESSION_ID", "")
 WS_HOST = os.getenv("WS_HOST", "127.0.0.1")
 WS_PORT = int(os.getenv("WS_PORT", "8765"))
 
+# DEMO_ZONES mapping corner name to zone UUID (e.g. {"Hairpin":"uuid","Sweeper":"uuid","Chicane":"uuid"})
+DEMO_ZONES_RAW = os.getenv("DEMO_ZONES", "{}")
+try:
+    DEMO_ZONES = json.loads(DEMO_ZONES_RAW) if isinstance(DEMO_ZONES_RAW, str) else (DEMO_ZONES_RAW or {})
+    if not isinstance(DEMO_ZONES, dict):
+        DEMO_ZONES = {}
+except Exception:
+    DEMO_ZONES = {}
+
 NUM_LAPS = 5
 READING_DELAY_SECONDS = 0.2
 
 # Default virtual track
 TRACK = [
     {"name": "Hairpin",  "clean_range": (0.80, 1.00), "threshold": 1.15, "readings": 12},
-    {"name": "Straight",  "clean_range": (0.10, 0.30), "threshold": 99.0, "readings": 6},
+    {"name": "Straight", "clean_range": (0.10, 0.30), "threshold": 99.0, "readings": 6},
     {"name": "Sweeper",  "clean_range": (1.10, 1.35), "threshold": 1.55, "readings": 14},
-    {"name": "Straight",  "clean_range": (0.10, 0.30), "threshold": 99.0, "readings": 6},
+    {"name": "Straight", "clean_range": (0.10, 0.30), "threshold": 99.0, "readings": 6},
     {"name": "Chicane",  "clean_range": (0.95, 1.15), "threshold": 1.30, "readings": 10},
 ]
 
@@ -142,6 +159,219 @@ def start_websocket_server(host=WS_HOST, port=WS_PORT):
 
 
 # ---------------------------------------------------------------------------
+# Backend Asynchronous Ingestion & Pure Functions
+# ---------------------------------------------------------------------------
+def build_telemetry_payload(g_value, speed_kmh, turn_name, lap_number, demo_zones=None, recorded_at=None):
+    """
+    Pure function to construct a single telemetry reading payload for backend ingestion.
+
+    Parameters:
+    - g_value (float): Lateral g-force.
+    - speed_kmh (float): Speed in km/h.
+    - turn_name (str): Corner/zone name (e.g. 'Hairpin', 'Straight').
+    - lap_number (int): 1-based lap number.
+    - demo_zones (dict, optional): Mapping of corner name to zone UUID.
+    - recorded_at (str, optional): ISO 8601 UTC timestamp ending in 'Z'.
+
+    Returns:
+    dict: Formatted telemetry reading payload.
+    """
+    if recorded_at is None:
+        recorded_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    elif not recorded_at.endswith("Z"):
+        if "+00:00" in recorded_at:
+            recorded_at = recorded_at.replace("+00:00", "Z")
+        else:
+            recorded_at = recorded_at + "Z"
+
+    zone_uuid = None
+    if demo_zones and turn_name and turn_name.lower() != "straight":
+        if turn_name in demo_zones:
+            zone_uuid = demo_zones[turn_name]
+        else:
+            for k, v in demo_zones.items():
+                if k.lower() == turn_name.lower():
+                    zone_uuid = v
+                    break
+
+    return {
+        "lateral_g": float(g_value),
+        "speed_kmh": float(speed_kmh),
+        # simulated; real GPS comes with the kart unit
+        "gps_lat": 0.0,
+        "gps_lng": 0.0,
+        "recorded_at": recorded_at,
+        "lap_number": int(lap_number),
+        "zone": zone_uuid,
+    }
+
+
+TELEMETRY_QUEUE = queue.Queue(maxsize=500)
+SENT_COUNT = 0
+FAILED_COUNT = 0
+DROPPED_COUNT = 0
+STATS_LOCK = threading.Lock()
+
+LAST_WARNING_TIME = 0.0
+WARNING_LOCK = threading.Lock()
+
+BACKEND_WORKER_THREAD = None
+SHUTDOWN_EVENT = threading.Event()
+
+
+def log_rate_limited_warning(msg):
+    """Prints warning at most once per 10 seconds, never one per reading."""
+    global LAST_WARNING_TIME
+    now = time.time()
+    with WARNING_LOCK:
+        if now - LAST_WARNING_TIME >= 10.0:
+            print(f"  [!] Backend Warning: {msg}")
+            LAST_WARNING_TIME = now
+
+
+def enqueue_telemetry(payload):
+    """
+    Non-blocking enqueue for backend ingestion.
+    Drops the reading if the queue is full and increments DROPPED_COUNT.
+    """
+    global DROPPED_COUNT
+    try:
+        TELEMETRY_QUEUE.put_nowait(payload)
+    except queue.Full:
+        with STATS_LOCK:
+            DROPPED_COUNT += 1
+        log_rate_limited_warning("Telemetry queue is full (500 items). Dropping readings.")
+
+
+def _post_batch(batch, session_id, device_token, backend_url):
+    """
+    POSTs a batch of telemetry readings to the backend.
+    - URL: /api/sessions/<SESSION_ID>/telemetry/
+    - Header: 'Authorization: Device-Token <token>'
+    - Timeout: 3 seconds.
+    - Retries twice with 0.5s pause on network errors or 429.
+    - Does not retry 4xx errors except 429.
+    """
+    url = f"{backend_url}/api/sessions/{session_id}/telemetry/"
+    headers = {
+        "Authorization": f"Device-Token {device_token}",
+        "Content-Type": "application/json",
+    }
+
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            resp = requests.post(url, headers=headers, json=batch, timeout=3)
+            if resp.status_code in (200, 201):
+                return True
+            elif resp.status_code == 429:
+                log_rate_limited_warning(f"Backend rate limited (HTTP 429). Attempt {attempt}/{max_attempts}.")
+                if attempt < max_attempts:
+                    time.sleep(0.5)
+                    continue
+                return False
+            elif 400 <= resp.status_code < 500:
+                log_rate_limited_warning(f"Backend rejected batch with HTTP {resp.status_code}: {resp.text[:100]}")
+                return False
+            else:
+                log_rate_limited_warning(f"Backend server error (HTTP {resp.status_code}). Attempt {attempt}/{max_attempts}.")
+                if attempt < max_attempts:
+                    time.sleep(0.5)
+                    continue
+                return False
+        except requests.exceptions.RequestException as e:
+            log_rate_limited_warning(f"Network error sending batch: {e}. Attempt {attempt}/{max_attempts}.")
+            if attempt < max_attempts:
+                time.sleep(0.5)
+                continue
+            return False
+    return False
+
+
+def _backend_worker(session_id, device_token, backend_url):
+    """
+    Single daemon worker thread that batches up to 10 readings or 1 second,
+    whichever comes first, and posts them to the backend.
+    """
+    global SENT_COUNT, FAILED_COUNT
+
+    while not SHUTDOWN_EVENT.is_set() or not TELEMETRY_QUEUE.empty():
+        batch = []
+        start_time = time.time()
+
+        while len(batch) < 10:
+            remaining = 1.0 - (time.time() - start_time)
+            if remaining <= 0:
+                break
+            try:
+                item = TELEMETRY_QUEUE.get(timeout=max(0.01, remaining))
+                batch.append(item)
+            except queue.Empty:
+                if SHUTDOWN_EVENT.is_set():
+                    break
+                if time.time() - start_time >= 1.0:
+                    break
+
+        if not batch:
+            continue
+
+        success = _post_batch(batch, session_id, device_token, backend_url)
+        with STATS_LOCK:
+            if success:
+                SENT_COUNT += len(batch)
+            else:
+                FAILED_COUNT += len(batch)
+
+        for _ in batch:
+            TELEMETRY_QUEUE.task_done()
+
+
+def start_backend_worker(session_id, device_token, backend_url=BACKEND_URL):
+    """Starts the background worker thread for non-blocking backend telemetry ingestion."""
+    global BACKEND_WORKER_THREAD
+    if not session_id or not device_token:
+        return None
+    BACKEND_WORKER_THREAD = threading.Thread(
+        target=_backend_worker,
+        args=(session_id, device_token, backend_url),
+        daemon=True,
+        name="BackendTelemetryWorker",
+    )
+    BACKEND_WORKER_THREAD.start()
+    return BACKEND_WORKER_THREAD
+
+
+def flush_backend_telemetry(timeout=5.0):
+    """
+    Signals worker to stop, waits up to timeout seconds to flush remaining queue,
+    and prints summary: sent N, failed M, dropped K.
+    """
+    SHUTDOWN_EVENT.set()
+    if BACKEND_WORKER_THREAD and BACKEND_WORKER_THREAD.is_alive():
+        end_time = time.time() + timeout
+        while time.time() < end_time and not TELEMETRY_QUEUE.empty():
+            time.sleep(0.05)
+        remaining_timeout = max(0.1, end_time - time.time())
+        BACKEND_WORKER_THREAD.join(timeout=remaining_timeout)
+
+    print(f"\nBackend summary: sent {SENT_COUNT}, failed {FAILED_COUNT}, dropped {DROPPED_COUNT}")
+
+
+def send_to_backend(session_id, g_value, zone_label, stage, speed_kmh, lap_number=1):
+    """Enqueues reading for non-blocking asynchronous dispatch to Django backend."""
+    if not session_id or not DEVICE_TOKEN:
+        return
+    payload = build_telemetry_payload(
+        g_value=g_value,
+        speed_kmh=speed_kmh,
+        turn_name=zone_label,
+        lap_number=lap_number,
+        demo_zones=DEMO_ZONES,
+    )
+    enqueue_telemetry(payload)
+
+
+# ---------------------------------------------------------------------------
 # Backend & Hardware Integration
 # ---------------------------------------------------------------------------
 def fetch_zones_for_session(session_id, admin_token=None):
@@ -210,7 +440,6 @@ def create_session(admin_token):
             sys.exit(1)
         driver_id = drivers[0]["id"]
 
-        from datetime import datetime, timezone
         now = datetime.now(timezone.utc).isoformat()
 
         payload = {
@@ -283,28 +512,6 @@ def send_to_bridge(ser, g_value, stage=None):
         print(f"  [!] Serial send failed: {e}")
 
 
-def send_to_backend(session_id, g_value, zone_label, stage, speed_kmh):
-    """Dispatches reading to Django backend REST endpoint."""
-    if not session_id or not DEVICE_TOKEN:
-        return
-    try:
-        response = requests.post(
-            f"{BACKEND_URL}/api/sessions/{session_id}/telemetry/",
-            headers={"Authorization": f"Device-Token {DEVICE_TOKEN}"},
-            json={
-                "lateral_g": g_value,
-                "speed_kmh": speed_kmh,
-                "gps_lat": 0.0,
-                "gps_lng": 0.0,
-            },
-            timeout=2,
-        )
-        if response.status_code not in (200, 201):
-            print(f"  [!] Backend rejected reading: {response.status_code} {response.text[:100]}")
-    except Exception as e:
-        print(f"  [!] Backend POST failed: {e}")
-
-
 # ---------------------------------------------------------------------------
 # Lap Runner
 # ---------------------------------------------------------------------------
@@ -354,7 +561,7 @@ def run_lap(ser, session_id, lap_number, total_laps, delay):
             send_to_bridge(ser, g, stage)
 
             # 3. Post to backend HTTP REST API (if session configured)
-            send_to_backend(session_id, g, turn["name"], stage, speed_kmh)
+            send_to_backend(session_id, g, turn["name"], stage, speed_kmh, lap_number=lap_number)
 
             time.sleep(delay)
 
@@ -389,6 +596,10 @@ def main():
         print("  [i] Notice: No DEVICE_TOKEN configured. Backend POSTs will be skipped.")
 
     fetch_zones_for_session(SESSION_ID, admin_token=args.admin_token)
+
+    # Start non-blocking backend worker if credentials exist
+    if SESSION_ID and DEVICE_TOKEN:
+        start_backend_worker(SESSION_ID, DEVICE_TOKEN, BACKEND_URL)
 
     # 1. Start lightweight local WebSocket server
     print("\nStarting local WebSocket telemetry broadcaster...")
@@ -438,6 +649,8 @@ def main():
                 ser.close()
             except Exception:
                 pass
+        # Flush backend queue (wait up to 5s) and print summary
+        flush_backend_telemetry(timeout=5.0)
         print("\nSimulation session finished.")
         print("Check 'track_visualization.html' and Coach/Driver dashboards for results.")
 
