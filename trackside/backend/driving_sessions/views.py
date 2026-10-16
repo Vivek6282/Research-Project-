@@ -10,6 +10,7 @@ Requirement #3 (IDOR): every queryset is scoped to what the user is
 allowed to see. Drivers can never access another driver's data.
 """
 
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status, exceptions
 from rest_framework.permissions import IsAuthenticated
@@ -23,6 +24,7 @@ from driving_sessions.serializers import (
     SessionSerializer, TelemetrySerializer, AlertSerializer,
     BiometricReadingSerializer, SessionNoteSerializer,
 )
+from driving_sessions.alerting import process_telemetry_alerts
 
 
 class SessionListCreateView(generics.ListCreateAPIView):
@@ -102,6 +104,7 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
                 )
         return Telemetry.objects.filter(session_id=session_id)
 
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         """Accept single object OR list of telemetry readings (bulk batch ingestion)."""
         session_id = self.kwargs.get("session_pk")
@@ -110,20 +113,28 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
 
         if user.role == "driver" and session.driver != user:
             raise exceptions.PermissionDenied("You do not own this session.")
-        elif user.role == "device" and user.assigned_to and session.driver != user.assigned_to:
-            raise exceptions.PermissionDenied("Device token is not authorized for this driver's session.")
+        elif user.role == "device":
+            if not user.assigned_to or session.driver != user.assigned_to:
+                raise exceptions.PermissionDenied("Device token is not authorized for this driver's session.")
 
         is_many = isinstance(request.data, list)
         serializer = self.get_serializer(data=request.data, many=is_many)
         serializer.is_valid(raise_exception=True)
-        serializer.save(session=session)
+        instances = serializer.save(session=session)
+        if not is_many:
+            instances = [instances]
+
+        process_telemetry_alerts(session, instances)
+
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
+    @transaction.atomic
     def perform_create(self, serializer):
         session_id = self.kwargs.get("session_pk")
         session = get_object_or_404(Session, pk=session_id)
-        serializer.save(session=session)
+        instance = serializer.save(session=session)
+        process_telemetry_alerts(session, [instance])
 
 
 class AlertListView(generics.ListAPIView):

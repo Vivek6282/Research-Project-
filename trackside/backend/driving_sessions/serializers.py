@@ -89,11 +89,19 @@ class SessionSerializer(serializers.ModelSerializer):
 class TelemetrySerializer(serializers.ModelSerializer):
     """Serializer for individual telemetry readings."""
 
+    lap_number = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        allow_null=True,
+        help_text="Lap number within the session (integer >= 1)",
+    )
+
     class Meta:
         model = Telemetry
         fields = [
             "id", "session", "zone", "recorded_at",
             "lateral_g", "speed_kmh", "gps_lat", "gps_lng",
+            "lap_number",
         ]
         read_only_fields = ["id", "session"]
 
