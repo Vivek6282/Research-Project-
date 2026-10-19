@@ -193,42 +193,11 @@ def stop_simulator():
     return True
 
 
-def parse_friendly_error(exit_code, lines, stopped_by_user=False):
-    """
-    Derives user-friendly error text from child process exit code and output logs.
-    """
-    text = "\n".join(lines)
-    text_lower = text.lower()
-
-    # 1. ModuleNotFoundError
-    for line in lines:
-        if "ModuleNotFoundError" in line:
-            m = re.search(r"No module named ['\"]?([a-zA-Z0-9_\-]+)['\"]?", line)
-            pkg = m.group(1) if m else "package"
-            return f"Missing Python package: {pkg}. Run: pip install -r trackside/demo/requirements.txt"
-
-    # 2. Port already in use
-    if (
-        "address already in use" in text_lower
-        or "errno 10048" in text_lower
-        or "errno 98" in text_lower
-        or "10048" in text_lower
-    ):
-        return "Another simulator is already running (port 8765 is in use). Close it and try again."
-
-    # 3. COM port busy / PermissionError
-    if (
-        "access is denied" in text_lower
-        or ("permissionerror" in text_lower and ("com" in text_lower or "port" in text_lower or "serial" in text_lower))
-    ):
-        if exit_code is not None and exit_code != 0 and not stopped_by_user:
-            return "The COM port is busy. Close the Arduino Serial Monitor."
-
-    # 4. Any other non-zero exit
-    if exit_code is not None and exit_code != 0 and not stopped_by_user:
-        return f"The simulator stopped with an error (exit code {exit_code})."
-
-    return None
+from demo_control.parser import (
+    parse_friendly_error,
+    detect_bridge_connection,
+    extract_port_hint,
+)
 
 
 def get_simulator_status():
@@ -260,27 +229,10 @@ def get_simulator_status():
         exit_code = current_exit
 
     # Bridge ESP32 connected detection
-    bridge_connected = None
-    for line in reversed(lines):
-        if "Connected to Bridge ESP32" in line:
-            bridge_connected = True
-            break
-        elif "Bridge ESP32 not detected" in line:
-            bridge_connected = False
-            break
+    bridge_connected = detect_bridge_connection(lines)
 
     # Port hint extraction (COMx or /dev/...)
-    port_hint = None
-    for line in reversed(lines):
-        if "Bridge ESP32" in line:
-            m = re.search(r"\bon\s+([A-Za-z0-9_/\\.-]+)", line, re.IGNORECASE)
-            if m:
-                port_hint = m.group(1).rstrip(".(),")
-                break
-            m2 = re.search(r"\b(COM\d+|/dev/[A-Za-z0-9_\-\.]+)\b", line, re.IGNORECASE)
-            if m2:
-                port_hint = m2.group(1).rstrip(".(),")
-                break
+    port_hint = extract_port_hint(lines)
 
     error = parse_friendly_error(exit_code, lines, stopped_by_user=stopped)
 
