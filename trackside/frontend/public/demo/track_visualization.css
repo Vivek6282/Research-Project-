@@ -1,0 +1,287 @@
+/* ==========================================================================
+   TRACKSIDE DESIGN SYSTEM TOKENS & BASE LAYOUT
+   ========================================================================== */
+:root {
+  --bg: #0A0E13;
+  --panel: #12181F;
+  --panel-elevated: #161D26;
+  --panel-hover: #1B2430;
+  --line: #232B35;
+  --line-bright: #323D4B;
+  --text: #E7EDF3;
+  --text-muted: #7C8898;
+  --text-faint: #4B5563;
+  
+  --accent-blue: #3FA6E0;
+  --accent-blue-glow: rgba(63, 166, 224, 0.25);
+  
+  --stage-nominal: #33D17E;
+  --stage-nominal-glow: rgba(51, 209, 126, 0.35);
+  --stage-monitoring: #F2A93B;
+  --stage-monitoring-glow: rgba(242, 169, 59, 0.35);
+  --stage-intervene: #E5473C;
+  --stage-intervene-glow: rgba(229, 71, 60, 0.45);
+  
+  --segment-off: #232B35;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Motorsport hazard top stripe */
+.hazard-stripe {
+  height: 4px;
+  width: 100%;
+  background: repeating-linear-gradient(
+    -45deg,
+    #F2A93B,
+    #F2A93B 12px,
+    #0A0E13 12px,
+    #0A0E13 24px
+  );
+}
+
+.app-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px 40px;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 24px;
+}
+
+.brand-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand-tag {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+}
+
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brand-badge {
+  background: rgba(63, 166, 224, 0.12);
+  border: 1px solid rgba(63, 166, 224, 0.4);
+  color: var(--accent-blue);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.1em;
+}
+
+.connection-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--stage-intervene);
+  box-shadow: 0 0 8px var(--stage-intervene-glow);
+  transition: all 250ms ease;
+}
+
+.status-dot.connected {
+  background: var(--stage-nominal);
+  box-shadow: 0 0 10px var(--stage-nominal-glow);
+}
+
+.status-dot.connecting {
+  background: var(--stage-monitoring);
+  box-shadow: 0 0 8px var(--stage-monitoring-glow);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.truth-banner {
+  background: rgba(63, 166, 224, 0.08);
+  border: 1px solid rgba(63, 166, 224, 0.25);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.truth-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.truth-icon {
+  color: var(--accent-blue);
+  font-size: 18px;
+}
+
+.truth-badge {
+  background: var(--accent-blue);
+  color: #06121B;
+  font-weight: 700;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line);
+  color: var(--accent-blue);
+}
+
+.track-wrapper {
+  background: #06090D;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.track-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+#kart-dot {
+  filter: drop-shadow(0 0 6px rgba(51, 209, 126, 0.8));
+  transition: cx 70ms linear, cy 70ms linear;
+}
+
+#kart-pulse {
+  animation: kart-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+@keyframes kart-ping {
+  0% { r: 6px; opacity: 0.8; }
+  100% { r: 24px; opacity: 0; }
+}
+
+.corner-chips-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.zone-pill {
+  background: var(--panel-elevated);
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 150ms ease;
+}
+
+.zone-pill.active {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: rgba(63, 166, 224, 0.12);
+  box-shadow: 0 0 10px var(--accent-blue-glow);
+}
