@@ -1,0 +1,116 @@
+/**
+ * Trackside Live Track View — SVG Track Canvas Component.
+ * Draws the surveyed track reference line, grid guidelines, start/finish line,
+ * and positions the active car marker.
+ */
+
+import { RefObject } from "react";
+import { SvgPoint, NormalizedSvgData, VIEW_WIDTH, VIEW_HEIGHT } from "./geo-utils";
+import { CarMarker } from "./car-marker";
+
+interface TrackCanvasProps {
+  trackPathD: string;
+  pathRef: RefObject<SVGPathElement>;
+  svgData: NormalizedSvgData | null;
+  dotPosition: SvgPoint | null;
+  stageColor: string;
+}
+
+export function TrackCanvas({
+  trackPathD,
+  pathRef,
+  svgData,
+  dotPosition,
+  stageColor,
+}: TrackCanvasProps) {
+  return (
+    <div className="relative w-full bg-[#0A0E13] border border-[#232B35] rounded-[2px] overflow-hidden">
+      <svg
+        data-testid="live-track-svg"
+        className="w-full"
+        viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+        preserveAspectRatio="xMidYMid meet"
+        style={{ height: "220px" }}
+      >
+        {/* Subtle grid lines */}
+        {[0.25, 0.5, 0.75].map((ratio) => (
+          <line
+            key={`h-${ratio}`}
+            x1="0"
+            y1={VIEW_HEIGHT * ratio}
+            x2={VIEW_WIDTH}
+            y2={VIEW_HEIGHT * ratio}
+            stroke="#232B35"
+            strokeWidth="0.5"
+            strokeDasharray="4 6"
+            opacity="0.3"
+          />
+        ))}
+        {[0.25, 0.5, 0.75].map((ratio) => (
+          <line
+            key={`v-${ratio}`}
+            x1={VIEW_WIDTH * ratio}
+            y1="0"
+            x2={VIEW_WIDTH * ratio}
+            y2={VIEW_HEIGHT}
+            stroke="#232B35"
+            strokeWidth="0.5"
+            strokeDasharray="4 6"
+            opacity="0.3"
+          />
+        ))}
+
+        {/* Track outline (thicker, very dim) */}
+        <path
+          d={trackPathD}
+          fill="none"
+          stroke="#3FA6E0"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.08"
+        />
+
+        {/* Track reference line path */}
+        <path
+          ref={pathRef}
+          data-testid="live-track-path"
+          d={trackPathD}
+          fill="none"
+          stroke="#3FA6E0"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.45"
+        />
+
+        {/* Start/Finish marker */}
+        {svgData && svgData.svgPoints.length > 0 && (
+          <>
+            <rect
+              x={svgData.svgPoints[0].x - 4}
+              y={svgData.svgPoints[0].y - 4}
+              width="8"
+              height="8"
+              rx="1"
+              fill="#E7EDF3"
+              opacity="0.3"
+            />
+            <text
+              x={svgData.svgPoints[0].x + 8}
+              y={svgData.svgPoints[0].y + 3}
+              fill="#7C8898"
+              fontSize="9"
+              fontFamily="monospace"
+            >
+              S/F
+            </text>
+          </>
+        )}
+
+        {/* Driver dot — positioned at nearest point on path */}
+        {dotPosition && <CarMarker position={dotPosition} stageColor={stageColor} />}
+      </svg>
+    </div>
+  );
+}
