@@ -22,6 +22,13 @@ from datetime import datetime, timezone
 from django.conf import settings
 
 
+LIMIT_RANGES = {
+    "Hairpin": {"min": 1.00, "default": 1.15, "max": 1.15},
+    "Sweeper": {"min": 1.00, "default": 1.55, "max": 1.55},
+    "Chicane": {"min": 1.00, "default": 1.30, "max": 1.30},
+}
+
+
 class AlreadyRunningError(Exception):
     """Raised when start is called while a simulator process is already running."""
     pass
@@ -31,11 +38,20 @@ _lock = threading.Lock()
 _process = None
 _mode = None
 _laps = None
+_limits = None
+_limits_synced = None
+_limits_note = None
 _started_at = None
 _output_lines = collections.deque(maxlen=200)
 _reader_thread = None
 _exit_code = None
 _stopped_by_user = False
+
+
+def is_simulator_running():
+    """Returns True if the simulator process is currently running."""
+    with _lock:
+        return _process is not None and _process.poll() is None
 
 
 def is_demo_tools_enabled():
@@ -66,12 +82,12 @@ def _reader_loop(proc):
             pass
 
 
-def start_simulator(mode, laps=None):
+def start_simulator(mode, laps=None, limits=None, limits_synced=None, limits_note=None):
     """
     Starts the virtual lap simulator child process.
     Raises AlreadyRunningError if already active.
     """
-    global _process, _mode, _laps, _started_at, _stopped_by_user, _exit_code, _reader_thread
+    global _process, _mode, _laps, _limits, _limits_synced, _limits_note, _started_at, _stopped_by_user, _exit_code, _reader_thread
     with _lock:
         if _process is not None and _process.poll() is None:
             raise AlreadyRunningError("Simulator is already running.")
@@ -93,6 +109,13 @@ def start_simulator(mode, laps=None):
         else:
             raise ValueError(f"Invalid mode: {mode}")
 
+        # Build argv ONLY from whitelisted names and validated floats
+        if limits:
+            for corner in ["Hairpin", "Sweeper", "Chicane"]:
+                if corner in limits:
+                    val = float(limits[corner])
+                    cmd.extend(["--limit", f"{corner}={val:.2f}"])
+
         child_env = os.environ.copy()
         child_env["PYTHONUNBUFFERED"] = "1"
         child_env["PYTHONIOENCODING"] = "utf-8"
@@ -104,6 +127,12 @@ def start_simulator(mode, laps=None):
         _output_lines.clear()
         _mode = mode
         _laps = laps
+        _limits = {
+            corner: round(float(limits[corner]), 2) if (limits and corner in limits) else LIMIT_RANGES[corner]["default"]
+            for corner in ["Hairpin", "Sweeper", "Chicane"]
+        }
+        _limits_synced = limits_synced
+        _limits_note = limits_note
         _started_at = datetime.now(timezone.utc).isoformat()
         _stopped_by_user = False
         _exit_code = None
@@ -211,6 +240,9 @@ def get_simulator_status():
         lines = list(_output_lines)
         mode = _mode
         laps = _laps
+        limits = _limits
+        limits_synced = _limits_synced
+        limits_note = _limits_note
         started_at = _started_at
         stopped = _stopped_by_user
         current_exit = _exit_code
@@ -264,17 +296,24 @@ def get_simulator_status():
         "port_hint": port_hint,
         "last_lines": lines[-15:],
         "error": error,
+        "limits": limits,
+        "limit_ranges": LIMIT_RANGES,
+        "limits_synced": limits_synced,
+        "limits_note": limits_note,
     }
 
 
 def reset_state_for_testing():
     """Test helper to cleanly reset all module state."""
-    global _process, _mode, _laps, _started_at, _exit_code, _stopped_by_user
+    global _process, _mode, _laps, _limits, _limits_synced, _limits_note, _started_at, _exit_code, _stopped_by_user
     stop_simulator()
     with _lock:
         _process = None
         _mode = None
         _laps = None
+        _limits = None
+        _limits_synced = None
+        _limits_note = None
         _started_at = None
         _exit_code = None
         _stopped_by_user = False
