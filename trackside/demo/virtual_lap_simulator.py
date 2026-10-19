@@ -179,12 +179,18 @@ async def _async_broadcast(message_str):
 def broadcast_reading(data):
     """
     Threadsafe dispatch from simulation loop to the background asyncio event loop.
-    Dispatches JSON payload: {lap, zone, g_force, stage, speed_kmh, track_progress}.
+    Dispatches JSON payload: {lap, zone, g_force, stage, speed_kmh, track_progress, threshold}.
     """
     global WS_LOOP
+    if "threshold" not in data:
+        for turn in TRACK:
+            if turn["name"] == data.get("zone"):
+                data["threshold"] = turn["threshold"]
+                break
     if WS_LOOP and WS_LOOP.is_running():
         msg = json.dumps(data)
         asyncio.run_coroutine_threadsafe(_async_broadcast(msg), WS_LOOP)
+
 
 
 async def _run_ws_server(host, port):
@@ -443,7 +449,7 @@ def send_to_backend(session_id, g_value, zone_label, stage, speed_kmh, lap_numbe
 # ---------------------------------------------------------------------------
 # Backend & Hardware Integration
 # ---------------------------------------------------------------------------
-def fetch_zones_for_session(session_id, admin_token=None):
+def fetch_zones_for_session(session_id, admin_token=None, custom_limits=None, corner_sources=None):
     """
     Fetches real zone thresholds from the backend and updates TRACK.
     Must never block start-up for more than 1 second (timeout 1 s, no retry).
@@ -451,6 +457,11 @@ def fetch_zones_for_session(session_id, admin_token=None):
     """
     if not session_id:
         return
+
+    if custom_limits is None:
+        custom_limits = {}
+    if corner_sources is None:
+        corner_sources = {}
 
     print("Fetching actual track zones from backend...")
     headers = {}
@@ -498,17 +509,25 @@ def fetch_zones_for_session(session_id, admin_token=None):
             for zone in zones:
                 z_name = zone.get("label", "")
                 z_thresh = zone.get("threshold_g")
+                if z_thresh is None:
+                    continue
 
                 for turn in TRACK:
                     if turn["name"].lower() == z_name.lower():
-                        old = turn["threshold"]
-                        turn["threshold"] = z_thresh
-                        print(f"  -> Updated {turn['name']} threshold: {old}g -> {z_thresh}g")
+                        c_name = turn["name"]
+                        if c_name in custom_limits:
+                            print(f"  -> Fetched {c_name} zone ({z_thresh}g), but custom limit {custom_limits[c_name]:.2f}g takes precedence")
+                        else:
+                            old = turn["threshold"]
+                            turn["threshold"] = float(z_thresh)
+                            corner_sources[c_name] = "backend zone"
+                            print(f"  -> Updated {turn['name']} threshold: {old}g -> {z_thresh}g")
     except requests.exceptions.Timeout:
         print("  [!] Notice: Fetching session zones timed out (1s). Continuing with default thresholds.")
         return
     except Exception as e:
         print(f"  [!] Failed to fetch zones: {e}")
+
 
 
 def create_session(admin_token):
@@ -675,7 +694,34 @@ def main():
     parser.add_argument("--delay", type=float, default=READING_DELAY_SECONDS, help=f"Delay between readings in seconds (default: {READING_DELAY_SECONDS})")
     parser.add_argument("--ws-port", type=int, default=WS_PORT, help=f"Port for local WebSocket telemetry broadcaster (default: {WS_PORT})")
     parser.add_argument("--ws-host", type=str, default=WS_HOST, help=f"Host for local WebSocket telemetry broadcaster (default: {WS_HOST})")
+    parser.add_argument("--limit", action="append", default=[], help="Custom corner limit, e.g. --limit Hairpin=1.00 (repeatable)")
     args = parser.parse_args()
+
+    # 1. Parse and validate --limit arguments immediately before doing anything
+    VALID_CORNER_NAMES = {"hairpin": "Hairpin", "sweeper": "Sweeper", "chicane": "Chicane"}
+    custom_limits = {}
+
+    for item in args.limit:
+        if "=" not in item:
+            print(f"Error: Invalid --limit format '{item}'. Expected NAME=VALUE.")
+            sys.exit(2)
+        parts = item.split("=", 1)
+        name_raw, val_raw = parts[0].strip(), parts[1].strip()
+        canonical_name = VALID_CORNER_NAMES.get(name_raw.lower())
+        if not canonical_name:
+            print(f"Error: Unknown corner name '{name_raw}' in --limit. Allowed corners: Hairpin, Sweeper, Chicane.")
+            sys.exit(2)
+        try:
+            val = float(val_raw)
+        except ValueError:
+            print(f"Error: Invalid limit value '{val_raw}' for '{name_raw}'. Must be a float.")
+            sys.exit(2)
+        if val < 0.50 or val > 2.50:
+            print(f"Error: Limit value {val:.2f} for '{name_raw}' out of range. Must be between 0.50 and 2.50.")
+            sys.exit(2)
+        custom_limits[canonical_name] = val
+
+    corner_sources = {"Hairpin": "default", "Sweeper": "default", "Chicane": "default"}
 
     global SESSION_ID, DEMO_ZONES
     if args.create_session:
@@ -693,11 +739,31 @@ def main():
     if not DEVICE_TOKEN:
         print("  [i] Notice: No DEVICE_TOKEN configured. Backend POSTs will be skipped.")
 
-    fetch_zones_for_session(SESSION_ID, admin_token=args.admin_token)
+    fetch_zones_for_session(
+        SESSION_ID,
+        admin_token=args.admin_token,
+        custom_limits=custom_limits,
+        corner_sources=corner_sources,
+    )
+
+    # Precedence: --limit (custom) beats backend zone beats default
+    for c_name, c_val in custom_limits.items():
+        for turn in TRACK:
+            if turn["name"] == c_name:
+                turn["threshold"] = c_val
+                corner_sources[c_name] = "custom"
+
+    # Print one line per corner at start-up
+    print("\nCorner limits in force:")
+    for c_name in ["Hairpin", "Sweeper", "Chicane"]:
+        thresh = next(t["threshold"] for t in TRACK if t["name"] == c_name)
+        src = corner_sources[c_name]
+        print(f"{c_name} limit {thresh:.2f} g ({src})")
 
     # Start non-blocking backend worker if credentials exist
     if SESSION_ID and DEVICE_TOKEN:
         start_backend_worker(SESSION_ID, DEVICE_TOKEN, BACKEND_URL)
+
 
     # 1. Start lightweight local WebSocket server
     print("\nStarting local WebSocket telemetry broadcaster...")
