@@ -27,14 +27,19 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 # CORE SETTINGS
 # ---------------------------------------------------------------------------
 # Requirement #10: SECRET_KEY from env, never hardcoded
-SECRET_KEY = env("SECRET_KEY")
+SECRET_KEY = env("SECRET_KEY", default="")
 
 # Safe default is False — only True if .env says so
-DEBUG = env("DEBUG")
+DEBUG = env.bool("DEBUG", default=False)
 
-DJANGO_ENV = env("DJANGO_ENV")
+DJANGO_ENV = env("DJANGO_ENV", default="development")
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+if DJANGO_ENV == "production":
+    if not SECRET_KEY or "replace-me" in SECRET_KEY.lower():
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("Production SECRET_KEY cannot be empty or contain placeholder 'replace-me'.")
+
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "testserver"])
 
 # ---------------------------------------------------------------------------
 # INSTALLED APPS — feature-organized modules
@@ -108,11 +113,15 @@ WSGI_APPLICATION = "config.wsgi.application"
 # ---------------------------------------------------------------------------
 # DATABASE — ORM only, no raw SQL (requirement #1)
 # Supports both SQLite (development) and PostgreSQL (production).
-# Set DB_ENGINE=postgresql in .env to use PostgreSQL.
+# Reads DATABASE_URL if present, otherwise DB_ENGINE.
+# Refuses SQLite in production (S9).
 # ---------------------------------------------------------------------------
+DATABASE_URL = env("DATABASE_URL", default="")
 DB_ENGINE = env("DB_ENGINE", default="sqlite3")
 
-if DB_ENGINE == "postgresql":
+if DATABASE_URL:
+    DATABASES = {"default": env.db("DATABASE_URL")}
+elif DB_ENGINE == "postgresql":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -130,6 +139,30 @@ else:
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
         }
+    }
+
+if DJANGO_ENV == "production" and DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured("SQLite database is not permitted when DJANGO_ENV=production.")
+
+# ---------------------------------------------------------------------------
+# CHANNELS & CHANNEL LAYERS
+# ---------------------------------------------------------------------------
+REDIS_URL = env("REDIS_URL", default="")
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
     }
 
 # UUID primary keys are set explicitly on each model's id field.
@@ -160,15 +193,15 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-    # Session authentication for browser users + DeviceTokenAuthentication for physical IoT devices
+    # Session authentication for browser users (device tokens only allowed on specific views)
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
-        "devices.authentication.DeviceTokenAuthentication",
     ],
-    # Requirement #9: login rate limiting
+    # Requirement #9: login rate limiting & S4 device telemetry rate limiting
     "DEFAULT_THROTTLE_CLASSES": [],
     "DEFAULT_THROTTLE_RATES": {
         "login": env("LOGIN_THROTTLE_RATE", default="5/min"),
+        "device_telemetry": env("DEVICE_TELEMETRY_THROTTLE_RATE", default="600/min"),
     },
     # JSON only — no browsable API in production
     "DEFAULT_RENDERER_CLASSES": [

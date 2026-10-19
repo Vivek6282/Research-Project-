@@ -14,9 +14,12 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status, exceptions
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 
 from accounts.permissions import IsAdminOrCoach, IsCoach
+from devices.authentication import DeviceTokenAuthentication
 from driving_sessions.models import (
     Session, Telemetry, Alert, BiometricReading, SessionNote,
 )
@@ -25,11 +28,12 @@ from driving_sessions.serializers import (
     BiometricReadingSerializer, SessionNoteSerializer,
 )
 from driving_sessions.alerting import process_telemetry_alerts
+from driving_sessions.access import sessions_visible_to, can_access_session
 
 
 class SessionListCreateView(generics.ListCreateAPIView):
     """
-    GET /api/sessions/ — list sessions (scoped by role)
+    GET /api/sessions/ — list sessions (scoped by role via access.py)
     POST /api/sessions/ — create a session (driver starts a session)
     """
 
@@ -39,13 +43,7 @@ class SessionListCreateView(generics.ListCreateAPIView):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        user = self.request.user
-        if user.role == "driver":
-            return Session.objects.filter(driver=user).select_related("driver", "track")
-        elif user.role == "device":
-            if user.assigned_to:
-                return Session.objects.filter(driver=user.assigned_to).select_related("driver", "track")
-        return Session.objects.select_related("driver", "track").all()
+        return sessions_visible_to(self.request.user).select_related("driver", "track")
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -69,13 +67,17 @@ class SessionDetailView(generics.RetrieveUpdateDestroyAPIView):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        user = self.request.user
-        if user.role == "driver":
-            return Session.objects.filter(driver=user)
-        elif user.role == "device":
-            if user.assigned_to:
-                return Session.objects.filter(driver=user.assigned_to)
-        return Session.objects.all()
+        return sessions_visible_to(self.request.user)
+
+
+class DeviceTelemetryRateThrottle(ScopedRateThrottle):
+    """Rate throttle for device telemetry ingestion, resolving rate dynamically from api_settings."""
+    scope = "device_telemetry"
+
+    def get_rate(self):
+        from rest_framework.settings import api_settings
+        rates = getattr(api_settings, "DEFAULT_THROTTLE_RATES", {}) or {}
+        return rates.get(self.scope, self.THROTTLE_RATES.get(self.scope))
 
 
 class TelemetryListCreateView(generics.ListCreateAPIView):
@@ -85,39 +87,54 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
     """
 
     serializer_class = TelemetrySerializer
+    authentication_classes = [SessionAuthentication, DeviceTokenAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [DeviceTelemetryRateThrottle]
+    throttle_scope = "device_telemetry"
 
     def get_queryset(self):
         session_id = self.kwargs.get("session_pk")
-        user = self.request.user
-
-        if user.role == "driver":
-            return Telemetry.objects.filter(
-                session_id=session_id,
-                session__driver=user,
-            )
-        elif user.role == "device":
-            if user.assigned_to:
-                return Telemetry.objects.filter(
-                    session_id=session_id,
-                    session__driver=user.assigned_to,
-                )
-        return Telemetry.objects.filter(session_id=session_id)
+        visible_sessions = sessions_visible_to(self.request.user)
+        return Telemetry.objects.filter(
+            session_id=session_id,
+            session__in=visible_sessions,
+        )
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         """Accept single object OR list of telemetry readings (bulk batch ingestion)."""
         session_id = self.kwargs.get("session_pk")
         user = self.request.user
-        session = get_object_or_404(Session, pk=session_id)
-
-        if user.role == "driver" and session.driver != user:
-            raise exceptions.PermissionDenied("You do not own this session.")
-        elif user.role == "device":
-            if not user.assigned_to or session.driver != user.assigned_to:
-                raise exceptions.PermissionDenied("Device token is not authorized for this driver's session.")
 
         is_many = isinstance(request.data, list)
+        # S4: Reject a list longer than 100 readings
+        if is_many and len(request.data) > 100:
+            return Response(
+                {"error": "Batch size cannot exceed 100 readings."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Concurrency / Race Condition Protection (S5):
+        # Lock the Session row using select_for_update() within transaction.atomic
+        # to serialize concurrent telemetry batches for the same session, preventing
+        # race conditions where process_telemetry_alerts could double-create or mis-order alerts.
+        # Note: SQLite ignores row locks; fully effective on PostgreSQL in production.
+        try:
+            session = Session.objects.select_for_update().get(pk=session_id)
+        except Session.DoesNotExist:
+            raise exceptions.NotFound("Session not found.")
+
+        # S1: Access scoping via centralized access helper
+        if not can_access_session(user, session):
+            raise exceptions.PermissionDenied("You are not authorized for this driver's session.")
+
+        # S4: Reject posting to a session that has ended_at set (409)
+        if session.ended_at is not None:
+            return Response(
+                {"error": "Cannot post telemetry to an ended session."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         serializer = self.get_serializer(data=request.data, many=is_many)
         serializer.is_valid(raise_exception=True)
         instances = serializer.save(session=session)
@@ -132,7 +149,11 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
     @transaction.atomic
     def perform_create(self, serializer):
         session_id = self.kwargs.get("session_pk")
-        session = get_object_or_404(Session, pk=session_id)
+        session = Session.objects.select_for_update().get(pk=session_id)
+        if not can_access_session(self.request.user, session):
+            raise exceptions.PermissionDenied("You are not authorized for this driver's session.")
+        if session.ended_at is not None:
+            raise exceptions.PermissionDenied("Cannot post telemetry to an ended session.")
         instance = serializer.save(session=session)
         process_telemetry_alerts(session, [instance])
 
@@ -147,21 +168,10 @@ class AlertListView(generics.ListAPIView):
 
     def get_queryset(self):
         session_id = self.kwargs.get("session_pk")
-        user = self.request.user
-
-        if user.role == "driver":
-            return Alert.objects.filter(
-                session_id=session_id,
-                session__driver=user,
-            ).select_related("zone")
-        elif user.role == "device":
-            if user.assigned_to:
-                return Alert.objects.filter(
-                    session_id=session_id,
-                    session__driver=user.assigned_to,
-                ).select_related("zone")
+        visible_sessions = sessions_visible_to(self.request.user)
         return Alert.objects.filter(
             session_id=session_id,
+            session__in=visible_sessions,
         ).select_related("zone")
 
 
@@ -172,34 +182,24 @@ class BiometricListCreateView(generics.ListCreateAPIView):
     """
 
     serializer_class = BiometricReadingSerializer
+    authentication_classes = [SessionAuthentication, DeviceTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         session_id = self.kwargs.get("session_pk")
-        user = self.request.user
-
-        if user.role == "driver":
-            return BiometricReading.objects.filter(
-                session_id=session_id,
-                session__driver=user,
-            )
-        elif user.role == "device":
-            if user.assigned_to:
-                return BiometricReading.objects.filter(
-                    session_id=session_id,
-                    session__driver=user.assigned_to,
-                )
-        return BiometricReading.objects.filter(session_id=session_id)
+        visible_sessions = sessions_visible_to(self.request.user)
+        return BiometricReading.objects.filter(
+            session_id=session_id,
+            session__in=visible_sessions,
+        )
 
     def perform_create(self, serializer):
         session_id = self.kwargs.get("session_pk")
         user = self.request.user
         session = get_object_or_404(Session, pk=session_id)
 
-        if user.role == "driver" and session.driver != user:
-            raise exceptions.PermissionDenied("You do not own this session.")
-        elif user.role == "device" and user.assigned_to and session.driver != user.assigned_to:
-            raise exceptions.PermissionDenied("Device token is not authorized for this driver's session.")
+        if not can_access_session(user, session):
+            raise exceptions.PermissionDenied("You are not authorized for this driver's session.")
 
         serializer.save(session=session)
 
@@ -219,21 +219,21 @@ class SessionNoteListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         session_id = self.kwargs.get("session_pk")
-        user = self.request.user
-        if user.role == "driver":
-            return SessionNote.objects.filter(
-                session_id=session_id,
-                session__driver=user,
-            ).select_related("coach", "zone")
+        visible_sessions = sessions_visible_to(self.request.user)
         return SessionNote.objects.filter(
             session_id=session_id,
+            session__in=visible_sessions,
         ).select_related("coach", "zone")
 
     def perform_create(self, serializer):
         """Auto-set coach to the requesting user."""
+        session_id = self.kwargs.get("session_pk")
+        session = get_object_or_404(Session, pk=session_id)
+        if not can_access_session(self.request.user, session):
+            raise exceptions.PermissionDenied("You are not authorized for this session.")
         serializer.save(
             coach=self.request.user,
-            session_id=self.kwargs.get("session_pk"),
+            session=session,
         )
 
 
@@ -257,25 +257,23 @@ class AlertSummaryView(APIView):
 
     def get(self, request):
         user = request.user
+        visible_sessions = sessions_visible_to(user)
 
         # Scoped driver selection
-        if user.role == "driver":
-            driver = user
-        elif user.role == "device" and getattr(user, "assigned_to", None):
-            driver = user.assigned_to
+        driver_param = request.query_params.get("driver") or request.query_params.get("driver_id")
+        if driver_param and user.role in ("coach", "admin"):
+            driver = get_object_or_404(User, pk=driver_param)
+            recent_sessions = list(
+                visible_sessions.filter(driver=driver)
+                .select_related("track")
+                .order_by("-started_at")[:5]
+            )
         else:
-            driver_param = request.query_params.get("driver") or request.query_params.get("driver_id")
-            if driver_param:
-                driver = get_object_or_404(User, pk=driver_param)
-            else:
-                driver = user
-
-        # Query driver's last 5 sessions
-        recent_sessions = list(
-            Session.objects.filter(driver=driver)
-            .select_related("track")
-            .order_by("-started_at")[:5]
-        )
+            recent_sessions = list(
+                visible_sessions
+                .select_related("track")
+                .order_by("-started_at")[:5]
+            )
 
         if not recent_sessions:
             return Response(
@@ -368,15 +366,23 @@ class RosterStatusView(APIView):
 
     def get(self, request):
         user = request.user
+        visible_sessions = sessions_visible_to(user)
 
         if user.role == "driver":
             drivers = [user]
-        else:
+        elif user.role == "device":
+            if getattr(user, "assigned_to", None):
+                drivers = [user.assigned_to]
+            else:
+                drivers = []
+        elif user.role in ("coach", "admin"):
             drivers = list(User.objects.filter(role="driver").order_by("name"))
+        else:
+            drivers = []
 
         roster_data = []
         for idx, driver in enumerate(drivers):
-            latest_session = Session.objects.filter(driver=driver).order_by("-started_at").first()
+            latest_session = visible_sessions.filter(driver=driver).order_by("-started_at").first()
 
             latest_telemetry = None
             if latest_session:

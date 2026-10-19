@@ -17,6 +17,7 @@ env/
 .env
 .env.local
 .env.production
+.env.docker
 
 # Django
 *.sqlite3

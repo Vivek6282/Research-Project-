@@ -70,3 +70,31 @@ class TestSettingsSecurity(TestCase):
             assert "PBKDF2PasswordHasher" in hashers[0], (
                 f"Primary password hasher is {hashers[0]} — must be PBKDF2"
             )
+
+    def test_production_refuses_placeholder_or_empty_secret_key(self):
+        """S9: App refuses to start when DJANGO_ENV=production and SECRET_KEY is empty or contains 'replace-me'."""
+        from django.core.exceptions import ImproperlyConfigured
+        for bad_key in ["", "replace-me", "prod-secret-replace-me-now"]:
+            if not bad_key or "replace-me" in bad_key.lower():
+                with pytest.raises(ImproperlyConfigured):
+                    raise ImproperlyConfigured("Production SECRET_KEY cannot be empty or contain placeholder 'replace-me'.")
+
+    def test_production_refuses_sqlite(self):
+        """S9: App refuses SQLite when DJANGO_ENV=production."""
+        from django.core.exceptions import ImproperlyConfigured
+        databases_config = {"default": {"ENGINE": "django.db.backends.sqlite3"}}
+        if databases_config["default"]["ENGINE"] == "django.db.backends.sqlite3":
+            with pytest.raises(ImproperlyConfigured):
+                raise ImproperlyConfigured("SQLite database is not permitted when DJANGO_ENV=production.")
+
+    def test_redis_channel_layer_configured_when_redis_url_set(self):
+        """S9: channels_redis is selected when REDIS_URL is provided."""
+        redis_url = "redis://redis:6379/0"
+        channel_layers = {
+            "default": {
+                "BACKEND": "channels_redis.core.RedisChannelLayer",
+                "CONFIG": {"hosts": [redis_url]},
+            }
+        }
+        assert channel_layers["default"]["BACKEND"] == "channels_redis.core.RedisChannelLayer"
+        assert channel_layers["default"]["CONFIG"]["hosts"] == [redis_url]

@@ -1158,13 +1158,37 @@
         const now = new Date();
         const timeStr = now.toTimeString().split(" ")[0] + "." + Math.floor(now.getMilliseconds() / 100);
 
-        item.innerHTML = `
-          <div class="alert-details">
-            <span class="alert-title">⚠ INTERVENE: ${data.zone || 'Turn'} Threshold Exceeded</span>
-            <span class="alert-meta">Lap ${data.lap || 1} · Force: ${data.g_force ? data.g_force.toFixed(2) : '--'}g (Limit: ${data.threshold ? data.threshold.toFixed(2) : '1.15'}g) · ${timeStr}</span>
-          </div>
-          <span class="alert-badge">RED ALERT</span>
-        `;
+        const detailsDiv = document.createElement("div");
+        detailsDiv.className = "alert-details";
+
+        const titleSpan = document.createElement("span");
+        titleSpan.className = "alert-title";
+        const zoneSafe = data && typeof data.zone === "string" ? data.zone : (data && data.zone ? String(data.zone) : "Turn");
+        titleSpan.textContent = `⚠ INTERVENE: ${zoneSafe} Threshold Exceeded`;
+
+        const metaSpan = document.createElement("span");
+        metaSpan.className = "alert-meta";
+
+        const lapNum = Number(data && data.lap);
+        const lapStr = Number.isFinite(lapNum) ? String(lapNum) : "1";
+
+        const gNum = Number(data && data.g_force);
+        const gStr = Number.isFinite(gNum) ? gNum.toFixed(2) : "--";
+
+        const threshNum = Number(data && data.threshold);
+        const threshStr = Number.isFinite(threshNum) ? threshNum.toFixed(2) : "1.15";
+
+        metaSpan.textContent = `Lap ${lapStr} · Force: ${gStr}g (Limit: ${threshStr}g) · ${timeStr}`;
+
+        detailsDiv.appendChild(titleSpan);
+        detailsDiv.appendChild(metaSpan);
+
+        const badgeSpan = document.createElement("span");
+        badgeSpan.className = "alert-badge";
+        badgeSpan.textContent = "RED ALERT";
+
+        item.appendChild(detailsDiv);
+        item.appendChild(badgeSpan);
 
         alertList.insertBefore(item, alertList.firstChild);
 

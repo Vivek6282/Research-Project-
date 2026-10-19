@@ -60,9 +60,13 @@ SERIAL_PORT = os.getenv("SERIAL_PORT", "COM5")
 SERIAL_BAUD = int(os.getenv("SERIAL_BAUD", "115200"))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 DEVICE_TOKEN = os.getenv("DEVICE_TOKEN", "")
-SESSION_ID = os.getenv("SESSION_ID", "")
-WS_HOST = os.getenv("WS_HOST", "127.0.0.1")
+WS_HOST = "127.0.0.1"
 WS_PORT = int(os.getenv("WS_PORT", "8765"))
+WS_ALLOWED_ORIGINS_RAW = os.getenv("WS_ALLOWED_ORIGINS", "")
+if WS_ALLOWED_ORIGINS_RAW.strip():
+    WS_ALLOWED_ORIGINS = [o.strip() for o in WS_ALLOWED_ORIGINS_RAW.split(",") if o.strip()]
+else:
+    WS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "null", "file://"]
 
 
 def is_valid_uuid(val):
@@ -149,6 +153,20 @@ WS_LOOP = None
 
 async def _ws_handler(websocket):
     """Register incoming browser clients and keep the socket open."""
+    # S6: Check Origin header against WS_ALLOWED_ORIGINS allow-list
+    origin = None
+    if hasattr(websocket, "request_headers"):
+        origin = websocket.request_headers.get("Origin")
+    elif hasattr(websocket, "request") and hasattr(websocket.request, "headers"):
+        origin = websocket.request.headers.get("Origin")
+
+    if origin is not None and "*" not in WS_ALLOWED_ORIGINS:
+        is_allowed = origin in WS_ALLOWED_ORIGINS or any(origin.startswith(ao) for ao in WS_ALLOWED_ORIGINS)
+        if not is_allowed:
+            print(f"  [!] Rejected WebSocket connection from unauthorized origin: {origin}")
+            await websocket.close(code=1008, reason="Origin not allowed")
+            return
+
     CONNECTED_CLIENTS.add(websocket)
     # Send an initial welcome/handshake payload
     try:
@@ -394,10 +412,28 @@ def _backend_worker(session_id, device_token, backend_url):
             TELEMETRY_QUEUE.task_done()
 
 
+def validate_backend_url(url):
+    """
+    Validates that BACKEND_URL starts with http:// or https:// and contains a valid hostname.
+    Returns True if valid, False otherwise (S8).
+    """
+    if not url or not isinstance(url, str):
+        return False
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(url)
+        return parsed.scheme in ("http", "https") and bool(parsed.hostname)
+    except Exception:
+        return False
+
+
 def start_backend_worker(session_id, device_token, backend_url=BACKEND_URL):
     """Starts the background worker thread for non-blocking backend telemetry ingestion."""
     global BACKEND_WORKER_THREAD
     if not session_id or not device_token:
+        return None
+    if not validate_backend_url(backend_url):
+        print(f"  [!] Refusing backend posting: BACKEND_URL '{backend_url}' must start with http:// or https:// and have a hostname.")
         return None
     BACKEND_WORKER_THREAD = threading.Thread(
         target=_backend_worker,
@@ -536,7 +572,7 @@ def create_session(admin_token):
     headers = {"Authorization": f"Bearer {admin_token}"}
 
     try:
-        res = requests.get(f"{BACKEND_URL}/api/tracks/", headers=headers)
+        res = requests.get(f"{BACKEND_URL}/api/tracks/", headers=headers, timeout=3)
         res.raise_for_status()
         data = res.json()
         tracks = data.get("results", data) if isinstance(data, dict) else data
@@ -545,7 +581,7 @@ def create_session(admin_token):
             sys.exit(1)
         track_id = tracks[0]["id"]
 
-        res = requests.get(f"{BACKEND_URL}/api/auth/users/", headers=headers)
+        res = requests.get(f"{BACKEND_URL}/api/auth/users/", headers=headers, timeout=3)
         res.raise_for_status()
         data = res.json()
         users = data.get("results", data) if isinstance(data, dict) else data
@@ -564,7 +600,7 @@ def create_session(admin_token):
             "started_at": now,
         }
 
-        res = requests.post(f"{BACKEND_URL}/api/sessions/", headers=headers, json=payload)
+        res = requests.post(f"{BACKEND_URL}/api/sessions/", headers=headers, json=payload, timeout=3)
         res.raise_for_status()
         new_session = res.json()
         s_id = new_session["id"]

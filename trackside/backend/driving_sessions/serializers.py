@@ -6,6 +6,9 @@ Requirement #3 (IDOR): serializers include validation but queryset scoping
 happens in views — serializers validate data shape, views enforce access.
 """
 
+import math
+from datetime import timedelta
+from django.utils import timezone
 from rest_framework import serializers
 from driving_sessions.models import (
     Session, Telemetry, Alert, BiometricReading, SessionNote,
@@ -148,13 +151,22 @@ def compute_best_lap(session):
 
 
 class TelemetrySerializer(serializers.ModelSerializer):
-    """Serializer for individual telemetry readings."""
+    """
+    Serializer for individual telemetry readings with strict boundary validation (S4):
+    - lateral_g: 0..10, reject NaN/inf
+    - speed_kmh: 0..300, reject NaN/inf
+    - gps_lat: -90..90, reject NaN/inf
+    - gps_lng: -180..180, reject NaN/inf
+    - lap_number: 1..999
+    - recorded_at: not > 5 minutes in future
+    """
 
     lap_number = serializers.IntegerField(
         required=False,
         min_value=1,
+        max_value=999,
         allow_null=True,
-        help_text="Lap number within the session (integer >= 1)",
+        help_text="Lap number within the session (integer 1..999)",
     )
 
     class Meta:
@@ -165,6 +177,38 @@ class TelemetrySerializer(serializers.ModelSerializer):
             "lap_number",
         ]
         read_only_fields = ["id", "session"]
+
+    def validate_lateral_g(self, value):
+        if value is None or not math.isfinite(value) or not (0.0 <= value <= 10.0):
+            raise serializers.ValidationError("lateral_g must be a finite number between 0.0 and 10.0.")
+        return value
+
+    def validate_speed_kmh(self, value):
+        if value is None or not math.isfinite(value) or not (0.0 <= value <= 300.0):
+            raise serializers.ValidationError("speed_kmh must be a finite number between 0.0 and 300.0.")
+        return value
+
+    def validate_gps_lat(self, value):
+        if value is not None:
+            if not math.isfinite(value) or not (-90.0 <= value <= 90.0):
+                raise serializers.ValidationError("gps_lat must be a finite number between -90.0 and 90.0.")
+        return value
+
+    def validate_gps_lng(self, value):
+        if value is not None:
+            if not math.isfinite(value) or not (-180.0 <= value <= 180.0):
+                raise serializers.ValidationError("gps_lng must be a finite number between -180.0 and 180.0.")
+        return value
+
+    def validate_lap_number(self, value):
+        if value is not None and not (1 <= value <= 999):
+            raise serializers.ValidationError("lap_number must be between 1 and 999.")
+        return value
+
+    def validate_recorded_at(self, value):
+        if value > timezone.now() + timedelta(minutes=5):
+            raise serializers.ValidationError("recorded_at cannot be more than 5 minutes in the future.")
+        return value
 
 
 class AlertSerializer(serializers.ModelSerializer):

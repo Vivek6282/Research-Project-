@@ -7,6 +7,8 @@ for awareness but cannot modify device records.
 
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import SessionAuthentication
+from devices.authentication import DeviceTokenAuthentication
 
 from accounts.permissions import IsAdmin
 from devices.models import Device, DeviceCommand
@@ -74,6 +76,7 @@ class DevicePendingCommandsView(generics.ListAPIView):
     GET /api/devices/me/commands/pending/
     Device fetches its own pending commands. Authenticated via DeviceTokenAuthentication.
     """
+    authentication_classes = [SessionAuthentication, DeviceTokenAuthentication]
     serializer_class = DeviceCommandSerializer
 
     def get_queryset(self):
@@ -90,6 +93,7 @@ class DeviceCompleteCommandView(generics.UpdateAPIView):
     POST (or PATCH) /api/devices/me/commands/<id>/complete/
     Device marks a command as completed or failed and submits results.
     """
+    authentication_classes = [SessionAuthentication, DeviceTokenAuthentication]
     serializer_class = DeviceCommandSerializer
     http_method_names = ['post', 'patch']
 
