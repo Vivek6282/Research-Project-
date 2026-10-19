@@ -2,371 +2,62 @@
  * Trackside — Admin Dashboard
  *
  * Pit-Wall System Administration & Hardware Control:
- * - IoT Hardware connectivity pings (Glove, Kart Unit, Biometric Strap)
+ * - IoT Hardware connectivity pings and self-test diagnostics
  * - Intradomain user account provisioning & role management (Admin only)
- * - Active telemetry node diagnostics & audit logs
+ * - Security audit logging & active telemetry node diagnostics
  */
 
-import { useState, useEffect } from "react";
-import { Users, Wifi, WifiOff, Plus, X, Shield, Activity, Check, Copy } from "lucide-react";
+import { Users, Plus, X } from "lucide-react";
 import { TopBar } from "../../components/shell/top-bar";
 import { Panel } from "../../components/ui/panel";
-import { Chip } from "../../components/ui/chip";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
-import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-
-const INITIAL_USERS = [
-  { id: "1", username: "TRK-ADMIN-000001", name: "System Admin", role: "admin", status: "Active", email: "admin@trackside.local" },
-  { id: "2", username: "TRK-COACH-000001", name: "Coach Nair", role: "coach", status: "Active", email: "coach@trackside.local" },
-  { id: "3", username: "TRK-DRV-000001", name: "A. Menon", role: "driver", status: "Active", email: "driver@trackside.local" },
-  { id: "4", username: "TRK-DRV-000002", name: "R. Iyer", role: "driver", status: "Active", email: "iyer@trackside.local" },
-];
-
-
-function DeviceDiagnosticPanel({ device }: { device: any }) {
-  const [pollingId, setPollingId] = useState<string | null>(null);
-  const [result, setResult] = useState<any>(null);
-  const [manualConfirm, setManualConfirm] = useState({ led: null as boolean | null, buzzer: null as boolean | null });
-
-  useEffect(() => {
-    let interval: any;
-    if (pollingId) {
-      interval = setInterval(async () => {
-        try {
-          const res: any = await api.get(`/api/devices/${device.id}/commands/`);
-          const cmds = Array.isArray(res) ? res : res?.results || [];
-          const cmd = cmds.find((c: any) => c.id === pollingId);
-          if (cmd && cmd.status !== "pending") {
-            setResult(cmd);
-            setPollingId(null);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }, 2000);
-    }
-    return () => clearInterval(interval);
-  }, [pollingId, device.id]);
-
-  const handleRunDiagnostic = async () => {
-    setResult(null);
-    setManualConfirm({ led: null, buzzer: null });
-    try {
-      const res: any = await api.post(`/api/devices/${device.id}/commands/`, { command_type: "self_test" });
-      setPollingId(res.id);
-    } catch (e) {
-      alert("Failed to start diagnostic.");
-    }
-  };
-
-  const getIcon = (type: string) => {
-    if (type === "glove") return <Wifi size={16} />;
-    if (type === "kart_unit") return <Wifi size={16} />;
-    return <WifiOff size={16} />;
-  };
-
-  const isOnline = device.status === "connected";
-
-  return (
-    <Panel title={device.device_type.replace("_", " ").toUpperCase()} icon={getIcon(device.device_type).type} testId={`admin-device-panel-${device.id}`}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-[#33D17E] animate-pulse' : 'bg-[#E5473C]'}`} />
-          <span className={`text-xs font-mono font-bold ${isOnline ? 'text-[#E7EDF3]' : 'text-[#E5473C]'}`}>
-            {isOnline ? 'ONLINE' : 'OFFLINE'}
-          </span>
-        </div>
-        <Chip color={isOnline ? "#33D17E" : "#E5473C"}>{device.status.toUpperCase()}</Chip>
-      </div>
-
-      <div className="border-t border-[#232B35] pt-3">
-        <button
-          data-testid="admin-run-diagnostic-btn"
-          onClick={handleRunDiagnostic}
-          disabled={!!pollingId || !isOnline}
-          className={`w-full py-1.5 rounded text-[11px] font-bold font-mono transition-colors ${
-            pollingId ? 'bg-[#3FA6E0]/20 text-[#3FA6E0] cursor-not-allowed' : 
-            !isOnline ? 'bg-[#232B35] text-[#7C8898] cursor-not-allowed' :
-            'bg-[#3FA6E0] text-[#0A0E13] hover:bg-[#3FA6E0]/90 cursor-pointer'
-          }`}
-        >
-          {pollingId ? (
-            <span data-testid="admin-diagnostic-waiting">WAITING FOR DEVICE...</span>
-          ) : (
-            "RUN DIAGNOSTIC"
-          )}
-        </button>
-
-        {result && (
-          <div data-testid="admin-diagnostic-result" className="mt-3 bg-[#0A0E13] border border-[#232B35] rounded p-2 text-[10px] font-mono">
-            <div className="font-bold mb-1 text-[#3FA6E0]">DIAGNOSTIC RESULT: {result.status.toUpperCase()}</div>
-            <ul className="space-y-1 mb-2 text-[#7C8898]">
-              <li className="flex justify-between">Boot Check: <span className={result.result?.boot ? 'text-[#33D17E]' : 'text-[#E5473C]'}>{result.result?.boot ? '✓ PASS' : '✗ FAIL'}</span></li>
-              <li className="flex justify-between">ESP-NOW Init: <span className={result.result?.esp_now_init ? 'text-[#33D17E]' : 'text-[#E5473C]'}>{result.result?.esp_now_init ? '✓ PASS' : '✗ FAIL'}</span></li>
-              <li className="flex justify-between">Ping Latency: <span className="text-[#E7EDF3]">{result.result?.ping_latency_ms ? `${result.result.ping_latency_ms}ms` : 'N/A'}</span></li>
-            </ul>
-            
-            <div className="border-t border-[#232B35] pt-2 space-y-2">
-              <div className="text-[9px] font-bold text-[#E7EDF3]">MANUAL VERIFICATION</div>
-              <div className="flex justify-between items-center">
-                <span>All 3 LEDs flashed?</span>
-                <div className="flex gap-1">
-                  <button onClick={() => setManualConfirm(p => ({...p, led: true}))} className={`px-1.5 py-0.5 rounded ${manualConfirm.led === true ? 'bg-[#33D17E] text-[#0A0E13]' : 'bg-[#232B35] text-[#E7EDF3]'}`}>Yes</button>
-                  <button onClick={() => setManualConfirm(p => ({...p, led: false}))} className={`px-1.5 py-0.5 rounded ${manualConfirm.led === false ? 'bg-[#E5473C] text-[#0A0E13]' : 'bg-[#232B35] text-[#E7EDF3]'}`}>No</button>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Buzzer pulsed?</span>
-                <div className="flex gap-1">
-                  <button onClick={() => setManualConfirm(p => ({...p, buzzer: true}))} className={`px-1.5 py-0.5 rounded ${manualConfirm.buzzer === true ? 'bg-[#33D17E] text-[#0A0E13]' : 'bg-[#232B35] text-[#E7EDF3]'}`}>Yes</button>
-                  <button onClick={() => setManualConfirm(p => ({...p, buzzer: false}))} className={`px-1.5 py-0.5 rounded ${manualConfirm.buzzer === false ? 'bg-[#E5473C] text-[#0A0E13]' : 'bg-[#232B35] text-[#E7EDF3]'}`}>No</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </Panel>
-  );
-}
+import { useAdminDashboard } from "./hooks/use-admin-dashboard";
+import { DeviceDiagnosticPanel } from "./components/device-diagnostic-panel";
+import { UserCreateForm } from "./components/user-create-form";
+import { UserManagementTable } from "./components/user-management-table";
+import { AuditAndDiagnostics } from "./components/audit-and-diagnostics";
 
 export function AdminDashboard() {
-
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<any[]>(INITIAL_USERS);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"coach" | "driver">("driver");
-  const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [successData, setSuccessData] = useState<{ username: string; password: string; name: string; role: string } | null>(null);
-
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [devices, setDevices] = useState<any[]>([]);
-
-
-  // Inline User Editing State
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editError, setEditError] = useState("");
-
-  // Confirm Dialog Modal State for Deactivation
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    userToToggle: any | null;
-    isCurrentlyActive: boolean;
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    userToToggle: null,
-    isCurrentlyActive: true,
-  });
-
-  // Audit Logs & Diagnostics State
-
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [audit30DayCount, setAudit30DayCount] = useState<number>(0);
-  const [diagnostics, setDiagnostics] = useState<{
-    active_nodes: number;
-    total_nodes: number;
-    db_query_time_ms: number;
-    packet_drops_last_60_min: number;
-    is_simulated_packet_data: boolean;
-  } | null>(null);
-
-  const fetchAuditAndDiagnostics = async () => {
-    try {
-      const auditRes: any = await api.get("/api/auth/audit-logs/");
-      if (auditRes) {
-        setAudit30DayCount(auditRes.count_30_days || 0);
-        setAuditLogs(Array.isArray(auditRes.results) ? auditRes.results : []);
-      }
-    } catch (err) {
-      console.warn("[AdminDashboard] audit logs fetch error:", err);
-    }
-
-    try {
-      const diagRes: any = await api.get("/api/auth/diagnostics/");
-      if (diagRes) {
-        setDiagnostics(diagRes);
-      }
-    } catch (err) {
-      console.warn("[AdminDashboard] diagnostics fetch error:", err);
-    }
-  };
-
-  useEffect(() => {
-    async function loadUsers() {
-      try {
-        setFetchError(null);
-        const fetched: any = await api.get("/api/auth/users/");
-        const userList = Array.isArray(fetched)
-          ? fetched
-          : Array.isArray(fetched?.results)
-          ? fetched.results
-          : [];
-        setUsers(userList);
-      } catch (err: any) {
-        console.error("[AdminDashboard] loadUsers failure:", err);
-        setFetchError(
-          err.message || "Could not load live user roster — showing cached fallback data"
-        );
-      }
-    }
-    async function loadDevices() {
-      try {
-        const fetched: any = await api.get("/api/devices/");
-        setDevices(Array.isArray(fetched) ? fetched : fetched?.results || []);
-      } catch (err) {
-        console.error("[AdminDashboard] loadDevices failure:", err);
-      }
-    }
-    loadUsers();
-    loadDevices();
-    fetchAuditAndDiagnostics();
-  }, []);
-
-  const handleCreateAccount = async () => {
-    setErrorMsg("");
-    setSuccessData(null);
-
-    if (!name.trim()) {
-      setErrorMsg("Full Name is required.");
-      return;
-    }
-    if (role === "coach" && !email.trim()) {
-      setErrorMsg("Email address is required for Coach accounts.");
-      return;
-    }
-    if (!password || password.length < 8) {
-      setErrorMsg("Password must be at least 8 characters long.");
-      return;
-    }
-
-    try {
-      const newUser = await api.post<any>("/api/auth/users/", {
-        name: name.trim(),
-        email: email.trim() || undefined,
-        role,
-        password,
-      });
-
-      setSuccessData({
-        username: newUser.username,
-        password: password,
-        name: newUser.name,
-        role: newUser.role,
-      });
-
-      setUsers((prev) => [newUser, ...prev]);
-      setName("");
-      setEmail("");
-      setPassword("");
-      fetchAuditAndDiagnostics();
-    } catch (err: any) {
-      setErrorMsg(err.message || "Failed to create account.");
-    }
-  };
-
-  const handleToggleDeactivate = (u: any) => {
-    const isCurrentlyActive = u.is_active !== false && u.status !== "Inactive";
-    const actionText = isCurrentlyActive ? "deactivate" : "reactivate";
-
-    setConfirmModal({
-      isOpen: true,
-      title: isCurrentlyActive ? "Deactivate User Account" : "Reactivate User Account",
-      message: `Are you sure you want to ${actionText} ${u.name}? ${
-        isCurrentlyActive
-          ? "This user will no longer be able to log in to the Pit-Wall dashboard."
-          : "This user will regain access to log in to the Pit-Wall dashboard."
-      }`,
-      userToToggle: u,
-      isCurrentlyActive,
-    });
-  };
-
-  const executeToggleDeactivate = async () => {
-    if (!confirmModal.userToToggle) return;
-    const u = confirmModal.userToToggle;
-    const isCurrentlyActive = confirmModal.isCurrentlyActive;
-    const actionText = isCurrentlyActive ? "deactivate" : "reactivate";
-
-    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-
-    try {
-      const updated = await api.patch<any>(`/api/auth/users/${u.id}/`, {
-        is_active: !isCurrentlyActive,
-      });
-
-      setUsers((prev) =>
-        prev.map((item) =>
-          item.id === u.id
-            ? { ...item, is_active: updated.is_active, status: updated.is_active ? "Active" : "Inactive" }
-            : item
-        )
-      );
-      fetchAuditAndDiagnostics();
-    } catch (err: any) {
-      alert(err.message || `Failed to ${actionText} user.`);
-    }
-  };
-
-  const startEdit = (u: any) => {
-
-    setEditingUserId(u.id);
-    setEditName(u.name);
-    setEditEmail(u.email || "");
-    setEditError("");
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingUserId) return;
-    setEditError("");
-
-    if (!editName.trim()) {
-      setEditError("Name cannot be empty.");
-      return;
-    }
-
-    const currentUser = users.find((u) => u.id === editingUserId);
-    if (currentUser?.role === "coach" && !editEmail.trim()) {
-      setEditError("Email address is required for Coach accounts.");
-      return;
-    }
-
-    try {
-      const updated = await api.patch<any>(`/api/auth/users/${editingUserId}/`, {
-        name: editName.trim(),
-        email: editEmail.trim() || undefined,
-      });
-
-      setUsers((prev) =>
-        prev.map((item) =>
-          item.id === editingUserId ? { ...item, name: updated.name, email: updated.email } : item
-        )
-      );
-      setEditingUserId(null);
-      fetchAuditAndDiagnostics();
-    } catch (err: any) {
-      setEditError(err.message || "Failed to update user.");
-    }
-  };
-
-  const copyCredentials = () => {
-    if (!successData) return;
-    const text = `Username ID: ${successData.username}\nPassword: ${successData.password}`;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const {
+    users,
+    devices,
+    fetchError,
+    setFetchError,
+    showCreateForm,
+    setShowCreateForm,
+    name,
+    setName,
+    email,
+    setEmail,
+    role,
+    setRole,
+    password,
+    setPassword,
+    errorMsg,
+    copied,
+    successData,
+    handleCreateAccount,
+    copyCredentials,
+    editingUserId,
+    setEditingUserId,
+    editName,
+    setEditName,
+    editEmail,
+    setEditEmail,
+    editError,
+    startEdit,
+    handleSaveEdit,
+    confirmModal,
+    setConfirmModal,
+    handleToggleDeactivate,
+    executeToggleDeactivate,
+    auditLogs,
+    audit30DayCount,
+    diagnostics,
+  } = useAdminDashboard();
 
   return (
     <div className="min-h-screen bg-[#0A0E13] text-[#E7EDF3] select-none">
@@ -415,460 +106,49 @@ export function AdminDashboard() {
               </button>
             }
           >
-            {/* Inline Account Creation Form (Admin Only) */}
-            {showCreateForm && (
-              <div data-testid="admin-create-form" className="mb-4 p-4 rounded-lg space-y-3 animate-fade-in bg-[#161D26] border border-[#232B35]">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <input
-                    data-testid="admin-create-name-input"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Full Name"
-                    className="px-3 py-2 rounded text-xs font-mono outline-none bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] focus:border-[#3FA6E0]"
-                  />
-                  <select
-                    data-testid="admin-create-role-select"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as "coach" | "driver")}
-                    className="px-3 py-2 rounded text-xs font-mono outline-none bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] focus:border-[#3FA6E0]"
-                  >
-                    <option value="driver">Role: Driver</option>
-                    <option value="coach">Role: Coach</option>
-                  </select>
-                  <input
-                    data-testid="admin-create-email-input"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={role === "driver" ? "Email (optional for Drivers)" : "Email address (required)"}
-                    type="email"
-                    className="px-3 py-2 rounded text-xs font-mono outline-none bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] focus:border-[#3FA6E0]"
-                  />
-                  <input
-                    data-testid="admin-create-password-input"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Access Password (min 8 chars)"
-                    type="password"
-                    className="px-3 py-2 rounded text-xs font-mono outline-none bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] focus:border-[#3FA6E0]"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[10px] font-mono text-[#7C8898]">
-                    {role === "driver" ? "💡 Driver ID username will be auto-generated server-side (e.g. TRK-DRV-000042)" : "💡 Coach email is required for alert & session notifications."}
-                  </span>
-                  <button
-                    data-testid="admin-create-submit-btn"
-                    onClick={handleCreateAccount}
-                    className="px-4 py-2 rounded text-xs font-bold font-mono uppercase tracking-wider cursor-pointer bg-[#3FA6E0] text-[#06121B] hover:bg-[#3FA6E0]/90 transition-colors"
-                  >
-                    Create Account
-                  </button>
-                </div>
-
-                {errorMsg && (
-                  <div data-testid="admin-create-error" className="p-2 rounded text-xs font-mono bg-[#E5473C]/15 border border-[#E5473C]/40 text-[#E5473C]">
-                    {errorMsg}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Generated Credentials Confirmation Panel */}
-            {successData && (
-              <div data-testid="admin-create-success" className="mb-4 p-4 rounded-lg font-mono bg-[#33D17E]/10 border border-[#33D17E]/40 text-[#E7EDF3]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Check size={16} className="text-[#33D17E]" />
-                    <span className="text-xs font-bold text-[#33D17E] uppercase">
-                      Account Provisioned Successfully — {successData.name} ({successData.role})
-                    </span>
-                  </div>
-                  <button
-                    data-testid="admin-create-copy-btn"
-                    onClick={copyCredentials}
-                    className="flex items-center gap-1 text-[11px] text-[#33D17E] bg-[#33D17E]/20 border border-[#33D17E]/50 px-2.5 py-1 rounded cursor-pointer hover:bg-[#33D17E]/30"
-                  >
-                    {copied ? <Check size={12} /> : <Copy size={12} />}
-                    {copied ? "COPIED TO CLIPBOARD" : "COPY CREDENTIALS"}
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-xs bg-[#0A0E13] p-3 rounded border border-[#232B35]">
-                  <div>
-                    <span className="text-[#7C8898] block text-[10px]">USERNAME / DRIVER ID:</span>
-                    <span data-testid="admin-create-success-username" className="text-[#3FA6E0] font-extrabold text-sm">{successData.username}</span>
-                  </div>
-                  <div>
-                    <span className="text-[#7C8898] block text-[10px]">ACCESS PASSWORD:</span>
-                    <span className="text-[#E7EDF3] font-bold text-sm">{successData.password}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* API Fetch Error Banner */}
-            {fetchError && (
-              <div className="mb-4 p-3 rounded text-xs font-mono bg-[#F2A93B]/15 border border-[#F2A93B]/40 text-[#F2A93B] flex items-center justify-between">
-                <span>⚠️ {fetchError}</span>
-                <button onClick={() => setFetchError(null)} className="text-[10px] underline cursor-pointer">
-                  Dismiss
-                </button>
-              </div>
-            )}
+            {/* Inline Account Creation Form & Credentials */}
+            <UserCreateForm
+              showCreateForm={showCreateForm}
+              name={name}
+              setName={setName}
+              email={email}
+              setEmail={setEmail}
+              role={role}
+              setRole={setRole}
+              password={password}
+              setPassword={setPassword}
+              errorMsg={errorMsg}
+              handleCreateAccount={handleCreateAccount}
+              successData={successData}
+              copied={copied}
+              copyCredentials={copyCredentials}
+            />
 
             {/* Users Roster: Mobile Card View (< md) & Desktop Table View (>= md) */}
-            <div>
-
-
-              {/* Mobile Card-Based Layout (< md) */}
-              <div data-testid="admin-user-cards-container" className="block md:hidden space-y-3 font-mono">
-                {users.map((u) => {
-                  const isEditing = editingUserId === u.id;
-                  const isActive = u.is_active !== false && u.status !== "Inactive";
-                  const isSelf = currentUser && (currentUser.id === u.id || (currentUser.email && u.email && currentUser.email === u.email));
-                  const isSelfDeactivating = isSelf && isActive;
-                  const roleColor = u.role === "admin" ? "#33D17E" : u.role === "coach" ? "#3FA6E0" : "#F2A93B";
-
-                  if (isEditing) {
-                    return (
-                      <div key={`card-${u.id}`} data-testid="admin-user-card" className="bg-[#161D26] border border-[#3FA6E0] p-3.5 rounded-lg space-y-2.5">
-                        <div className="text-xs font-bold text-[#3FA6E0]">EDITING USER</div>
-                        <div>
-                          <label className="text-[10px] text-[#7C8898] block mb-1">FULL NAME</label>
-                          <input
-                            data-testid="admin-edit-name-input"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            placeholder="Full Name"
-                            className="w-full px-3 py-2 rounded text-xs bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-[#7C8898] block mb-1">EMAIL ADDRESS</label>
-                          <input
-                            data-testid="admin-edit-email-input"
-                            value={editEmail}
-                            onChange={(e) => setEditEmail(e.target.value)}
-                            placeholder={u.role === "driver" ? "Email (optional)" : "Email (required)"}
-                            className="w-full px-3 py-2 rounded text-xs bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
-                          />
-                          {editError && <div data-testid="admin-edit-error" className="text-[10px] text-[#E5473C] mt-1">{editError}</div>}
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                          <button
-                            data-testid="admin-edit-save-btn"
-                            onClick={handleSaveEdit}
-                            className="flex-1 py-2 rounded font-bold text-xs bg-[#33D17E] text-[#0A0E13] min-h-[40px] cursor-pointer"
-                          >
-                            Save Changes
-                          </button>
-                          <button
-                            data-testid="admin-edit-cancel-btn"
-                            onClick={() => setEditingUserId(null)}
-                            className="px-4 py-2 rounded text-xs text-[#7C8898] border border-[#232B35] bg-[#0A0E13] min-h-[40px] cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={`card-${u.id}`}
-                      data-testid="admin-user-card"
-                      className="bg-[#161D26] border border-[#232B35] p-3.5 rounded-lg space-y-2.5 hover:border-[#3A4553] transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div data-testid={`admin-user-name-${u.id}`} className="font-bold text-sm text-[#E7EDF3]">{u.name}</div>
-                          <div data-testid={`admin-user-username-${u.id}`} className="text-xs text-[#3FA6E0] font-bold">{u.username || "—"}</div>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            data-testid={`admin-user-role-${u.id}`}
-                            className="px-2 py-0.5 rounded text-[10px] uppercase font-bold"
-                            style={{
-                              color: roleColor,
-                              border: `1px solid ${roleColor}44`,
-                              background: `${roleColor}10`,
-                            }}
-                          >
-                            {u.role}
-                          </span>
-                          <span data-testid={`admin-user-status-${u.id}`}>
-                            <Chip color={isActive ? "#33D17E" : "#E5473C"}>
-                              {isActive ? "Active" : "Inactive"}
-                            </Chip>
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-[#7C8898] border-t border-[#232B35]/60 pt-2 flex items-center justify-between">
-                        <span data-testid={`admin-user-email-${u.id}`} className="truncate max-w-[200px]">{u.email || "No email assigned"}</span>
-                      </div>
-
-                      <div className="flex gap-2 pt-1 border-t border-[#232B35]/60">
-                        <button
-                          data-testid={`admin-user-edit-btn-${u.id}`}
-                          disabled={!!fetchError}
-                          onClick={() => startEdit(u)}
-                          className={`flex-1 py-2 min-h-[40px] rounded text-xs font-bold transition-colors ${
-                            fetchError ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-[#3FA6E0]/10"
-                          }`}
-                          style={{ color: "#3FA6E0", border: "1px solid #3FA6E044", background: "#3FA6E010" }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          data-testid={`admin-user-deactivate-btn-${u.id}`}
-                          disabled={!!fetchError || isSelfDeactivating}
-                          onClick={() => handleToggleDeactivate(u)}
-                          className={`flex-1 py-2 min-h-[40px] rounded text-xs font-bold transition-colors font-mono ${
-                            fetchError || isSelfDeactivating ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-                          }`}
-                          style={{
-                            color: isActive ? "#E5473C" : "#33D17E",
-                            border: `1px solid ${isActive ? "#E5473C44" : "#33D17E44"}`,
-                            background: `${isActive ? "#E5473C10" : "#33D17E10"}`,
-                          }}
-                        >
-                          {isActive ? "Deactivate" : "Reactivate"}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Desktop Tabular View (>= md) */}
-              <div className="hidden md:block overflow-x-auto">
-                <table data-testid="admin-user-table" className="w-full text-xs font-mono">
-                  <thead>
-                    <tr className="text-[10px] uppercase text-left border-b border-[#232B35]" style={{ color: "#7C8898" }}>
-                      <th className="pb-2 font-semibold">User</th>
-                      <th className="pb-2 font-semibold">Username ID</th>
-                      <th className="pb-2 font-semibold">Email</th>
-                      <th className="pb-2 font-semibold">Role</th>
-                      <th className="pb-2 font-semibold">Status</th>
-                      <th className="pb-2 text-right font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#232B35]">
-                    {users.map((u) => {
-                      const isEditing = editingUserId === u.id;
-                      const isActive = u.is_active !== false && u.status !== "Inactive";
-                      const isSelf = currentUser && (currentUser.id === u.id || (currentUser.email && u.email && currentUser.email === u.email));
-                      const isSelfDeactivating = isSelf && isActive;
-                      const roleColor = u.role === "admin" ? "#33D17E" : u.role === "coach" ? "#3FA6E0" : "#F2A93B";
-
-                      if (isEditing) {
-                        return (
-                          <tr key={`tbl-${u.id}`} data-testid="admin-user-row" data-user-id={u.id} className="bg-[#161D26]">
-                            <td className="py-2.5 px-1" colSpan={2}>
-                              <input
-                                data-testid="admin-edit-name-input"
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                placeholder="Full Name"
-                                className="w-full px-2 py-1 rounded text-xs font-mono bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
-                              />
-                            </td>
-                            <td className="py-2.5 px-1" colSpan={2}>
-                              <input
-                                data-testid="admin-edit-email-input"
-                                value={editEmail}
-                                onChange={(e) => setEditEmail(e.target.value)}
-                                placeholder={u.role === "driver" ? "Email (optional)" : "Email (required)"}
-                                className="w-full px-2 py-1 rounded text-xs font-mono bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
-                              />
-                              {editError && <div data-testid="admin-edit-error" className="text-[10px] text-[#E5473C] mt-0.5">{editError}</div>}
-                            </td>
-                            <td className="py-2.5 text-center font-mono text-[10px] text-[#7C8898]">
-                              {u.role.toUpperCase()}
-                            </td>
-                            <td className="py-2.5 text-right space-x-2">
-                              <button
-                                data-testid="admin-edit-save-btn"
-                                onClick={handleSaveEdit}
-                                className="text-[10px] px-2 py-1 rounded cursor-pointer font-bold bg-[#33D17E] text-[#0A0E13]"
-                              >
-                                Save
-                              </button>
-                              <button
-                                data-testid="admin-edit-cancel-btn"
-                                onClick={() => setEditingUserId(null)}
-                                className="text-[10px] px-2 py-1 rounded cursor-pointer text-[#7C8898] border border-[#232B35]"
-                              >
-                                Cancel
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return (
-                        <tr key={`tbl-${u.id}`} data-testid="admin-user-row" data-user-id={u.id} className="hover:bg-[#161D26] transition-colors">
-                          <td data-testid={`admin-user-name-${u.id}`} className="py-2.5 font-bold">{u.name}</td>
-                          <td data-testid={`admin-user-username-${u.id}`} className="py-2.5 text-[#3FA6E0] font-bold">{u.username || "—"}</td>
-                          <td data-testid={`admin-user-email-${u.id}`} className="py-2.5 text-[#7C8898]">{u.email || "—"}</td>
-                          <td className="py-2.5">
-                            <span
-                              data-testid={`admin-user-role-${u.id}`}
-                              className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold"
-                              style={{
-                                color: roleColor,
-                                border: `1px solid ${roleColor}44`,
-                                background: `${roleColor}10`,
-                              }}
-                            >
-                              {u.role}
-                            </span>
-                          </td>
-                          <td className="py-2.5">
-                            <span data-testid={`admin-user-status-${u.id}`}>
-                              <Chip color={isActive ? "#33D17E" : "#E5473C"}>
-                                {isActive ? "Active" : "Inactive"}
-                              </Chip>
-                            </span>
-                          </td>
-                          <td className="py-2.5 text-right space-x-2">
-                            <button
-                              data-testid={`admin-user-edit-btn-${u.id}`}
-                              disabled={!!fetchError}
-                              onClick={() => startEdit(u)}
-                              className={`text-[10px] px-2.5 py-1.5 rounded transition-colors ${
-                                fetchError ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-[#3FA6E0]/10"
-                              }`}
-                              style={{ color: "#3FA6E0", border: "1px solid #3FA6E044" }}
-                              title={fetchError ? "Actions disabled while user roster fetch fails" : "Edit user"}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              data-testid={`admin-user-deactivate-btn-${u.id}`}
-                              disabled={!!fetchError || isSelfDeactivating}
-                              onClick={() => handleToggleDeactivate(u)}
-                              className={`text-[10px] px-2.5 py-1.5 rounded transition-colors font-mono ${
-                                fetchError || isSelfDeactivating ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-                              }`}
-                              style={{
-                                color: isActive ? "#E5473C" : "#33D17E",
-                                border: `1px solid ${isActive ? "#E5473C44" : "#33D17E44"}`,
-                                background: `${isActive ? "#E5473C10" : "#33D17E10"}`,
-                              }}
-                              title={
-                                fetchError
-                                  ? "Actions disabled while user roster fetch fails"
-                                  : isSelfDeactivating
-                                  ? "You cannot deactivate your own admin account"
-                                  : isActive
-                                  ? "Deactivate user"
-                                  : "Reactivate user"
-                              }
-                            >
-                              {isActive ? "Deactivate" : "Reactivate"}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <UserManagementTable
+              users={users}
+              currentUser={currentUser}
+              fetchError={fetchError}
+              setFetchError={setFetchError}
+              editingUserId={editingUserId}
+              setEditingUserId={setEditingUserId}
+              editName={editName}
+              setEditName={setEditName}
+              editEmail={editEmail}
+              setEditEmail={setEditEmail}
+              editError={editError}
+              startEdit={startEdit}
+              handleSaveEdit={handleSaveEdit}
+              handleToggleDeactivate={handleToggleDeactivate}
+            />
           </Panel>
 
-
           {/* System Analytics & Audit Overview */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Panel testId="admin-audit-log-panel" title="Security & Audit Trail" icon={Shield}>
-              <div className="space-y-3">
-                <p className="text-xs font-mono text-[#E7EDF3] flex items-center justify-between">
-                  <span>
-                    <strong className="text-[#3FA6E0] font-bold">{audit30DayCount}</strong> user modification{audit30DayCount === 1 ? "" : "s"} logged to audit store in the last 30 days.
-                  </span>
-                  <span className="text-[10px] text-[#7C8898] uppercase">CSRF & Session Enforced</span>
-                </p>
-
-                {/* Audit Log Entries List */}
-                <div className="max-h-48 overflow-y-auto divide-y divide-[#232B35] rounded border border-[#232B35] bg-[#0A0E13] p-2">
-                  {auditLogs.length === 0 ? (
-                    <div className="text-[11px] font-mono text-[#7C8898] py-2 text-center">
-                      No user modification audit entries recorded yet.
-                    </div>
-                  ) : (
-                    auditLogs.map((entry) => {
-                      const actionColor =
-                        entry.action === "CREATE_USER" || entry.action === "REACTIVATE_USER"
-                          ? "#33D17E"
-                          : entry.action === "DEACTIVATE_USER" || entry.action === "DELETE_USER"
-                          ? "#E5473C"
-                          : "#3FA6E0";
-
-                      return (
-                        <div key={entry.id} data-testid="admin-audit-log-entry" className="py-1.5 px-1 text-[11px] font-mono flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold"
-                              style={{
-                                color: actionColor,
-                                border: `1px solid ${actionColor}44`,
-                                background: `${actionColor}10`,
-                              }}
-                            >
-                              {entry.action.replace("_", " ")}
-                            </span>
-                            <span className="text-[#E7EDF3] font-medium">
-                              {entry.details || `${entry.actor_name} -> ${entry.target_user_name}`}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-[#7C8898]">
-                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </Panel>
-
-            <Panel title="Telemetry Diagnostics" icon={Activity}>
-              <div className="space-y-3 font-mono text-xs text-[#E7EDF3]">
-                <div className="p-3 rounded border border-[#232B35] bg-[#0A0E13] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#7C8898]">Active Registered Nodes:</span>
-                    <span className="font-bold text-[#33D17E]">
-                      {diagnostics ? diagnostics.active_nodes : 0} / {diagnostics ? diagnostics.total_nodes : 0} Connected
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#7C8898]">Packet Drops (60 min):</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-[#E7EDF3]">
-                        {diagnostics ? diagnostics.packet_drops_last_60_min : 0}
-                      </span>
-                      {(import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false" || diagnostics?.is_simulated_packet_data) && (
-                        <span className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
-                          SIMULATED DATA — not live
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-[#232B35] pt-2 mt-2">
-                    <span className="text-[#7C8898]">Database ORM Query Time:</span>
-                    <span className="font-bold text-[#3FA6E0]">
-                      {diagnostics ? diagnostics.db_query_time_ms : 0}ms
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Panel>
-          </div>
+          <AuditAndDiagnostics
+            auditLogs={auditLogs}
+            audit30DayCount={audit30DayCount}
+            diagnostics={diagnostics}
+          />
         </main>
       </div>
 
@@ -885,4 +165,3 @@ export function AdminDashboard() {
     </div>
   );
 }
-
