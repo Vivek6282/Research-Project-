@@ -91,6 +91,9 @@ def enqueue_telemetry(reading_payload):
         log_rate_limited_warning("Telemetry queue is full (500 items). Dropping readings.")
 
 
+HTTP_CLIENT_SESSION = requests.Session()
+
+
 def _post_batch(batch_readings, session_id, device_token, backend_url):
     """
     Sends batch of readings to backend REST endpoint with timeout and exponential backoff retry.
@@ -106,7 +109,7 @@ def _post_batch(batch_readings, session_id, device_token, backend_url):
     max_retry_attempts = 3
     for attempt_number in range(1, max_retry_attempts + 1):
         try:
-            http_response = requests.post(endpoint_url, headers=auth_headers, json=batch_readings, timeout=3)
+            http_response = HTTP_CLIENT_SESSION.post(endpoint_url, headers=auth_headers, json=batch_readings, timeout=3)
             if http_response.status_code in (200, 201):
                 return True
             elif http_response.status_code == 429:
@@ -147,15 +150,14 @@ def _backend_worker(session_id, device_token, backend_url):
 
         while len(current_batch) < 10:
             remaining_window = 1.0 - (time.time() - batch_start_timestamp)
-            if remaining_window <= 0:
+            if remaining_window <= 0 and not SHUTDOWN_EVENT.is_set():
                 break
             try:
-                queued_reading = TELEMETRY_QUEUE.get(timeout=max(0.01, remaining_window))
+                get_timeout = 0.02 if SHUTDOWN_EVENT.is_set() else max(0.01, remaining_window)
+                queued_reading = TELEMETRY_QUEUE.get(timeout=get_timeout)
                 current_batch.append(queued_reading)
             except queue.Empty:
-                if SHUTDOWN_EVENT.is_set():
-                    break
-                if time.time() - batch_start_timestamp >= 1.0:
+                if SHUTDOWN_EVENT.is_set() or (time.time() - batch_start_timestamp >= 1.0):
                     break
 
         if not current_batch:
@@ -201,17 +203,13 @@ def start_backend_worker(session_id, device_token, backend_url=BACKEND_URL):
 
 def flush_backend_telemetry(timeout_seconds=5.0):
     """
-    Stops worker thread, drains remaining queued items within timeout, and prints summary.
+    Signals worker thread to flush all remaining items and wait for completion.
     Input: timeout_seconds (float).
     Output: None.
     """
     SHUTDOWN_EVENT.set()
     if BACKEND_WORKER_THREAD and BACKEND_WORKER_THREAD.is_alive():
-        deadline = time.time() + timeout_seconds
-        while time.time() < deadline and not TELEMETRY_QUEUE.empty():
-            time.sleep(0.05)
-        remaining_wait = max(0.1, deadline - time.time())
-        BACKEND_WORKER_THREAD.join(timeout=remaining_wait)
+        BACKEND_WORKER_THREAD.join(timeout=timeout_seconds)
 
     with STATS_LOCK:
         unsent_count = TELEMETRY_QUEUE.qsize() + IN_FLIGHT_COUNT
