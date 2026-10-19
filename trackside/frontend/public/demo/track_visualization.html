@@ -693,6 +693,58 @@
           </div>
         </div>
 
+        <!-- Corner Limits (g) Section -->
+        <div id="corner-limits-section" style="display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: var(--panel-elevated); border: 1px solid var(--line); border-radius: 6px;" class="mono">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
+            <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">
+              Corner limits (g)
+            </span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label for="select-preset" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">PRESET:</label>
+              <select id="select-preset" class="endpoint-input mono" style="padding: 3px 8px; font-size: 11px; background: #080C10; color: var(--text); border: 1px solid var(--line); border-radius: 4px; cursor: pointer;">
+                <option value="">Presets...</option>
+                <option value="defaults">Defaults</option>
+                <option value="cautious">Cautious</option>
+              </select>
+              <button id="btn-reset-limits" type="button" class="btn-connect mono" style="padding: 3px 10px; font-size: 11px; background: transparent; border: 1px solid var(--line); color: var(--text-muted); font-weight: 600; cursor: pointer;">
+                RESET
+              </button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px;">
+            <!-- Hairpin -->
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <label for="input-limit-hairpin" style="font-size: 11px; font-weight: 600; color: var(--text);">Hairpin</label>
+              <input type="number" id="input-limit-hairpin" class="endpoint-input mono" step="0.01" style="width: 100%; text-align: center; font-size: 12px;" />
+              <span id="range-limit-hairpin" style="font-size: 10px; color: var(--text-muted);">1.00 – 1.15 g</span>
+              <span id="err-limit-hairpin" style="font-size: 10px; color: var(--stage-intervene); display: none;"></span>
+            </div>
+
+            <!-- Sweeper -->
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <label for="input-limit-sweeper" style="font-size: 11px; font-weight: 600; color: var(--text);">Sweeper</label>
+              <input type="number" id="input-limit-sweeper" class="endpoint-input mono" step="0.01" style="width: 100%; text-align: center; font-size: 12px;" />
+              <span id="range-limit-sweeper" style="font-size: 10px; color: var(--text-muted);">1.00 – 1.55 g</span>
+              <span id="err-limit-sweeper" style="font-size: 10px; color: var(--stage-intervene); display: none;"></span>
+            </div>
+
+            <!-- Chicane -->
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <label for="input-limit-chicane" style="font-size: 11px; font-weight: 600; color: var(--text);">Chicane</label>
+              <input type="number" id="input-limit-chicane" class="endpoint-input mono" step="0.01" style="width: 100%; text-align: center; font-size: 12px;" />
+              <span id="range-limit-chicane" style="font-size: 10px; color: var(--text-muted);">1.00 – 1.30 g</span>
+              <span id="err-limit-chicane" style="font-size: 10px; color: var(--stage-intervene); display: none;"></span>
+            </div>
+          </div>
+
+          <!-- Active Limits in Force & Sync Status -->
+          <div id="limits-in-force-container" style="display: none; flex-direction: column; gap: 3px; padding-top: 8px; border-top: 1px solid var(--line);">
+            <span id="limits-in-force-text" style="font-size: 11px; font-weight: 600; color: var(--text);"></span>
+            <span id="limits-synced-note" style="font-size: 11px; font-weight: 600;"></span>
+          </div>
+        </div>
+
         <!-- Status Line -->
         <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 10px 14px; background: var(--panel-elevated); border: 1px solid var(--line); border-radius: 6px;" class="mono">
           <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">STATUS:</span>
@@ -1268,6 +1320,113 @@
       const demoOutputLines = document.getElementById("demo-output-lines");
       const demoActionButtons = document.getElementById("demo-action-buttons");
 
+      // Corner Limits DOM Elements
+      const selectPreset = document.getElementById("select-preset");
+      const btnResetLimits = document.getElementById("btn-reset-limits");
+      const limitsInForceContainer = document.getElementById("limits-in-force-container");
+      const limitsInForceText = document.getElementById("limits-in-force-text");
+      const limitsSyncedNote = document.getElementById("limits-synced-note");
+
+      const cornerInputs = {
+        Hairpin: document.getElementById("input-limit-hairpin"),
+        Sweeper: document.getElementById("input-limit-sweeper"),
+        Chicane: document.getElementById("input-limit-chicane"),
+      };
+
+      const cornerRanges = {
+        Hairpin: document.getElementById("range-limit-hairpin"),
+        Sweeper: document.getElementById("range-limit-sweeper"),
+        Chicane: document.getElementById("range-limit-chicane"),
+      };
+
+      const cornerErrors = {
+        Hairpin: document.getElementById("err-limit-hairpin"),
+        Sweeper: document.getElementById("err-limit-sweeper"),
+        Chicane: document.getElementById("err-limit-chicane"),
+      };
+
+      let cachedLimitRanges = null;
+      let limitsInitialized = false;
+
+      function clearCornerError(corner) {
+        const errEl = cornerErrors[corner];
+        const inputEl = cornerInputs[corner];
+        if (errEl) {
+          errEl.textContent = "";
+          errEl.style.display = "none";
+        }
+        if (inputEl) {
+          inputEl.style.borderColor = "var(--line)";
+        }
+      }
+
+      function validateCorner(corner) {
+        if (!cachedLimitRanges || !cachedLimitRanges[corner]) return true;
+        const r = cachedLimitRanges[corner];
+        const inputEl = cornerInputs[corner];
+        const errEl = cornerErrors[corner];
+        const rawVal = inputEl.value.trim();
+
+        if (!rawVal || isNaN(rawVal)) {
+          errEl.textContent = "Must be a valid number";
+          errEl.style.display = "block";
+          inputEl.style.borderColor = "var(--stage-intervene)";
+          return false;
+        }
+
+        const val = parseFloat(rawVal);
+        const parts = rawVal.split(".");
+        if (parts.length > 1 && parts[1].length > 2) {
+          errEl.textContent = "At most 2 decimals allowed";
+          errEl.style.display = "block";
+          inputEl.style.borderColor = "var(--stage-intervene)";
+          return false;
+        }
+
+        if (val < r.min || val > r.max) {
+          errEl.textContent = `Allowed: ${r.min.toFixed(2)} – ${r.max.toFixed(2)} g`;
+          errEl.style.display = "block";
+          inputEl.style.borderColor = "var(--stage-intervene)";
+          return false;
+        }
+
+        clearCornerError(corner);
+        return true;
+      }
+
+      ["Hairpin", "Sweeper", "Chicane"].forEach((corner) => {
+        if (cornerInputs[corner]) {
+          cornerInputs[corner].addEventListener("input", () => validateCorner(corner));
+        }
+      });
+
+      selectPreset.addEventListener("change", function () {
+        if (!cachedLimitRanges) return;
+        const mode = selectPreset.value;
+        if (mode === "defaults") {
+          for (const [corner, r] of Object.entries(cachedLimitRanges)) {
+            cornerInputs[corner].value = r.default.toFixed(2);
+            validateCorner(corner);
+          }
+        } else if (mode === "cautious") {
+          for (const [corner, r] of Object.entries(cachedLimitRanges)) {
+            // Cautious = max(1.00, default * 0.85) rounded to 2 decimals
+            const cautiousVal = Math.max(1.00, Number((r.default * 0.85).toFixed(2)));
+            cornerInputs[corner].value = cautiousVal.toFixed(2);
+            validateCorner(corner);
+          }
+        }
+      });
+
+      btnResetLimits.addEventListener("click", function () {
+        if (!cachedLimitRanges) return;
+        selectPreset.value = "";
+        for (const [corner, r] of Object.entries(cachedLimitRanges)) {
+          cornerInputs[corner].value = r.default.toFixed(2);
+          clearCornerError(corner);
+        }
+      });
+
       let csrfTokenCached = null;
 
       function getCookie(name) {
@@ -1298,6 +1457,59 @@
       }
 
       function updateDemoStatusUI(data) {
+        // Handle limit_ranges initialization and ranges display
+        if (data.limit_ranges) {
+          cachedLimitRanges = data.limit_ranges;
+          for (const [corner, r] of Object.entries(cachedLimitRanges)) {
+            if (cornerRanges[corner]) {
+              cornerRanges[corner].textContent = `${r.min.toFixed(2)} – ${r.max.toFixed(2)} g`;
+            }
+            if (cornerInputs[corner]) {
+              cornerInputs[corner].min = r.min;
+              cornerInputs[corner].max = r.max;
+              if (!limitsInitialized) {
+                cornerInputs[corner].value = r.default.toFixed(2);
+              }
+            }
+          }
+          limitsInitialized = true;
+        }
+
+        // Disable/enable corner limits inputs during active run
+        const isRunning = !!data.running;
+        for (const corner of ["Hairpin", "Sweeper", "Chicane"]) {
+          if (cornerInputs[corner]) cornerInputs[corner].disabled = isRunning;
+        }
+        if (selectPreset) selectPreset.disabled = isRunning;
+        if (btnResetLimits) btnResetLimits.disabled = isRunning;
+
+        // Show limits in force and sync status
+        if (data.limits) {
+          limitsInForceContainer.style.display = "flex";
+          const h = data.limits.Hairpin !== undefined ? data.limits.Hairpin.toFixed(2) : "--";
+          const s = data.limits.Sweeper !== undefined ? data.limits.Sweeper.toFixed(2) : "--";
+          const c = data.limits.Chicane !== undefined ? data.limits.Chicane.toFixed(2) : "--";
+          limitsInForceText.textContent = `Limits in force: Hairpin ${h} / Sweeper ${s} / Chicane ${c}`;
+
+          if (data.limits_synced === true) {
+            limitsSyncedNote.textContent = "Dashboards use the same limits.";
+            limitsSyncedNote.style.color = "var(--stage-nominal)";
+            limitsSyncedNote.style.display = "block";
+          } else if (data.limits_synced === false && data.limits_note) {
+            limitsSyncedNote.textContent = data.limits_note;
+            limitsSyncedNote.style.color = "var(--stage-monitoring)";
+            limitsSyncedNote.style.display = "block";
+          } else {
+            limitsSyncedNote.textContent = "";
+            limitsSyncedNote.style.display = "none";
+          }
+
+          // Update corner chips under the track
+          if (zonePills.hairpin) zonePills.hairpin.textContent = `HAIRPIN (${h}g)`;
+          if (zonePills.sweeper) zonePills.sweeper.textContent = `SWEEPER (${s}g)`;
+          if (zonePills.chicane) zonePills.chicane.textContent = `CHICANE (${c}g)`;
+        }
+
         // Start is disabled while running and Stop while stopped
         if (data.running) {
           btnStartDemo.disabled = true;
@@ -1376,6 +1588,19 @@
       // Start demo click
       btnStartDemo.addEventListener("click", async function () {
         btnStartDemo.disabled = true;
+
+        // Validate corner limits inline before start
+        let allValid = true;
+        for (const corner of ["Hairpin", "Sweeper", "Chicane"]) {
+          if (!validateCorner(corner)) {
+            allValid = false;
+          }
+        }
+        if (!allValid) {
+          btnStartDemo.disabled = false;
+          return;
+        }
+
         const isContinuous = chkContinuous.checked;
         let payload = {};
 
@@ -1391,6 +1616,23 @@
           payload = { mode: "laps", laps: lapsVal };
         }
 
+        // Send "limits" only when at least one value differs from its default
+        if (cachedLimitRanges) {
+          const limitsObj = {};
+          let hasDiff = false;
+          for (const corner of ["Hairpin", "Sweeper", "Chicane"]) {
+            const val = parseFloat(cornerInputs[corner].value);
+            const def = cachedLimitRanges[corner].default;
+            if (Math.abs(val - def) > 0.001) {
+              hasDiff = true;
+            }
+            limitsObj[corner] = Number(val.toFixed(2));
+          }
+          if (hasDiff) {
+            payload.limits = limitsObj;
+          }
+        }
+
         try {
           const token = await ensureCsrfToken();
           const res = await fetch("/api/demo/simulator/start/", {
@@ -1404,8 +1646,17 @@
           });
 
           if (res.status === 200) {
+            const resData = await res.json().catch(() => ({}));
             demoStatusText.textContent = "Starting simulator...";
             demoStatusText.style.color = "var(--accent-blue)";
+            if (resData.limits) {
+              updateDemoStatusUI({
+                running: true,
+                limits: resData.limits,
+                limits_synced: resData.limits_synced,
+                limits_note: resData.limits_note,
+              });
+            }
             setTimeout(pollDemoStatus, 400);
           } else {
             const errData = await res.json().catch(() => ({}));
