@@ -103,6 +103,7 @@ To store a demo run:
 | `--continuous` | `False` | Run laps continuously until stopped with `Ctrl+C` |
 | `--laps <N>` | `5` | Set total number of laps (set `0` for continuous) |
 | `--delay <seconds>` | `0.2` | Interval between telemetry readings (e.g. `0.1` for faster pace) |
+| `--limit <NAME=VALUE>` | `[]` | Custom corner limit, repeatable (e.g. `--limit Hairpin=1.00`) |
 | `--ws-host <host>` | `127.0.0.1` | Local WebSocket host address |
 | `--ws-port <port>` | `8765` | Local WebSocket broadcaster port |
 | `--dry-run` | `False` | Skip opening Serial port explicitly |
@@ -111,7 +112,56 @@ To store a demo run:
 
 ---
 
-## 6. WebSocket Protocol Format
+## 6. Custom corner limits
+
+Coaches can configure stricter cornering g-force limits (e.g. a cautious profile for beginners or wet track conditions) so the glove, visualizer, and backend dashboards all evaluate against the same safety limits.
+
+### Allowed Range and Safety Rules
+* **Range per corner:** `1.00 g` up to that corner's default, inclusive, with at most 2 decimal places:
+  * **Hairpin:** `1.00` to `1.15 g` (default: `1.15 g`, cautious preset: `1.00 g`)
+  * **Sweeper:** `1.00` to `1.55 g` (default: `1.55 g`, cautious preset: `1.32 g`)
+  * **Chicane:** `1.00` to `1.30 g` (default: `1.30 g`, cautious preset: `1.10 g`)
+* **Why:** Trackside enforces a strict safety rule: a coach may tighten a threshold to increase safety, but a custom threshold can never exceed the zone's calibrated physical safety limit (never above default). Limits cannot be set below `1.00 g` (the plausible sprint-kart cornering floor).
+
+### The `--limit` Flag
+The simulator accepts repeatable `--limit NAME=VALUE` flags from the CLI:
+* `NAME`: `Hairpin`, `Sweeper`, or `Chicane` (case-insensitive).
+* `VALUE`: float between `0.50` and `2.50`.
+* Unknown corner names or malformed values exit immediately with code `2`.
+
+**Example:**
+```bash
+python virtual_lap_simulator.py --continuous --limit Hairpin=1.00 --limit Sweeper=1.32 --limit Chicane=1.10
+```
+
+### Precedence Order
+At start-up, the simulator resolves corner limits using the following precedence (highest to lowest):
+1. **`--limit` CLI flag** (custom limit specified for this run)
+2. **Backend zone threshold** (fetched from backend at start-up if `SESSION_ID` is configured)
+3. **Built-in default** (`1.15 g` Hairpin, `1.55 g` Sweeper, `1.30 g` Chicane)
+
+Start-up logs clearly declare the limit in force and its origin for each corner:
+```
+Hairpin limit 1.00 g (custom)
+Sweeper limit 1.55 g (backend zone)
+Chicane limit 1.30 g (default)
+```
+
+### Backend Synchronization (`SESSION_ID`)
+When started from the Demo Control panel on `/demo/track_visualization.html`, custom limits are automatically synchronized with the backend:
+* The backend reads `SESSION_ID` from `trackside/demo/.env` via `dotenv_values` (without polluting the process environment).
+* If `SESSION_ID` resolves to a valid session, the backend checks the driver's current active threshold for each zone. If the requested limit differs from the active threshold, a new row is inserted into `DriverZoneThreshold` (`driver=session.driver, zone=zone, custom_threshold_g=limit, set_by=coach`) wrapped in `transaction.atomic()` with `full_clean()` validation.
+* Because the table is insert-only, existing rows are never modified, and no insert occurs if limits have not changed.
+* If `SESSION_ID` is missing or the session cannot be found, sync is skipped and reported in the status note.
+
+### Alert Discrepancy Warning (Manual CLI Execution)
+Backend alert ingestion always evaluates telemetry against the zone's calibrated limit or the driver's active `DriverZoneThreshold` stored in the database.
+
+If you launch the simulator from a terminal with a value **above** a zone default (for example `--limit Hairpin=1.40`), the simulator and physical glove will use `1.40 g`, but backend alerts will trigger at the calibrated `1.15 g`. This causes the backend alerts on the dashboard to differ from the glove's LED signals. To keep the glove, visualizer, and backend dashboards in complete synchronization, always configure limits through the Demo Control panel or keep values within allowed ranges.
+
+---
+
+## 7. WebSocket Protocol Format
 
 Each reading broadcast by `virtual_lap_simulator.py` uses this standardized JSON schema:
 
