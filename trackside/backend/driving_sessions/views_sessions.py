@@ -139,10 +139,10 @@ class SessionFinishView(generics.GenericAPIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Set ended_at to current time only if not already set (idempotent)
-        if session.ended_at is None:
-            session.ended_at = timezone.now()
-            session.save(update_fields=["ended_at"])
+        # Atomically set ended_at to current time only if currently null.
+        # This prevents race conditions where concurrent calls might both write and alter the timestamp.
+        Session.objects.filter(pk=session.pk, ended_at__isnull=True).update(ended_at=timezone.now())
+        session.refresh_from_db()
 
         serializer = self.get_serializer(session)
         return Response(serializer.data, status=status.HTTP_200_OK)

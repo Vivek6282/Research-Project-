@@ -100,6 +100,19 @@ class TestSessionFinishEndpoint(TestCase):
         self.session_a.refresh_from_db()
         self.assertEqual(self.session_a.ended_at, first_ended_at)
 
+    def test_finish_does_not_overwrite_preset_ended_at(self):
+        """Pre-set ended_at is preserved atomically and not overwritten by finish."""
+        preset_time = timezone.now() - timedelta(hours=1)
+        self.session_a.ended_at = preset_time
+        self.session_a.save(update_fields=["ended_at"])
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.token_a}")
+        res = self.client.post(f"/api/sessions/{self.session_a.id}/finish/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.session_a.refresh_from_db()
+        self.assertEqual(self.session_a.ended_at, preset_time)
+
     def test_best_lap_now_includes_last_lap_after_finish(self):
         """When ended_at is set by finish, the last in-progress lap is included in best lap."""
         base_time = timezone.now() - timedelta(minutes=5)
