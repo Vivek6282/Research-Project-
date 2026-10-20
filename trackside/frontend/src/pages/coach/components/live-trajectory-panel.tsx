@@ -8,12 +8,11 @@ import { DriverProfile } from "../types";
 
 interface LiveTrajectoryPanelProps {
   selectedDriver: DriverProfile;
-  currentGForce: number;
+  currentGForce: number | null;
   currentThreshold: number;
-  currentSpeed: number;
+  currentSpeed: number | null;
   actualSpeedPath: number[];
   targetSpeedPath: number[];
-  isMockTelemetry: boolean;
 }
 
 export function LiveTrajectoryPanel({
@@ -23,7 +22,6 @@ export function LiveTrajectoryPanel({
   currentSpeed,
   actualSpeedPath,
   targetSpeedPath,
-  isMockTelemetry,
 }: LiveTrajectoryPanelProps) {
   const buildSvgPath = (points: number[]) => {
     const step = 800 / (points.length - 1);
@@ -45,19 +43,11 @@ export function LiveTrajectoryPanel({
           <span className="text-xs text-[#7C8898]">
             KART #{selectedDriver.kart} · SESSION 3 · LAP 7/12
           </span>
-          {isMockTelemetry && (
-            <span
-              data-testid="coach-simulated-data-badge"
-              className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[10px] px-2 py-0.5 rounded-[2px] uppercase tracking-wider animate-pulse"
-            >
-              SIMULATED DATA — not live
-            </span>
-          )}
         </div>
         {/* Live Signal Indicator & Stage Label */}
         <SignalStrip
           testId="coach-signal-strip"
-          currentG={currentGForce}
+          currentG={currentGForce !== null ? currentGForce : undefined}
           threshold={currentThreshold}
           size="md"
           showLabel={true}
@@ -67,10 +57,16 @@ export function LiveTrajectoryPanel({
       {/* Readouts Row */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-baseline gap-1.5 font-mono">
-          <span className="text-3xl sm:text-4xl font-extrabold text-[#3FA6E0] tracking-tight">
-            {currentSpeed}
-          </span>
-          <span className="text-xs text-[#7C8898]">km/h</span>
+          {currentSpeed !== null ? (
+            <>
+              <span className="text-3xl sm:text-4xl font-extrabold text-[#3FA6E0] tracking-tight">
+                {currentSpeed}
+              </span>
+              <span className="text-xs text-[#7C8898]">km/h</span>
+            </>
+          ) : (
+            <span className="text-sm font-bold text-[#7C8898]">Waiting for live data</span>
+          )}
         </div>
 
         <div className="grid grid-cols-4 gap-4 sm:flex sm:items-center sm:gap-6 font-mono text-xs w-full sm:w-auto">
@@ -88,7 +84,9 @@ export function LiveTrajectoryPanel({
           </div>
           <div>
             <span className="text-[10px] text-[#7C8898] block mb-0.5">G-FORCE</span>
-            <span className="font-semibold text-[#E7EDF3]">{currentGForce} g</span>
+            <span className="font-semibold text-[#E7EDF3]">
+              {currentGForce !== null ? `${currentGForce} g` : "—"}
+            </span>
           </div>
         </div>
       </div>

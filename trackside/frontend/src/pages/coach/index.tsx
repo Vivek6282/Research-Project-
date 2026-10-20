@@ -71,7 +71,6 @@ export function CoachDashboard() {
     hrHistory,
     spo2History,
     breathingHistory,
-    isMockTelemetry,
   } = useCoachDashboard();
 
   return (
@@ -149,7 +148,6 @@ export function CoachDashboard() {
                 currentSpeed={currentSpeed}
                 actualSpeedPath={actualSpeedPath}
                 targetSpeedPath={targetSpeedPath}
-                isMockTelemetry={isMockTelemetry}
               />
 
               {/* LIVE TRACK VIEW Panel */}

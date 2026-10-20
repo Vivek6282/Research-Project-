@@ -10,17 +10,15 @@ import { SignalStrip } from "../../../components/ui/signal-strip";
 import { StaleDataBadge } from "../../../components/ui/stale-data-badge";
 
 interface TelemetryPanelProps {
-  currentG: number;
+  currentG: number | null;
   activeThreshold: number;
   lastSyncTime: number;
-  isMockTelemetry: boolean;
 }
 
 export function TelemetryPanel({
   currentG,
   activeThreshold,
   lastSyncTime,
-  isMockTelemetry,
 }: TelemetryPanelProps) {
   return (
     <Panel testId="driver-panel-telemetry" title="Live Driver Telemetry & Glove LED Feed" icon={Activity}>
@@ -29,18 +27,16 @@ export function TelemetryPanel({
           <div className="flex items-center gap-2 mb-1">
             <p className="text-[10px] text-[#7C8898] uppercase">Active Zone: Turn 4 Hairpin</p>
             <StaleDataBadge lastSyncedTimestamp={lastSyncTime} />
-            {isMockTelemetry && (
-              <span
-                data-testid="driver-simulated-data-badge"
-                className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse"
-              >
-                SIMULATED DATA — not live
-              </span>
-            )}
           </div>
           <div className="flex items-baseline gap-2 mt-0.5">
-            <span className="text-3xl font-extrabold text-[#3FA6E0]">{currentG} g</span>
-            <span className="text-xs text-[#7C8898]">/ {activeThreshold.toFixed(2)} g THRESHOLD</span>
+            {currentG !== null ? (
+              <>
+                <span className="text-3xl font-extrabold text-[#3FA6E0]">{currentG} g</span>
+                <span className="text-xs text-[#7C8898]">/ {activeThreshold.toFixed(2)} g THRESHOLD</span>
+              </>
+            ) : (
+              <span className="text-sm font-bold text-[#7C8898]">Waiting for live data</span>
+            )}
           </div>
         </div>
 
@@ -49,7 +45,7 @@ export function TelemetryPanel({
           <span className="text-[10px] text-[#7C8898] uppercase">GLOVE LED HARDWARE STATUS</span>
           <SignalStrip
             testId="driver-signal-strip"
-            currentG={currentG}
+            currentG={currentG !== null ? currentG : undefined}
             threshold={activeThreshold}
             size="lg"
             showLabel={true}

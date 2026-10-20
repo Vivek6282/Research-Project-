@@ -7,8 +7,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../../../lib/api";
 
-const USE_MOCK_TELEMETRY = import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false";
-
 export interface ZoneSummary {
   name: string;
   count: number;
@@ -30,7 +28,7 @@ export interface LatestSessionData {
 
 export function useDriverDashboard() {
   const [mode, setMode] = useState<"safety" | "performance">("safety");
-  const [currentG, setCurrentG] = useState(0.85);
+  const [currentG, setCurrentG] = useState<number | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<number>(Date.now());
   const [zones, setZones] = useState<ZoneSummary[]>([]);
   const [hasSessions, setHasSessions] = useState<boolean>(true);
@@ -63,42 +61,54 @@ export function useDriverDashboard() {
     loadDriverSummary();
   }, []);
 
-  // 2. Real-time driver G-Force telemetry streaming
+  // 2. Real-time driver G-Force telemetry streaming via WebSocket
   useEffect(() => {
-    if (USE_MOCK_TELEMETRY) {
-      const intervalId = setInterval(() => {
-        const timeOffset = Date.now() / 400;
-        const simulatedForce = Number((0.75 + Math.abs(Math.sin(timeOffset)) * 0.48).toFixed(2));
-        setCurrentG(simulatedForce);
-        setLastSyncTime(Date.now());
-      }, 200);
-      return () => clearInterval(intervalId);
-    } else {
-      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsHost = window.location.hostname === "localhost" ? "localhost:8000" : window.location.host;
-      const telemetrySocket = new WebSocket(`${wsProtocol}//${wsHost}/ws/telemetry/`);
+    if (!latestSession?.id) return;
 
-      telemetrySocket.onmessage = (event) => {
-        try {
-          const packetData = JSON.parse(event.data);
-          if (packetData && typeof packetData.gForce === "number") {
-            setCurrentG(Number(packetData.gForce.toFixed(2)));
-            setLastSyncTime(Date.now());
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsHost = window.location.host;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connectSocket = () => {
+      try {
+        socket = new WebSocket(`${wsProtocol}//${wsHost}/ws/sessions/${latestSession.id}/telemetry/`);
+
+        socket.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type === "telemetry_reading" && message.data) {
+              const { lateral_g } = message.data;
+              if (typeof lateral_g === "number") {
+                setCurrentG(Number(lateral_g.toFixed(2)));
+                setLastSyncTime(Date.now());
+              }
+            }
+          } catch (e) {
+            console.warn("[useDriverDashboard] WebSocket telemetry error:", e);
           }
-        } catch (e) {
-          console.warn("[useDriverDashboard] WebSocket telemetry error:", e);
-        }
-      };
+        };
 
-      telemetrySocket.onerror = (err) => {
-        console.warn("[useDriverDashboard] Telemetry WebSocket connection error:", err);
-      };
+        socket.onclose = () => {
+          reconnectTimer = setTimeout(connectSocket, 3000);
+        };
 
-      return () => {
-        telemetrySocket.close();
-      };
-    }
-  }, []);
+        socket.onerror = (err) => {
+          console.warn("[useDriverDashboard] Telemetry WebSocket connection error:", err);
+          socket?.close();
+        };
+      } catch (err) {
+        reconnectTimer = setTimeout(connectSocket, 3000);
+      }
+    };
+
+    connectSocket();
+
+    return () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (socket) socket.close();
+    };
+  }, [latestSession?.id]);
 
   return {
     mode,
@@ -110,6 +120,5 @@ export function useDriverDashboard() {
     latestSession,
     loading,
     activeThreshold,
-    isMockTelemetry: USE_MOCK_TELEMETRY,
   };
 }

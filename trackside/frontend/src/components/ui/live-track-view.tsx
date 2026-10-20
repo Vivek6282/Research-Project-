@@ -30,7 +30,7 @@ interface LiveTrackViewProps {
   trackId: string | null;
   gpsLat: number | null;
   gpsLng: number | null;
-  currentG: number;
+  currentG: number | null;
   threshold: number;
 }
 
@@ -108,7 +108,7 @@ export function LiveTrackView({
   const dotPosition = computeDotPosition();
 
   // Get trajectory stage for dot coloring
-  const stageDetails = getTrajectoryStage(currentG, threshold);
+  const stageDetails = getTrajectoryStage(currentG ?? 0, threshold);
 
   /* ─── Fallbacks ─── */
   if (!trackId) {

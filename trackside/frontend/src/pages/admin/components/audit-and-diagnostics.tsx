@@ -98,12 +98,6 @@ export function AuditAndDiagnostics({
                 <span className="font-bold text-[#E7EDF3]">
                   {diagnostics ? diagnostics.packet_drops_last_60_min : 0}
                 </span>
-                {(import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false" ||
-                  diagnostics?.is_simulated_packet_data) && (
-                  <span className="bg-[#F2A93B]/20 border border-[#F2A93B]/60 text-[#F2A93B] font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
-                    SIMULATED DATA — not live
-                  </span>
-                )}
               </div>
             </div>
 

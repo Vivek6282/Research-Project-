@@ -30,7 +30,6 @@ export function DriverDashboard() {
     latestSession,
     loading,
     activeThreshold,
-    isMockTelemetry,
   } = useDriverDashboard();
 
   return (
@@ -44,7 +43,6 @@ export function DriverDashboard() {
           currentG={currentG}
           activeThreshold={activeThreshold}
           lastSyncTime={lastSyncTime}
-          isMockTelemetry={isMockTelemetry}
         />
 
         {/* Session Setup Mode Selector */}

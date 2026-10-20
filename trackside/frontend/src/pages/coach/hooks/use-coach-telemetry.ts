@@ -1,20 +1,17 @@
 /**
  * Trackside Coach Dashboard — Telemetry & WebSocket Streaming Hook.
- * Manages live WebSocket connection to Django Channels and local mock telemetry engine.
+ * Manages live WebSocket connection to Django Channels telemetry streams.
  */
 
 import { useState, useEffect } from "react";
-import { startMockTelemetryEngine } from "../../../lib/mockTelemetry";
 import { DriverProfile } from "../types";
 
-export const USE_MOCK_TELEMETRY = import.meta.env.VITE_USE_MOCK_TELEMETRY !== "false";
-
 export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId: string | null) {
-  const [currentSpeed, setCurrentSpeed] = useState(selectedDriver.baseSpeed);
-  const [currentHr, setCurrentHr] = useState(selectedDriver.baseHr);
-  const [currentSpo2, setCurrentSpo2] = useState(selectedDriver.baseSpo2);
-  const [currentBreathing, setCurrentBreathing] = useState(selectedDriver.baseBreathing);
-  const [currentGForce, setCurrentGForce] = useState(1.42);
+  const [currentSpeed, setCurrentSpeed] = useState<number | null>(null);
+  const [currentHr, setCurrentHr] = useState(selectedDriver?.baseHr ?? 0);
+  const [currentSpo2, setCurrentSpo2] = useState(selectedDriver?.baseSpo2 ?? 0);
+  const [currentBreathing, setCurrentBreathing] = useState(selectedDriver?.baseBreathing ?? 0);
+  const [currentGForce, setCurrentGForce] = useState<number | null>(null);
   const [currentGpsLat, setCurrentGpsLat] = useState<number | null>(null);
   const [currentGpsLng, setCurrentGpsLng] = useState<number | null>(null);
   const [wsStatus, setWsStatus] = useState<"connected" | "reconnecting" | "disconnected">("disconnected");
@@ -32,10 +29,15 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
 
   // Sync state when driver changes
   useEffect(() => {
-    setCurrentSpeed(selectedDriver.baseSpeed);
-    setCurrentHr(selectedDriver.baseHr);
-    setCurrentSpo2(selectedDriver.baseSpo2);
-    setCurrentBreathing(selectedDriver.baseBreathing);
+    setCurrentSpeed(null);
+    setCurrentGForce(null);
+    setCurrentGpsLat(null);
+    setCurrentGpsLng(null);
+    if (selectedDriver) {
+      setCurrentHr(selectedDriver.baseHr);
+      setCurrentSpo2(selectedDriver.baseSpo2);
+      setCurrentBreathing(selectedDriver.baseBreathing);
+    }
   }, [selectedDriver]);
 
   // WebSocket telemetry connection
@@ -59,7 +61,6 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
         };
 
         ws.onmessage = (event) => {
-          if (USE_MOCK_TELEMETRY) return;
           try {
             const message = JSON.parse(event.data);
             if (message.type === "telemetry_reading" && message.data) {
@@ -118,22 +119,6 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     };
   }, [activeSessionId]);
 
-  // Mock telemetry generator effect
-  useEffect(() => {
-    if (!USE_MOCK_TELEMETRY) return;
-
-    const stopMock = startMockTelemetryEngine(selectedDriver, (packet) => {
-      setCurrentSpeed(packet.speed);
-      setCurrentGForce(packet.gForce);
-      setCurrentHr(packet.hr);
-      setCurrentSpo2(packet.spo2);
-      setCurrentBreathing(packet.breathing);
-      setActualSpeedPath((prev) => [...prev.slice(1), packet.oscilloscopeVal]);
-    });
-
-    return () => stopMock();
-  }, [selectedDriver]);
-
   return {
     currentSpeed,
     currentHr,
@@ -148,6 +133,5 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     hrHistory,
     spo2History,
     breathingHistory,
-    isMockTelemetry: USE_MOCK_TELEMETRY,
   };
 }
