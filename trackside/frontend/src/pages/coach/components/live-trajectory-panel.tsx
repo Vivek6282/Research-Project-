@@ -12,18 +12,21 @@ interface LiveTrajectoryPanelProps {
   currentThreshold: number;
   currentSpeed: number | null;
   actualSpeedPath: number[];
-  targetSpeedPath: number[];
 }
 
+/**
+ * Displays live speed oscillogram waveform and g-force signal status.
+ */
 export function LiveTrajectoryPanel({
   selectedDriver,
   currentGForce,
   currentThreshold,
   currentSpeed,
   actualSpeedPath,
-  targetSpeedPath,
 }: LiveTrajectoryPanelProps) {
   const buildSvgPath = (points: number[]) => {
+    if (!points || points.length === 0) return "";
+    if (points.length === 1) return `M 0 ${points[0]} L 800 ${points[0]}`;
     const step = 800 / (points.length - 1);
     return points.reduce((acc, y, i) => `${acc} ${i === 0 ? "M" : "L"} ${i * step} ${y}`, "");
   };
@@ -102,28 +105,26 @@ export function LiveTrajectoryPanel({
           <span>20</span>
         </div>
 
-        <div className="absolute left-9 top-[50%] border-b border-dashed border-[#33D17E]/50" />
         <div className="absolute left-9 top-[4px] right-4 bottom-7">
-          <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 160">
-            <line x1="0" y1="0" x2="800" y2="0" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
-            <line x1="0" y1="40" x2="800" y2="40" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
-            <line x1="0" y1="80" x2="800" y2="80" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
-            <line x1="0" y1="120" x2="800" y2="120" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
+          {actualSpeedPath.length === 0 ? (
+            <div className="w-full h-full flex items-center justify-center text-xs text-[#7C8898] font-mono">
+              Waiting for live telemetry stream...
+            </div>
+          ) : (
+            <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 160">
+              <line x1="0" y1="0" x2="800" y2="0" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
+              <line x1="0" y1="40" x2="800" y2="40" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
+              <line x1="0" y1="80" x2="800" y2="80" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
+              <line x1="0" y1="120" x2="800" y2="120" stroke="#232B35" strokeDasharray="3 3" opacity="0.5" />
 
-            <path
-              d={buildSvgPath(targetSpeedPath)}
-              fill="none"
-              stroke="#33D17E"
-              strokeWidth="2"
-              strokeDasharray="5 5"
-            />
-            <path
-              d={buildSvgPath(actualSpeedPath)}
-              fill="none"
-              stroke="#3FA6E0"
-              strokeWidth="2.5"
-            />
-          </svg>
+              <path
+                d={buildSvgPath(actualSpeedPath)}
+                fill="none"
+                stroke="#3FA6E0"
+                strokeWidth="2.5"
+              />
+            </svg>
+          )}
         </div>
 
         <div className="absolute left-9 right-4 bottom-1 flex justify-between text-[9px] font-mono text-[#4B5563]">
@@ -134,10 +135,7 @@ export function LiveTrajectoryPanel({
 
         <div className="absolute left-10 bottom-2.5 flex items-center gap-4 text-[10px] font-mono">
           <span className="flex items-center gap-1.5 text-[#3FA6E0]">
-            <span className="w-3 h-0.5 bg-[#3FA6E0]" /> Actual
-          </span>
-          <span className="flex items-center gap-1.5 text-[#33D17E]">
-            <span className="w-3 h-0.5 border-b border-dashed border-[#33D17E]" /> Target
+            <span className="w-3 h-0.5 bg-[#3FA6E0]" /> Actual Speed
           </span>
         </div>
       </div>

@@ -71,7 +71,6 @@ export function CoachDashboard() {
     currentGpsLng,
     wsStatus,
     actualSpeedPath,
-    targetSpeedPath,
     hrHistory,
     spo2History,
     breathingHistory,
@@ -151,7 +150,6 @@ export function CoachDashboard() {
                 currentThreshold={currentThreshold}
                 currentSpeed={currentSpeed}
                 actualSpeedPath={actualSpeedPath}
-                targetSpeedPath={targetSpeedPath}
               />
 
               {/* LIVE TRACK VIEW Panel */}

@@ -16,12 +16,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
   const [currentGpsLng, setCurrentGpsLng] = useState<number | null>(null);
   const [wsStatus, setWsStatus] = useState<"connected" | "reconnecting" | "disconnected">("disconnected");
 
-  const [actualSpeedPath, setActualSpeedPath] = useState<number[]>([
-    110, 105, 90, 70, 60, 65, 80, 110, 125, 130, 115, 85, 65, 75, 95, 105,
-  ]);
-  const [targetSpeedPath] = useState<number[]>([
-    100, 95, 85, 65, 55, 60, 75, 105, 120, 125, 110, 80, 60, 70, 90, 100,
-  ]);
+  const [actualSpeedPath, setActualSpeedPath] = useState<number[]>([]);
 
   const [hrHistory, setHrHistory] = useState<number[]>([30, 25, 20, 15, 22, 18, 25, 20, 15, 24]);
   const [spo2History, setSpo2History] = useState<number[]>([15, 18, 22, 20, 16, 18, 22, 19, 17, 15]);
@@ -36,6 +31,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     setCurrentHr(selectedDriver?.baseHr ?? 0);
     setCurrentSpo2(selectedDriver?.baseSpo2 ?? 0);
     setCurrentBreathing(selectedDriver?.baseBreathing ?? 0);
+    setActualSpeedPath([]);
   }, [selectedDriver]);
 
   // WebSocket telemetry connection
@@ -65,7 +61,10 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
               const { speed_kmh, lateral_g, gps_lat, gps_lng } = message.data;
               if (typeof speed_kmh === "number") {
                 setCurrentSpeed(Math.round(speed_kmh));
-                setActualSpeedPath((prev) => [...prev.slice(1), Math.round(speed_kmh)]);
+                setActualSpeedPath((prev) => {
+                  const next = [...prev, Math.round(speed_kmh)];
+                  return next.length > 20 ? next.slice(next.length - 20) : next;
+                });
               }
               if (typeof lateral_g === "number") {
                 setCurrentGForce(Number(lateral_g.toFixed(2)));
@@ -127,7 +126,6 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     currentGpsLng,
     wsStatus,
     actualSpeedPath,
-    targetSpeedPath,
     hrHistory,
     spo2History,
     breathingHistory,
