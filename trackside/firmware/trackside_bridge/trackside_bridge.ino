@@ -55,41 +55,88 @@ bool parseMac(const char* text, uint8_t* out) {
   return true;
 }
 
-// Decide the stage from a plain g number
+// Decides the stage from a plain g-force number using fallback threshold.
+// Input: g (float). Output: 0 (NOMINAL), 1 (MONITORING), or 2 (INTERVENE).
 uint8_t classify(float g) {
   if (g >= FALLBACK_THRESHOLD)        return 2;   // INTERVENE
   if (g >= FALLBACK_THRESHOLD * 0.82f) return 1;   // MONITORING
   return 0;                                        // NOMINAL
 }
 
-// Read the stage word: I... = 2, M... = 1, anything else = 0
-uint8_t stageFromText(const char* t) {
-  while (*t == ' ') t++;
-  char c = (char)toupper((unsigned char)*t);
-  if (c == 'I') return 2;
-  if (c == 'M') return 1;
-  return 0;
+// Validates that g-force reading is finite and within physical bounds (0.0 to 10.0 g).
+// Input: g (float). Output: true if valid, false if NaN, inf, or out-of-range (G5).
+bool isValidG(float g) {
+  if (isnan(g) || isinf(g)) return false;
+  if (g < 0.0f || g > 10.0f) return false;
+  return true;
 }
 
-// Handle one complete line that arrived over USB
+// Parses stage word strictly against allowed names (case-insensitive).
+// Input: text (const char*), outStage (uint8_t*). Output: true on match, false otherwise (G5).
+// Security: Never defaults unknown words to NOMINAL.
+bool parseStageWord(const char* text, uint8_t* outStage) {
+  while (*text == ' ' || *text == '\t') text++;
+  char word[16];
+  size_t idx = 0;
+  while (*text != '\0' && !isspace((unsigned char)*text) && *text != '\r' && *text != '\n') {
+    if (idx + 1 < sizeof(word)) {
+      word[idx++] = (char)toupper((unsigned char)*text);
+    } else {
+      return false;
+    }
+    text++;
+  }
+  word[idx] = '\0';
+
+  if (strcmp(word, "NOMINAL") == 0) {
+    *outStage = 0;
+    return true;
+  }
+  if (strcmp(word, "MONITORING") == 0) {
+    *outStage = 1;
+    return true;
+  }
+  if (strcmp(word, "INTERVENE") == 0) {
+    *outStage = 2;
+    return true;
+  }
+  return false;
+}
+
+// Handles one complete serial line from USB with strict validation (G5).
+// Discards lines with malformed numbers, out-of-range g, or unrecognized stage words.
 void handleLine(char* line) {
-  while (*line == ' ') line++;
+  while (*line == ' ' || *line == '\t') line++;
   if (*line == '\0') return;
+
   // A real line must start with a digit, a dot or a minus sign
   if (!(isdigit((unsigned char)*line) || *line == '.' || *line == '-')) {
-    Serial.println("Ignored. Type a number like 1.3 and press Enter.");
+    Serial.println("Ignored invalid line. Expected number or number,STAGE.");
     return;
   }
 
-  uint8_t stage;
-  float   g;
+  uint8_t stage = 0;
+  float   g     = 0.0f;
   char* comma = strchr(line, ',');
   if (comma) {
     *comma = '\0';
-    g     = (float)atof(line);
-    stage = stageFromText(comma + 1);
+    char* endPtr = NULL;
+    g = (float)strtod(line, &endPtr);
+    if (endPtr == line || !isValidG(g)) {
+      Serial.println("Ignored invalid line: g-force must be between 0.0 and 10.0.");
+      return;
+    }
+    if (!parseStageWord(comma + 1, &stage)) {
+      Serial.println("Ignored invalid line: unknown stage word (allowed: NOMINAL, MONITORING, INTERVENE).");
+      return;
+    }
   } else {
-    g     = (float)atof(line);
+    char* endPtr = NULL;
+    g = (float)strtod(line, &endPtr);
+    if (endPtr == line || !isValidG(g)) {
+      Serial.println("Ignored invalid line: g-force must be between 0.0 and 10.0.");
+      return;
+    }
     stage = classify(g);
   }
 
