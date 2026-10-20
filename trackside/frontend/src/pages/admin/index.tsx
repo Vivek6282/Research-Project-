@@ -76,7 +76,10 @@ export function AdminDashboard() {
           {/* IoT Hardware Status Pings & Diagnostics */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {devices.length === 0 ? (
-              <div className="col-span-1 sm:col-span-3 text-center py-4 text-xs font-mono text-[#7C8898] border border-dashed border-[#232B35] rounded-lg">
+              <div
+                data-testid="admin-devices-empty-state"
+                className="col-span-1 sm:col-span-3 text-center py-4 text-xs font-mono text-[#7C8898] border border-dashed border-[#232B35] rounded-lg"
+              >
                 No IoT devices registered. Waiting for provisioning.
               </div>
             ) : (

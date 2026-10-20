@@ -144,13 +144,28 @@ export function DeviceDiagnosticPanel({
 
       {/* Driver Assignment Section */}
       <div className="border-t border-[#232B35] pt-2 pb-2">
-        <div className="flex items-center justify-between text-xs font-mono mb-1.5">
+        <div className="flex items-center justify-between text-xs font-mono mb-1">
           <span className="text-[#7C8898]">Driver:</span>
           <span
             data-testid={`admin-device-assigned-driver-${device.id}`}
             className="font-bold text-[#E7EDF3]"
           >
             {device.assigned_to_name || "Unassigned"}
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-xs font-mono mb-2">
+          <span className="text-[#7C8898]">Last Seen:</span>
+          <span
+            data-testid={`admin-device-last-seen-${device.id}`}
+            className="text-[#E7EDF3]"
+          >
+            {device.last_seen_at
+              ? new Date(device.last_seen_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })
+              : "Never"}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -229,22 +244,13 @@ export function DeviceDiagnosticPanel({
             </div>
             <ul className="space-y-1 mb-2 text-[#7C8898]">
               <li className="flex justify-between">
-                Boot Check:{" "}
-                <span className={result.result?.boot ? "text-[#33D17E]" : "text-[#E5473C]"}>
-                  {result.result?.boot ? "✓ PASS" : "✗ FAIL"}
-                </span>
+                Boot Check: <span className={result.result?.boot ? "text-[#33D17E]" : "text-[#E5473C]"}>{result.result?.boot ? "✓ PASS" : "✗ FAIL"}</span>
               </li>
               <li className="flex justify-between">
-                ESP-NOW Init:{" "}
-                <span className={result.result?.esp_now_init ? "text-[#33D17E]" : "text-[#E5473C]"}>
-                  {result.result?.esp_now_init ? "✓ PASS" : "✗ FAIL"}
-                </span>
+                ESP-NOW Init: <span className={result.result?.esp_now_init ? "text-[#33D17E]" : "text-[#E5473C]"}>{result.result?.esp_now_init ? "✓ PASS" : "✗ FAIL"}</span>
               </li>
               <li className="flex justify-between">
-                Ping Latency:{" "}
-                <span className="text-[#E7EDF3]">
-                  {result.result?.ping_latency_ms ? `${result.result.ping_latency_ms}ms` : "N/A"}
-                </span>
+                Ping Latency: <span className="text-[#E7EDF3]">{result.result?.ping_latency_ms ? `${result.result.ping_latency_ms}ms` : "N/A"}</span>
               </li>
             </ul>
 
