@@ -39,11 +39,13 @@ bool parseMac(const char* text, uint8_t* out) {
 #define LED_PIN    18   // data wire of the LED strip (G18 on your board)
 #define NUM_LEDS   10   // your strip has 10 LEDs; we only use the first 5
 
-// ---------- the message the bridge sends us (must match the bridge!) ----------
-typedef struct {
-  uint8_t stage;   // 0 = NOMINAL, 1 = MONITORING, 2 = INTERVENE
-  float   g;       // the g-force number
-} AlertMessage;
+// Strict radio packet layout (must match bridge)
+typedef struct __attribute__((packed)) {
+  uint8_t  version;  // Protocol version (must be 1)
+  uint8_t  stage;    // 0 = NOMINAL, 1 = MONITORING, 2 = INTERVENE
+  float    g;        // Lateral acceleration in g
+  uint32_t counter;  // Monotonically increasing sequence number
+} RadioPacket;
 
 const uint8_t NOMINAL    = 0;
 const uint8_t MONITORING = 1;
@@ -96,13 +98,26 @@ void drawMask(uint8_t stage, uint8_t mask) {
 }
 
 // Runs by itself every time a radio message arrives
+// Rejects corrupted, wrong-version, invalid-stage, or out-of-bounds packets (G3)
 void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-  if (len != (int)sizeof(AlertMessage)) return;
-  AlertMessage m;
-  memcpy(&m, data, sizeof(m));
-  if (m.stage > INTERVENE) return;
-  gLastG      = m.g;
-  gStage      = m.stage;
+  // Reject frames with incorrect byte length
+  if (data == NULL || len != (int)sizeof(RadioPacket)) return;
+
+  RadioPacket pkt;
+  memcpy(&pkt, data, sizeof(pkt));
+
+  // Reject unsupported protocol version (must be 1)
+  if (pkt.version != 1) return;
+
+  // Reject invalid stage enum values (> INTERVENE)
+  if (pkt.stage > INTERVENE) return;
+
+  // Reject non-finite g or values outside physical kart bounds (0.0 .. 10.0)
+  if (isnan(pkt.g) || isinf(pkt.g) || pkt.g < 0.0f || pkt.g > 10.0f) return;
+
+  // Valid packet accepted: update telemetry and timestamp
+  gLastG      = pkt.g;
+  gStage      = pkt.stage;
   gLastPacket = millis();
 }
 

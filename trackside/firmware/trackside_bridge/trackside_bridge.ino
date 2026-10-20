@@ -28,11 +28,13 @@ const float FALLBACK_THRESHOLD = 1.15;
 
 const int ONBOARD_LED = 2;      // the little blue light on the board
 
-// Must be identical to the glove's message layout
-typedef struct {
-  uint8_t stage;   // 0 = NOMINAL, 1 = MONITORING, 2 = INTERVENE
-  float   g;
-} AlertMessage;
+// Strict radio packet layout (must be identical on bridge and glove)
+typedef struct __attribute__((packed)) {
+  uint8_t  version;  // Protocol version (must be 1)
+  uint8_t  stage;    // 0 = NOMINAL, 1 = MONITORING, 2 = INTERVENE
+  float    g;        // Lateral acceleration in g
+  uint32_t counter;  // Monotonically increasing sequence number
+} RadioPacket;
 
 uint8_t  gloveAddr[6];
 char     lineBuf[48];
@@ -86,10 +88,12 @@ void handleLine(char* line) {
     stage = classify(g);
   }
 
-  AlertMessage msg;
-  msg.stage = stage;
-  msg.g     = g;
-  esp_err_t result = esp_now_send(gloveAddr, (uint8_t*)&msg, sizeof(msg));
+  RadioPacket packet;
+  packet.version = 1;
+  packet.stage   = stage;
+  packet.g       = g;
+  packet.counter = sentCount + 1;
+  esp_err_t result = esp_now_send(gloveAddr, (uint8_t*)&packet, sizeof(packet));
 
   sentCount++;
   digitalWrite(ONBOARD_LED, sentCount % 2);   // blink the blue light on every send
