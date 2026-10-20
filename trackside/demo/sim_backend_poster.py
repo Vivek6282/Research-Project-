@@ -24,6 +24,9 @@ WARNING_LOCK = threading.Lock()
 
 BACKEND_WORKER_THREAD = None
 SHUTDOWN_EVENT = threading.Event()
+ACTIVE_SESSION_ID = None
+ACTIVE_DEVICE_TOKEN = None
+ACTIVE_BACKEND_URL = BACKEND_URL
 
 
 def log_rate_limited_warning(message_text):
@@ -185,12 +188,15 @@ def start_backend_worker(session_id, device_token, backend_url=BACKEND_URL):
     Input: session_id (str), device_token (str), backend_url (str).
     Output: Thread object or None if invalid.
     """
-    global BACKEND_WORKER_THREAD
+    global BACKEND_WORKER_THREAD, ACTIVE_SESSION_ID, ACTIVE_DEVICE_TOKEN, ACTIVE_BACKEND_URL
     if not session_id or not device_token:
         return None
     if not validate_backend_url(backend_url):
         print(f"  [!] Refusing backend posting: BACKEND_URL '{backend_url}' must start with http:// or https:// and have a hostname.")
         return None
+    ACTIVE_SESSION_ID = session_id
+    ACTIVE_DEVICE_TOKEN = device_token
+    ACTIVE_BACKEND_URL = backend_url
     BACKEND_WORKER_THREAD = threading.Thread(
         target=_backend_worker,
         args=(session_id, device_token, backend_url),
@@ -201,15 +207,50 @@ def start_backend_worker(session_id, device_token, backend_url=BACKEND_URL):
     return BACKEND_WORKER_THREAD
 
 
-def flush_backend_telemetry(timeout_seconds=5.0):
+def finish_backend_session(session_id, device_token, backend_url=BACKEND_URL, timeout_seconds=3.0):
     """
-    Signals worker thread to flush all remaining items and wait for completion.
-    Input: timeout_seconds (float).
+    Calls POST /api/sessions/<id>/finish/ using the device token to close the session.
+    Input: session_id (str), device_token (str), backend_url (str), timeout_seconds (float).
+    Output: bool indicating whether the session was closed successfully (HTTP 200).
+    """
+    if not session_id or not device_token or not backend_url:
+        return False
+    finish_url = f"{backend_url.rstrip('/')}/api/sessions/{session_id}/finish/"
+    headers = {
+        "Authorization": f"Device-Token {device_token}",
+        "Content-Type": "application/json",
+    }
+    try:
+        response = requests.post(finish_url, headers=headers, timeout=timeout_seconds)
+        return response.status_code == 200
+    except Exception as exc:
+        log_rate_limited_warning(f"Failed to close session via finish endpoint: {exc}")
+        return False
+
+
+def flush_backend_telemetry(timeout_seconds=5.0, session_id=None, device_token=None, backend_url=None):
+    """
+    Signals worker thread to flush all remaining items, closes session, and outputs summary.
+    Input: timeout_seconds (float), session_id (str), device_token (str), backend_url (str).
     Output: None.
     """
     SHUTDOWN_EVENT.set()
     if BACKEND_WORKER_THREAD and BACKEND_WORKER_THREAD.is_alive():
         BACKEND_WORKER_THREAD.join(timeout=timeout_seconds)
+
+    target_session = session_id or ACTIVE_SESSION_ID
+    target_token = device_token or ACTIVE_DEVICE_TOKEN
+    target_url = backend_url or ACTIVE_BACKEND_URL
+
+    session_closed_str = "no"
+    if target_session and target_token:
+        was_closed = finish_backend_session(
+            target_session,
+            target_token,
+            target_url,
+            timeout_seconds=3.0,
+        )
+        session_closed_str = "yes" if was_closed else "no"
 
     with STATS_LOCK:
         unsent_count = TELEMETRY_QUEUE.qsize() + IN_FLIGHT_COUNT
@@ -217,7 +258,10 @@ def flush_backend_telemetry(timeout_seconds=5.0):
         failed_count = FAILED_COUNT
         dropped_count = DROPPED_COUNT
 
-    print(f"\nBackend summary: sent {sent_count}, failed {failed_count}, dropped {dropped_count}, unsent {unsent_count}")
+    print(
+        f"\nBackend summary: sent {sent_count}, failed {failed_count}, "
+        f"dropped {dropped_count}, unsent {unsent_count}, session closed: {session_closed_str}"
+    )
 
 
 def send_to_backend(session_id, g_value, zone_label, stage, speed_kmh, lap_number=1):

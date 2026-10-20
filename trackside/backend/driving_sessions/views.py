@@ -12,6 +12,7 @@ This module aggregates and re-exports all driving session views:
 from driving_sessions.views_sessions import (
     SessionListCreateView,
     SessionDetailView,
+    SessionFinishView,
 )
 from driving_sessions.views_telemetry import (
     DeviceTelemetryRateThrottle,
@@ -34,6 +35,7 @@ from driving_sessions.views_summary import (
 __all__ = [
     "SessionListCreateView",
     "SessionDetailView",
+    "SessionFinishView",
     "DeviceTelemetryRateThrottle",
     "TelemetryListCreateView",
     "AlertListView",

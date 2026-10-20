@@ -6,6 +6,7 @@ from driving_sessions.views import (
     RosterStatusView,
     SessionListCreateView,
     SessionDetailView,
+    SessionFinishView,
     TelemetryListCreateView,
     AlertListView,
     BiometricListCreateView,
@@ -17,6 +18,7 @@ urlpatterns = [
     path("alerts/summary/", AlertSummaryView.as_view(), name="alert-summary"),
     path("roster-status/", RosterStatusView.as_view(), name="roster-status"),
     path("<uuid:pk>/", SessionDetailView.as_view(), name="session-detail"),
+    path("<uuid:pk>/finish/", SessionFinishView.as_view(), name="session-finish"),
     path(
         "<uuid:session_pk>/telemetry/",
         TelemetryListCreateView.as_view(),

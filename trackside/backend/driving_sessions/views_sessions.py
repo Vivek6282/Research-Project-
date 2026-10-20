@@ -4,12 +4,18 @@ This module provides endpoints for listing, creating, retrieving, updating,
 and ending driving sessions with strict role-based access scoping.
 """
 
-from rest_framework import generics
+from django.utils import timezone
+from rest_framework import generics, status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from accounts.permissions import IsAdminOrCoach
-from driving_sessions.access import sessions_visible_to
+from devices.authentication import DeviceTokenAuthentication
+from driving_sessions.access import sessions_visible_to, can_access_session
+from driving_sessions.models import Session
 from driving_sessions.serializers import SessionSerializer
+from driving_sessions.views_telemetry import DeviceTelemetryRateThrottle
 
 
 class SessionListCreateView(generics.ListCreateAPIView):
@@ -83,3 +89,60 @@ class SessionDetailView(generics.RetrieveUpdateDestroyAPIView):
         Output: Scoped Session QuerySet.
         """
         return sessions_visible_to(self.request.user)
+
+
+class SessionFinishView(generics.GenericAPIView):
+    """
+    POST /api/sessions/<uuid>/finish/ — concludes an active driving session.
+
+    Security & Access Rules:
+    - Allowed: Admin, Coach, and a device token whose assigned driver owns this session.
+    - Denied (403): Driver (even if owner), other driver's device, unassigned device.
+    - Denied (401): Anonymous / unauthenticated request.
+    - Idempotent: Sets ended_at = now only if currently null; second call returns 200 without altering ended_at.
+    - Authentication: SessionAuthentication and DeviceTokenAuthentication.
+    - Throttling: DeviceTelemetryRateThrottle (device_telemetry scope).
+    """
+
+    authentication_classes = [SessionAuthentication, DeviceTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [DeviceTelemetryRateThrottle]
+    throttle_scope = "device_telemetry"
+    serializer_class = SessionSerializer
+
+    def post(self, request, *args, **kwargs):
+        """
+        Marks the session ended_at timestamp if null, or retains existing timestamp if already ended.
+        Input: session pk via URL kwargs.
+        Output: HTTP 200 with updated session serializer data, or 403/404 on access failure.
+        """
+        session_id = kwargs.get("pk") or kwargs.get("session_pk")
+        try:
+            session = Session.objects.get(pk=session_id)
+        except (Session.DoesNotExist, ValueError):
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        role = getattr(user, "role", None)
+
+        # Drivers are denied from finishing sessions directly
+        if role == "driver":
+            return Response(
+                {"error": "Drivers are not permitted to close sessions directly."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Device tokens must be assigned to the driver who owns the session; coaches and admins can access any session
+        if not can_access_session(user, session):
+            return Response(
+                {"error": "You do not have permission to finish this session."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Set ended_at to current time only if not already set (idempotent)
+        if session.ended_at is None:
+            session.ended_at = timezone.now()
+            session.save(update_fields=["ended_at"])
+
+        serializer = self.get_serializer(session)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -176,3 +176,20 @@ Each reading broadcast by `virtual_lap_simulator.py` uses this standardized JSON
   "threshold": 1.15
 }
 ```
+
+---
+
+## 8. Run Lifecycle, Session Closing & Known Limits
+
+### Event Lifecycle Protocol
+Before telemetry begins and upon run conclusion, the simulator broadcasts non-reading lifecycle events over WebSocket:
+* **`run_start`**: `{"type": "run_start", "mode": "laps" | "continuous", "total_laps": N or null}`
+  * Prompts the visualizer to clear past alerts, reset the lap counter, and display the target lap count (or no denominator in continuous mode).
+* **`run_end`**: `{"type": "run_end"}`
+  * Notifies the visualizer that the run is complete, pinning track progress to 100% and updating session status to finished.
+
+### Session Closing & Hard Terminate Limit
+When a run completes (or is halted cleanly with Ctrl+C in continuous mode), the simulator flushes remaining telemetry batches and automatically closes the backend session via `POST /api/sessions/<id>/finish/` using the device token, setting `ended_at = now`. This finalizes best-lap calculations (including the final lap) and marks the session as completed in the Coach and Driver dashboards.
+
+**Known Limit (Windows Hard Terminate)**:
+If the simulator process is forcefully killed (such as closing the console window abruptly or terminating the process via Windows Task Manager without allowing Ctrl+C cleanup to run), process termination handlers cannot execute. A hard-stopped run leaves its session "In progress" in the database.

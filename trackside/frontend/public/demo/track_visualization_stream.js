@@ -8,6 +8,7 @@ window.TracksideStream = (function () {
   let ws = null;
   let reconnectTimer = null;
   let alertCount = 0;
+  let lastReading = null;
   const MAX_ALERTS = 40;
 
   const trackPath = document.getElementById("track-path");
@@ -55,64 +56,30 @@ window.TracksideStream = (function () {
 
   function recordInterveneAlert(data) {
     if (!alertList) return;
-    if (emptyState && emptyState.parentElement) {
-      emptyState.remove();
-    }
+    if (emptyState && emptyState.parentElement) emptyState.remove();
 
     alertCount++;
-    if (alertCounter) {
-      alertCounter.textContent = `${alertCount} ALERT${alertCount === 1 ? "" : "S"}`;
-    }
+    if (alertCounter) alertCounter.textContent = `${alertCount} ALERT${alertCount === 1 ? "" : "S"}`;
+
+    const now = new Date();
+    const timeStr = now.toTimeString().split(" ")[0] + "." + Math.floor(now.getMilliseconds() / 100);
+    const zoneSafe = data && data.zone ? String(data.zone) : "Turn";
+    const lapStr = Number.isFinite(Number(data && data.lap)) ? String(data.lap) : "1";
+    const gStr = Number.isFinite(Number(data && data.g_force)) ? Number(data.g_force).toFixed(2) : "--";
+    const threshStr = Number.isFinite(Number(data && data.threshold)) ? Number(data.threshold).toFixed(2) : "1.15";
 
     const item = document.createElement("div");
     item.className = "alert-item mono";
-
-    const now = new Date();
-    const timeStr =
-      now.toTimeString().split(" ")[0] + "." + Math.floor(now.getMilliseconds() / 100);
-
-    const detailsDiv = document.createElement("div");
-    detailsDiv.className = "alert-details";
-
-    const titleSpan = document.createElement("span");
-    titleSpan.className = "alert-title";
-    const zoneSafe =
-      data && typeof data.zone === "string"
-        ? data.zone
-        : data && data.zone
-        ? String(data.zone)
-        : "Turn";
-    titleSpan.textContent = `⚠ INTERVENE: ${zoneSafe} Threshold Exceeded`;
-
-    const metaSpan = document.createElement("span");
-    metaSpan.className = "alert-meta";
-
-    const lapNum = Number(data && data.lap);
-    const lapStr = Number.isFinite(lapNum) ? String(lapNum) : "1";
-
-    const gNum = Number(data && data.g_force);
-    const gStr = Number.isFinite(gNum) ? gNum.toFixed(2) : "--";
-
-    const threshNum = Number(data && data.threshold);
-    const threshStr = Number.isFinite(threshNum) ? threshNum.toFixed(2) : "1.15";
-
-    metaSpan.textContent = `Lap ${lapStr} · Force: ${gStr}g (Limit: ${threshStr}g) · ${timeStr}`;
-
-    detailsDiv.appendChild(titleSpan);
-    detailsDiv.appendChild(metaSpan);
-
-    const badgeSpan = document.createElement("span");
-    badgeSpan.className = "alert-badge";
-    badgeSpan.textContent = "RED ALERT";
-
-    item.appendChild(detailsDiv);
-    item.appendChild(badgeSpan);
+    item.innerHTML = `
+      <div class="alert-details">
+        <span class="alert-title">⚠ INTERVENE: ${zoneSafe} Threshold Exceeded</span>
+        <span class="alert-meta">Lap ${lapStr} · Force: ${gStr}g (Limit: ${threshStr}g) · ${timeStr}</span>
+      </div>
+      <span class="alert-badge">RED ALERT</span>
+    `;
 
     alertList.insertBefore(item, alertList.firstChild);
-
-    while (alertList.children.length > MAX_ALERTS) {
-      alertList.removeChild(alertList.lastChild);
-    }
+    while (alertList.children.length > MAX_ALERTS) alertList.removeChild(alertList.lastChild);
   }
 
   function applyReading(data) {
@@ -161,8 +128,55 @@ window.TracksideStream = (function () {
       window.TracksideChart.drawChart(canvas, ctx, threshold);
     }
 
-    if (stage === "INTERVENE") {
+    const shouldAlert = typeof shouldRecordAlert === "function"
+      ? shouldRecordAlert(lastReading, data)
+      : (stage === "INTERVENE");
+
+    if (shouldAlert) {
       recordInterveneAlert(data);
+    }
+    lastReading = data;
+  }
+
+  function handleRunStart(eventData) {
+    if (alertList) {
+      alertList.innerHTML = '<div id="empty-state" class="empty-alerts mono">No Intervene Alerts Recorded Yet</div>';
+    }
+    alertCount = 0;
+    if (alertCounter) alertCounter.textContent = "0 ALERTS";
+    lastReading = null;
+
+    if (lapValueEl) lapValueEl.textContent = "1";
+    if (lapPillEl) lapPillEl.textContent = "LAP 01";
+
+    const lapTotalEl = document.getElementById("lap-total");
+    if (lapTotalEl) {
+      if (eventData && eventData.mode === "continuous") {
+        lapTotalEl.textContent = "";
+      } else if (eventData && eventData.total_laps) {
+        lapTotalEl.textContent = ` / ${eventData.total_laps}`;
+      } else {
+        lapTotalEl.textContent = "";
+      }
+    }
+
+    if (progressTextEl) progressTextEl.textContent = "PROGRESS 0.0%";
+    const modeEl = document.getElementById("session-mode-sub");
+    if (modeEl) modeEl.textContent = "Session Mode: Active";
+  }
+
+  function handleRunEnd() {
+    if (progressTextEl) progressTextEl.textContent = "PROGRESS 100.0%";
+    const modeEl = document.getElementById("session-mode-sub");
+    if (modeEl) modeEl.textContent = "Session Mode: Finished";
+    if (statusText) statusText.textContent = "RUN FINISHED · SIMULATION COMPLETE";
+
+    if (trackPath && kartDot && kartPulse && pathLength > 0) {
+      const pt = trackPath.getPointAtLength(pathLength);
+      kartDot.setAttribute("cx", pt.x);
+      kartDot.setAttribute("cy", pt.y);
+      kartPulse.setAttribute("cx", pt.x);
+      kartPulse.setAttribute("cy", pt.y);
     }
   }
 
@@ -201,6 +215,14 @@ window.TracksideStream = (function () {
         const data = JSON.parse(event.data);
         if (data.type === "connection_ack") {
           console.log("[Trackside WS Handshake]", data.message);
+          return;
+        }
+        if (data.type === "run_start") {
+          handleRunStart(data);
+          return;
+        }
+        if (data.type === "run_end") {
+          handleRunEnd();
           return;
         }
         applyReading(data);
@@ -244,6 +266,7 @@ window.TracksideStream = (function () {
           '<div id="empty-state" class="empty-alerts mono">No Intervene Alerts Recorded Yet</div>';
       }
       alertCount = 0;
+      lastReading = null;
       if (alertCounter) alertCounter.textContent = "0 ALERTS";
     });
   }

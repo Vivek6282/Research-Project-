@@ -183,8 +183,8 @@
             </div>
             <div class="metric-card">
               <span class="metric-label mono">Current Lap</span>
-              <div><span id="lap-value" class="metric-value mono">1</span><span class="metric-unit mono">/ 5</span></div>
-              <span class="metric-sub mono">Session Mode: Active</span>
+              <div><span id="lap-value" class="metric-value mono">1</span><span id="lap-total" class="metric-unit mono"></span></div>
+              <span id="session-mode-sub" class="metric-sub mono">Session Mode: Active</span>
             </div>
             <div class="metric-card">
               <span class="metric-label mono">Active Track Zone</span>
@@ -255,6 +255,7 @@
   </div>
 
   <script src="track_visualization_chart.js"></script>
+  <script src="track_visualization_alerts.js"></script>
   <script src="track_visualization_stream.js"></script>
   <script src="track_visualization_limits.js"></script>
   <script src="track_visualization_demo_control.js"></script>

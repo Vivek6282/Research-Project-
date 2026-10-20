@@ -88,6 +88,18 @@ def broadcast_reading(telemetry_data):
         asyncio.run_coroutine_threadsafe(_async_broadcast(formatted_message), WS_LOOP)
 
 
+def broadcast_event(event_payload):
+    """
+    Dispatches non-reading event payload dictionary directly to background asyncio loop.
+    Input: event_payload (dict).
+    Output: None.
+    """
+    global WS_LOOP
+    if WS_LOOP and WS_LOOP.is_running():
+        formatted_message = json.dumps(event_payload)
+        asyncio.run_coroutine_threadsafe(_async_broadcast(formatted_message), WS_LOOP)
+
+
 async def _run_ws_server(listen_host, listen_port):
     """
     Internal asyncio coroutine running websockets.serve.

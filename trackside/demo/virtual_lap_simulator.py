@@ -37,6 +37,7 @@ from sim_backend_poster import (
     start_backend_worker,
 )
 from sim_websocket_server import (
+    broadcast_event,
     broadcast_reading,
     start_websocket_server,
 )
@@ -205,21 +206,40 @@ def main():
     print(f" WebSocket Endpoint: ws://{cli_args.ws_host}:{cli_args.ws_port}")
     print("=" * 60 + "\n")
 
+    run_mode = "continuous" if target_lap_count == 0 else "laps"
+    total_laps_val = None if target_lap_count == 0 else target_lap_count
+    broadcast_event({
+        "type": "run_start",
+        "mode": run_mode,
+        "total_laps": total_laps_val,
+    })
+
+    has_broadcast_run_end = False
     try:
         while True:
             run_lap(serial_connection, active_session_id, current_lap, target_lap_count, cli_args.delay)
             current_lap += 1
             if target_lap_count > 0 and current_lap > target_lap_count:
                 break
+        broadcast_event({"type": "run_end"})
+        has_broadcast_run_end = True
     except KeyboardInterrupt:
         print("\n[!] Simulation halted by user.")
     finally:
+        if not has_broadcast_run_end:
+            broadcast_event({"type": "run_end"})
+        time.sleep(0.1)
         if serial_connection:
             try:
                 serial_connection.close()
             except Exception:
                 pass
-        flush_backend_telemetry(timeout_seconds=5.0)
+        flush_backend_telemetry(
+            timeout_seconds=5.0,
+            session_id=active_session_id,
+            device_token=DEVICE_TOKEN,
+            backend_url=BACKEND_URL,
+        )
         print("\nSimulation session finished.")
         print("Check 'track_visualization.html' and Coach/Driver dashboards for results.")
 
