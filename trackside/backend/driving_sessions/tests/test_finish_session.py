@@ -9,6 +9,7 @@ Verifies:
 - Allowed access for: Admin and Coach
 """
 
+import uuid
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -179,16 +180,42 @@ class TestSessionFinishEndpoint(TestCase):
         self.assertEqual(tel_res.status_code, status.HTTP_409_CONFLICT)
 
     def test_other_driver_device_denied(self):
-        """Device B assigned to Driver B cannot finish Driver A's session."""
+        """Device B assigned to Driver B gets 404 when attempting to finish Driver A's session."""
         self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.token_b}")
         res = self.client.post(f"/api/sessions/{self.session_a.id}/finish/")
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(res.data, {"error": "Session not found."})
 
     def test_unassigned_device_denied(self):
-        """Unassigned device cannot finish any session."""
+        """Unassigned device gets 404 when attempting to finish any session."""
         self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.token_unassigned}")
         res = self.client.post(f"/api/sessions/{self.session_a.id}/finish/")
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(res.data, {"error": "Session not found."})
+
+    def test_inaccessible_and_nonexistent_sessions_return_identical_404(self):
+        """Nonexistent session ID and forbidden session ID return identical 404 status and body."""
+        nonexistent_id = uuid.uuid4()
+
+        # Nonexistent session request with Device A
+        self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.token_a}")
+        res_nonexistent = self.client.post(f"/api/sessions/{nonexistent_id}/finish/")
+        self.assertEqual(res_nonexistent.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Inaccessible session request with Device B on Session A
+        self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.token_b}")
+        res_forbidden = self.client.post(f"/api/sessions/{self.session_a.id}/finish/")
+        self.assertEqual(res_forbidden.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Inaccessible session request with unassigned device on Session A
+        self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.token_unassigned}")
+        res_unassigned = self.client.post(f"/api/sessions/{self.session_a.id}/finish/")
+        self.assertEqual(res_unassigned.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Status and body must be strictly identical across all 404 cases
+        self.assertEqual(res_nonexistent.data, res_forbidden.data)
+        self.assertEqual(res_nonexistent.data, res_unassigned.data)
+        self.assertEqual(res_forbidden.data, {"error": "Session not found."})
 
     def test_driver_denied_from_finishing_session(self):
         """Driver is denied from directly calling finish endpoint."""
@@ -197,9 +224,9 @@ class TestSessionFinishEndpoint(TestCase):
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_anonymous_denied(self):
-        """Anonymous request to finish endpoint is rejected with 401 or 403."""
+        """Anonymous request is rejected with 403 Forbidden by SessionAuthentication."""
         res = self.client.post(f"/api/sessions/{self.session_a.id}/finish/")
-        self.assertIn(res.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_admin_and_coach_allowed(self):
         """Admin and Coach can finish sessions."""

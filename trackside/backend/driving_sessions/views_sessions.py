@@ -97,8 +97,9 @@ class SessionFinishView(generics.GenericAPIView):
 
     Security & Access Rules:
     - Allowed: Admin, Coach, and a device token whose assigned driver owns this session.
-    - Denied (403): Driver (even if owner), other driver's device, unassigned device.
-    - Denied (401): Anonymous / unauthenticated request.
+    - Denied (403): Driver (even if owner) before lookup.
+    - Denied (403): Anonymous / unauthenticated request (SessionAuthentication returns 403).
+    - Denied (404): Nonexistent or inaccessible session (identical response avoids ID enumeration).
     - Idempotent: Sets ended_at = now only if currently null; second call returns 200 without altering ended_at.
     - Authentication: SessionAuthentication and DeviceTokenAuthentication.
     - Throttling: DeviceTelemetryRateThrottle (device_telemetry scope).
@@ -116,27 +117,28 @@ class SessionFinishView(generics.GenericAPIView):
         Input: session pk via URL kwargs.
         Output: HTTP 200 with updated session serializer data, or 403/404 on access failure.
         """
-        session_id = kwargs.get("pk") or kwargs.get("session_pk")
-        try:
-            session = Session.objects.get(pk=session_id)
-        except (Session.DoesNotExist, ValueError):
-            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
-
         user = request.user
         role = getattr(user, "role", None)
 
-        # Drivers are denied from finishing sessions directly
+        # Drivers are denied from finishing sessions directly before any lookup
         if role == "driver":
             return Response(
                 {"error": "Drivers are not permitted to close sessions directly."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Device tokens must be assigned to the driver who owns the session; coaches and admins can access any session
+        session_id = kwargs.get("pk") or kwargs.get("session_pk")
+        try:
+            session = Session.objects.get(pk=session_id)
+        except (Session.DoesNotExist, ValueError):
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Device tokens must be assigned to the driver who owns the session; coaches and admins can access any session.
+        # If the caller may not access this session, return 404 with identical body to avoid leaking existence.
         if not can_access_session(user, session):
             return Response(
-                {"error": "You do not have permission to finish this session."},
-                status=status.HTTP_403_FORBIDDEN,
+                {"error": "Session not found."},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         # Atomically set ended_at to current time only if currently null.
