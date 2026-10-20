@@ -280,10 +280,7 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------------------------
-# STATIC FILES & MOCK FLAGS
+# STATIC FILES
 # ---------------------------------------------------------------------------
 STATIC_URL = "static/"
-
-# Set to False in production or when testing real GPS track survey uploads
-TRACKSIDE_USE_MOCK_SURVEY_DATA = env.bool("TRACKSIDE_USE_MOCK_SURVEY_DATA", default=True)
 STATIC_ROOT = BASE_DIR / "staticfiles"
