@@ -13,11 +13,13 @@ build/
 venv/
 env/
 
-# Environment variables — NEVER commit
+# Environment variables and radio keys — NEVER commit
 .env
 .env.local
 .env.production
 .env.docker
+radio_secrets.h
+**/radio_secrets.h
 
 # Django
 *.sqlite3
