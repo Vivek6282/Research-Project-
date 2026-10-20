@@ -16,6 +16,11 @@ export interface DeviceRecord {
   id: string;
   device_type: string;
   status: string;
+  assigned_to?: string | null;
+  assigned_to_name?: string | null;
+  is_online?: boolean;
+  last_seen_at?: string | null;
+  reassignment_notice?: string | null;
 }
 
 export interface AuditEntry {

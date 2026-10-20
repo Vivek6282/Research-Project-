@@ -9,19 +9,35 @@ import { Wifi, WifiOff } from "lucide-react";
 import { Panel } from "../../../components/ui/panel";
 import { Chip } from "../../../components/ui/chip";
 import { api } from "../../../lib/api";
-import { DeviceRecord } from "../types";
+import { DeviceRecord, UserRecord } from "../types";
 
 interface DeviceDiagnosticPanelProps {
   device: DeviceRecord;
+  activeDrivers?: UserRecord[];
+  onDeviceUpdated?: (notice?: string) => Promise<void> | void;
 }
 
-export function DeviceDiagnosticPanel({ device }: DeviceDiagnosticPanelProps) {
+export function DeviceDiagnosticPanel({
+  device,
+  activeDrivers = [],
+  onDeviceUpdated,
+}: DeviceDiagnosticPanelProps) {
   const [pollingId, setPollingId] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [manualConfirm, setManualConfirm] = useState({
     led: null as boolean | null,
     buzzer: null as boolean | null,
   });
+  const [selectedDriverId, setSelectedDriverId] = useState<string>(
+    device.assigned_to || ""
+  );
+  const [reassignNotice, setReassignNotice] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedDriverId(device.assigned_to || "");
+  }, [device.assigned_to]);
 
   useEffect(() => {
     let interval: any;
@@ -42,6 +58,27 @@ export function DeviceDiagnosticPanel({ device }: DeviceDiagnosticPanelProps) {
     }
     return () => clearInterval(interval);
   }, [pollingId, device.id]);
+
+  const handleSaveAssignment = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    setReassignNotice(null);
+    try {
+      const res: any = await api.patch(`/api/devices/${device.id}/`, {
+        assigned_to: selectedDriverId || null,
+      });
+      if (res.reassignment_notice) {
+        setReassignNotice(res.reassignment_notice);
+      }
+      if (onDeviceUpdated) {
+        await onDeviceUpdated(res.reassignment_notice);
+      }
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to update device assignment.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleRunDiagnostic = async () => {
     setResult(null);
@@ -87,6 +124,63 @@ export function DeviceDiagnosticPanel({ device }: DeviceDiagnosticPanelProps) {
         <Chip color={isOnline ? "#33D17E" : "#E5473C"}>
           {device.status.toUpperCase()}
         </Chip>
+      </div>
+
+      {/* Driver Assignment Section */}
+      <div className="border-t border-[#232B35] pt-2 pb-2">
+        <div className="flex items-center justify-between text-xs font-mono mb-1.5">
+          <span className="text-[#7C8898]">Driver:</span>
+          <span
+            data-testid={`admin-device-assigned-driver-${device.id}`}
+            className="font-bold text-[#E7EDF3]"
+          >
+            {device.assigned_to_name || "Unassigned"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <select
+            data-testid={`admin-device-assign-select-${device.id}`}
+            value={selectedDriverId}
+            onChange={(e) => setSelectedDriverId(e.target.value)}
+            disabled={isSaving}
+            className="flex-1 bg-[#141A21] border border-[#232B35] rounded px-2 py-1 text-xs font-mono text-[#E7EDF3] focus:outline-none focus:border-[#3FA6E0]"
+          >
+            <option value="">Unassigned</option>
+            {activeDrivers.map((driver) => (
+              <option key={driver.id} value={driver.id}>
+                {driver.name}
+              </option>
+            ))}
+          </select>
+          <button
+            data-testid={`admin-device-assign-save-btn-${device.id}`}
+            onClick={handleSaveAssignment}
+            disabled={isSaving || selectedDriverId === (device.assigned_to || "")}
+            className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-colors ${
+              isSaving || selectedDriverId === (device.assigned_to || "")
+                ? "bg-[#232B35] text-[#7C8898] cursor-not-allowed"
+                : "bg-[#3FA6E0] text-[#0A0E13] hover:bg-[#3FA6E0]/90 cursor-pointer"
+            }`}
+          >
+            {isSaving ? "..." : "Save"}
+          </button>
+        </div>
+        {reassignNotice && (
+          <div
+            data-testid={`admin-device-notice-${device.id}`}
+            className="mt-2 text-[11px] font-mono text-[#E5A93C] bg-[#E5A93C]/10 border border-[#E5A93C]/30 rounded p-1.5"
+          >
+            {reassignNotice}
+          </div>
+        )}
+        {saveError && (
+          <div
+            data-testid={`admin-device-error-${device.id}`}
+            className="mt-2 text-[11px] font-mono text-[#E5473C] bg-[#E5473C]/10 border border-[#E5473C]/30 rounded p-1.5"
+          >
+            {saveError}
+          </div>
+        )}
       </div>
 
       <div className="border-t border-[#232B35] pt-3">
@@ -145,24 +239,12 @@ export function DeviceDiagnosticPanel({ device }: DeviceDiagnosticPanelProps) {
                 <div className="flex gap-1">
                   <button
                     onClick={() => setManualConfirm((p) => ({ ...p, led: true }))}
-                    className={`px-1.5 py-0.5 rounded ${
-                      manualConfirm.led === true
-                        ? "bg-[#33D17E] text-[#0A0E13]"
-                        : "bg-[#232B35] text-[#E7EDF3]"
-                    }`}
-                  >
-                    Yes
-                  </button>
+                    className={`px-1.5 py-0.5 rounded ${manualConfirm.led === true ? "bg-[#33D17E] text-[#0A0E13]" : "bg-[#232B35] text-[#E7EDF3]"}`}
+                  >Yes</button>
                   <button
                     onClick={() => setManualConfirm((p) => ({ ...p, led: false }))}
-                    className={`px-1.5 py-0.5 rounded ${
-                      manualConfirm.led === false
-                        ? "bg-[#E5473C] text-[#0A0E13]"
-                        : "bg-[#232B35] text-[#E7EDF3]"
-                    }`}
-                  >
-                    No
-                  </button>
+                    className={`px-1.5 py-0.5 rounded ${manualConfirm.led === false ? "bg-[#E5473C] text-[#0A0E13]" : "bg-[#232B35] text-[#E7EDF3]"}`}
+                  >No</button>
                 </div>
               </div>
               <div className="flex justify-between items-center">
@@ -170,24 +252,12 @@ export function DeviceDiagnosticPanel({ device }: DeviceDiagnosticPanelProps) {
                 <div className="flex gap-1">
                   <button
                     onClick={() => setManualConfirm((p) => ({ ...p, buzzer: true }))}
-                    className={`px-1.5 py-0.5 rounded ${
-                      manualConfirm.buzzer === true
-                        ? "bg-[#33D17E] text-[#0A0E13]"
-                        : "bg-[#232B35] text-[#E7EDF3]"
-                    }`}
-                  >
-                    Yes
-                  </button>
+                    className={`px-1.5 py-0.5 rounded ${manualConfirm.buzzer === true ? "bg-[#33D17E] text-[#0A0E13]" : "bg-[#232B35] text-[#E7EDF3]"}`}
+                  >Yes</button>
                   <button
                     onClick={() => setManualConfirm((p) => ({ ...p, buzzer: false }))}
-                    className={`px-1.5 py-0.5 rounded ${
-                      manualConfirm.buzzer === false
-                        ? "bg-[#E5473C] text-[#0A0E13]"
-                        : "bg-[#232B35] text-[#E7EDF3]"
-                    }`}
-                  >
-                    No
-                  </button>
+                    className={`px-1.5 py-0.5 rounded ${manualConfirm.buzzer === false ? "bg-[#E5473C] text-[#0A0E13]" : "bg-[#232B35] text-[#E7EDF3]"}`}
+                  >No</button>
                 </div>
               </div>
             </div>

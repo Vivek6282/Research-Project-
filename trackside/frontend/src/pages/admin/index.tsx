@@ -24,6 +24,7 @@ export function AdminDashboard() {
   const {
     users,
     devices,
+    refreshDevices,
     fetchError,
     setFetchError,
     showCreateForm,
@@ -80,7 +81,14 @@ export function AdminDashboard() {
               </div>
             ) : (
               devices.map((device) => (
-                <DeviceDiagnosticPanel key={device.id} device={device} />
+                <DeviceDiagnosticPanel
+                  key={device.id}
+                  device={device}
+                  activeDrivers={users.filter(
+                    (u) => u.role === "driver" && u.is_active !== false && u.status !== "Inactive"
+                  )}
+                  onDeviceUpdated={refreshDevices}
+                />
               ))
             )}
           </div>

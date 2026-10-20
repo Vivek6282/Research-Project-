@@ -78,6 +78,15 @@ export function useAdminDashboard() {
     }
   }, []);
 
+  const refreshDevices = useCallback(async () => {
+    try {
+      const fetched: any = await api.get("/api/devices/");
+      setDevices(Array.isArray(fetched) ? fetched : fetched?.results || []);
+    } catch (err) {
+      console.error("[useAdminDashboard] loadDevices failure:", err);
+    }
+  }, []);
+
   useEffect(() => {
     async function loadUsers() {
       try {
@@ -96,18 +105,10 @@ export function useAdminDashboard() {
         );
       }
     }
-    async function loadDevices() {
-      try {
-        const fetched: any = await api.get("/api/devices/");
-        setDevices(Array.isArray(fetched) ? fetched : fetched?.results || []);
-      } catch (err) {
-        console.error("[useAdminDashboard] loadDevices failure:", err);
-      }
-    }
     loadUsers();
-    loadDevices();
+    refreshDevices();
     fetchAuditAndDiagnostics();
-  }, [fetchAuditAndDiagnostics]);
+  }, [fetchAuditAndDiagnostics, refreshDevices]);
 
   const handleCreateAccount = async () => {
     setErrorMsg("");
@@ -245,6 +246,7 @@ export function useAdminDashboard() {
   return {
     users,
     devices,
+    refreshDevices,
     fetchError,
     setFetchError,
     showCreateForm,
