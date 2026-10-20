@@ -29,6 +29,8 @@ export function CoachDashboard() {
     activeTab,
     setActiveTab,
     drivers,
+    driversError,
+    retryLoadDrivers,
     selectedKart,
     setSelectedKart,
     selectedDriver,
@@ -39,6 +41,8 @@ export function CoachDashboard() {
     sliderMax,
     currentZoneObj,
     historicalSessions,
+    sessionsError,
+    retryLoadSessions,
     activeTrackId,
     zones,
     selectedZoneId,
@@ -231,6 +235,8 @@ export function CoachDashboard() {
                 setSelectedKart={setSelectedKart}
                 rosterMap={rosterMap}
                 thresholds={thresholds}
+                driversError={driversError}
+                onRetry={retryLoadDrivers}
               />
 
               {/* SECTOR DELTAS Panel */}
@@ -240,7 +246,11 @@ export function CoachDashboard() {
         </>
       ) : (
         /* HISTORICAL SESSIONS TAB */
-        <HistoricalSessionsTab historicalSessions={historicalSessions} />
+        <HistoricalSessionsTab
+          historicalSessions={historicalSessions}
+          sessionsError={sessionsError}
+          onRetry={retryLoadSessions}
+        />
       )}
     </div>
   );

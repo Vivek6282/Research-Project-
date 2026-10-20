@@ -15,33 +15,44 @@ import {
 import {
   DEFAULT_SPRINT_FLOOR,
   DEFAULT_SPRINT_CEILING,
-  INITIAL_DRIVERS,
-  INITIAL_HISTORICAL_SESSIONS,
 } from "../constants";
 
 export { DEFAULT_SPRINT_FLOOR, DEFAULT_SPRINT_CEILING };
 
+const EMPTY_DRIVER: DriverProfile = {
+  pos: 0,
+  kart: "—",
+  name: "—",
+  lapTime: "—",
+  session: "—",
+  gap: "—",
+  baseSpeed: 0,
+  baseHr: 0,
+  baseSpo2: 0,
+  baseBreathing: 0,
+  stressIndex: 0,
+  hydration: 0,
+  status: "—",
+  statusColor: "#7C8898",
+  alerts: 0,
+  customThreshold: DEFAULT_SPRINT_CEILING,
+};
+
 export function useCoachDashboard() {
   const [activeTab, setActiveTab] = useState<"live" | "history">("live");
-  const [drivers, setDrivers] = useState<DriverProfile[]>(INITIAL_DRIVERS);
-  const [selectedKart, setSelectedKart] = useState("12");
-  const [thresholds, setThresholds] = useState<Record<string, number>>({
-    "12": DEFAULT_SPRINT_CEILING,
-    "7": 1.1,
-    "3": 1.05,
-    "18": DEFAULT_SPRINT_CEILING,
-    "5": DEFAULT_SPRINT_FLOOR,
-  });
+  const [drivers, setDrivers] = useState<DriverProfile[]>([]);
+  const [driversError, setDriversError] = useState<string | null>(null);
+  const [selectedKart, setSelectedKart] = useState("");
+  const [thresholds, setThresholds] = useState<Record<string, number>>({});
 
-  const [historicalSessions, setHistoricalSessions] = useState<HistoricalSession[]>(
-    INITIAL_HISTORICAL_SESSIONS,
-  );
+  const [historicalSessions, setHistoricalSessions] = useState<HistoricalSession[]>([]);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
   const [rosterMap, setRosterMap] = useState<Record<string, RosterStatusItem>>({});
 
   const selectedDriver =
-    drivers.find((d) => d.kart === selectedKart) || drivers[0] || INITIAL_DRIVERS[0];
+    drivers.find((d) => d.kart === selectedKart) || drivers[0] || EMPTY_DRIVER;
 
   // Compose telemetry hook
   const telemetry = useCoachTelemetry(selectedDriver, activeSessionId);
@@ -96,68 +107,80 @@ export function useCoachDashboard() {
   }, [activeTab]);
 
   // Fetch Drivers Roster from API
-  useEffect(() => {
-    async function loadDrivers() {
-      try {
-        const res = await api.get<any>("/api/auth/users/");
-        const userList = Array.isArray(res) ? res : res.results || [];
-        const driverUsers = userList.filter((u: any) => u.role === "driver");
-        if (driverUsers.length > 0) {
-          const mapped: DriverProfile[] = driverUsers.map((u: any, idx: number) => ({
-            pos: idx + 1,
-            kart: String(((idx * 5 + 3) % 20) + 1),
-            name: u.name || u.email,
-            lapTime: "1:24.312",
-            session: "Race Sim 3",
-            gap: idx === 0 ? "---" : `+0.${300 + idx * 250}`,
-            baseSpeed: 80 + (idx % 3) * 4,
-            baseHr: 140 + idx * 5,
-            baseSpo2: 97,
-            baseBreathing: 22,
-            stressIndex: 0.6,
-            hydration: 88,
-            status: "OPTIMAL",
-            statusColor: "#33D17E",
-            alerts: idx * 2,
-            customThreshold: DEFAULT_SPRINT_CEILING,
-          }));
-          setDrivers(mapped);
-          if (mapped[0]) setSelectedKart(mapped[0].kart);
-        }
-      } catch (err) {
-        console.warn("Using default driver roster:", err);
+  const loadDrivers = async () => {
+    try {
+      setDriversError(null);
+      const res = await api.get<any>("/api/auth/users/");
+      const userList = Array.isArray(res) ? res : res.results || [];
+      const driverUsers = userList.filter((u: any) => u.role === "driver");
+      if (driverUsers.length > 0) {
+        const mapped: DriverProfile[] = driverUsers.map((u: any, idx: number) => ({
+          pos: idx + 1,
+          kart: String(((idx * 5 + 3) % 20) + 1),
+          name: u.name || u.email,
+          lapTime: "1:24.312",
+          session: "Race Sim 3",
+          gap: idx === 0 ? "---" : `+0.${300 + idx * 250}`,
+          baseSpeed: 80 + (idx % 3) * 4,
+          baseHr: 140 + idx * 5,
+          baseSpo2: 97,
+          baseBreathing: 22,
+          stressIndex: 0.6,
+          hydration: 88,
+          status: "OPTIMAL",
+          statusColor: "#33D17E",
+          alerts: idx * 2,
+          customThreshold: DEFAULT_SPRINT_CEILING,
+        }));
+        setDrivers(mapped);
+        if (mapped[0]) setSelectedKart(mapped[0].kart);
+      } else {
+        setDrivers([]);
       }
+    } catch (err) {
+      console.warn("Failed loading drivers from API:", err);
+      setDriversError("Failed to load driver roster. Please try again.");
+      setDrivers([]);
     }
+  };
+
+  useEffect(() => {
     loadDrivers();
   }, []);
 
   // Fetch Historical Sessions & Active Session ID from API
-  useEffect(() => {
-    async function loadSessions() {
-      try {
-        const res = await api.get<any>("/api/sessions/");
-        const sessionList = Array.isArray(res) ? res : res.results || [];
-        if (sessionList.length > 0) {
-          setActiveSessionId(sessionList[0].id);
-          const mapped: HistoricalSession[] = sessionList.map((s: any) => ({
-            id: s.id.length > 8 ? `SESS-${s.id.slice(0, 4).toUpperCase()}` : s.id,
-            rawId: s.id,
-            driver: s.driver_name || "—",
-            kart: s.kart || "—",
-            date: s.started_at ? new Date(s.started_at).toISOString().split("T")[0] : "—",
-            duration: s.duration || "—",
-            mode: s.mode ? s.mode.charAt(0).toUpperCase() + s.mode.slice(1) : "—",
-            laps: s.laps ?? "—",
-            bestLap: s.best_lap || "—",
-            maxG: s.max_g || "—",
-            alerts: s.alert_count ?? 0,
-          }));
-          setHistoricalSessions(mapped);
-        }
-      } catch (err) {
-        console.warn("Using default historical sessions:", err);
+  const loadSessions = async () => {
+    try {
+      setSessionsError(null);
+      const res = await api.get<any>("/api/sessions/");
+      const sessionList = Array.isArray(res) ? res : res.results || [];
+      if (sessionList.length > 0) {
+        setActiveSessionId(sessionList[0].id);
+        const mapped: HistoricalSession[] = sessionList.map((s: any) => ({
+          id: s.id.length > 8 ? `SESS-${s.id.slice(0, 4).toUpperCase()}` : s.id,
+          rawId: s.id,
+          driver: s.driver_name || "—",
+          kart: s.kart || "—",
+          date: s.started_at ? new Date(s.started_at).toISOString().split("T")[0] : "—",
+          duration: s.duration || "—",
+          mode: s.mode ? s.mode.charAt(0).toUpperCase() + s.mode.slice(1) : "—",
+          laps: s.laps ?? "—",
+          bestLap: s.best_lap || "—",
+          maxG: s.max_g || "—",
+          alerts: s.alert_count ?? 0,
+        }));
+        setHistoricalSessions(mapped);
+      } else {
+        setHistoricalSessions([]);
       }
+    } catch (err) {
+      console.warn("Failed loading sessions from API:", err);
+      setSessionsError("Failed to load historical sessions. Please try again.");
+      setHistoricalSessions([]);
     }
+  };
+
+  useEffect(() => {
     loadSessions();
   }, []);
 
@@ -165,6 +188,8 @@ export function useCoachDashboard() {
     activeTab,
     setActiveTab,
     drivers,
+    driversError,
+    retryLoadDrivers: loadDrivers,
     selectedKart,
     setSelectedKart,
     selectedDriver,
@@ -175,6 +200,8 @@ export function useCoachDashboard() {
     sliderMax,
     currentZoneObj,
     historicalSessions,
+    sessionsError,
+    retryLoadSessions: loadSessions,
     activeTrackId,
     rosterMap,
     ...telemetry,

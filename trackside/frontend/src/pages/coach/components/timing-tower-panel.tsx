@@ -12,14 +12,21 @@ interface TimingTowerPanelProps {
   setSelectedKart: (kart: string) => void;
   rosterMap: Record<string, RosterStatusItem>;
   thresholds: Record<string, number>;
+  driversError?: string | null;
+  onRetry?: () => void;
 }
 
+/**
+ * Renders the driver timing tower classification or clear empty/error states.
+ */
 export function TimingTowerPanel({
   drivers,
   selectedKart,
   setSelectedKart,
   rosterMap,
   thresholds,
+  driversError,
+  onRetry,
 }: TimingTowerPanelProps) {
   return (
     <div
@@ -36,8 +43,28 @@ export function TimingTowerPanel({
         </div>
       </div>
 
-      {/* Roster Classification Rows */}
-      <div className="space-y-1.5 font-mono">
+      {driversError ? (
+        <div className="p-3 text-center text-xs text-[#E5473C] bg-[#E5473C]/10 border border-[#E5473C]/30 rounded-[2px] font-mono">
+          <p className="mb-2">{driversError}</p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="px-2 py-1 bg-[#232B35] hover:bg-[#2A3441] text-[#E7EDF3] rounded-[2px] text-[11px] border border-[#3A4553]"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      ) : drivers.length === 0 ? (
+        <div
+          data-testid="coach-timing-tower-empty"
+          className="p-4 text-center text-xs text-[#7C8898] border border-dashed border-[#232B35] rounded-[2px]"
+        >
+          No drivers yet. The Admin creates driver accounts.
+        </div>
+      ) : (
+        /* Roster Classification Rows */
+        <div className="space-y-1.5 font-mono">
         {drivers.map((d) => {
           const isSelected = selectedKart === d.kart;
           const rosterInfo = rosterMap[d.kart];
@@ -90,6 +117,7 @@ export function TimingTowerPanel({
           );
         })}
       </div>
+      )}
     </div>
   );
 }
