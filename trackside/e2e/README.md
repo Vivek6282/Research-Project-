@@ -16,6 +16,7 @@ Comprehensive automated browser test suite for the **Trackside** IoT-Based Traje
 To run the complete test suite, generate the self-contained HTML report with embedded screenshot evidence, and produce the formal academic Markdown report, execute the following commands from the `trackside/` directory:
 
 ```bash
+# Start the backend with LOGIN_THROTTLE_RATE=1000/min first (PowerShell: $env:LOGIN_THROTTLE_RATE="1000/min"), otherwise logins get HTTP 429.
 pytest e2e/ --html=e2e/reports/e2e_report.html --self-contained-html --json-report --json-report-file=e2e/reports/report.json
 python e2e/generate_report.py
 ```
@@ -38,6 +39,6 @@ python e2e/generate_report.py
 
 ## Reports Generated
 
-1. `e2e/reports/e2e_report.html`: Self-contained interactive HTML test report with embedded visual evidence screenshots.
+1. `e2e/reports/e2e_report_part*.html`: Self-contained HTML test reports (one per batch when the suite is run in parts; a single `e2e_report.html` when run in one go).
 2. `e2e/reports/SELENIUM_TEST_REPORT.md`: Submission-ready, formal academic markdown report containing methodology, complete test execution matrix, defect documentation, and environment specifications.
 3. `e2e/reports/screenshots/`: Individual PNG evidence screenshots organized by Test Case ID (`TC-ID.png`).

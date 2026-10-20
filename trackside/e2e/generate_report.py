@@ -261,6 +261,54 @@ TEST_METADATA = {
 }
 
 
+def detect_test_environment():
+    """Read the real versions used for this run, so the report never states
+    a platform or version that was not actually used.
+    Output: dict of short version strings ("unknown" if a value cannot be read)."""
+    import platform
+    from importlib import metadata
+
+    def package_version(name):
+        try:
+            return metadata.version(name)
+        except Exception:
+            return "unknown"
+
+    frontend_versions = {}
+    try:
+        package_json = json.loads((BASE_DIR.parent / "frontend" / "package.json").read_text(encoding="utf-8"))
+        all_deps = {**package_json.get("dependencies", {}), **package_json.get("devDependencies", {})}
+        for key in ("react", "vite", "tailwindcss"):
+            frontend_versions[key] = all_deps.get(key, "unknown").lstrip("^~")
+    except Exception:
+        pass
+
+    return {
+        "os": f"{platform.system()} {platform.release()} ({platform.machine()})",
+        # The browser version is passed in by whoever runs the suite (E2E_BROWSER_VERSION),
+        # because this script does not start a browser itself.
+        "browser": os.environ.get("E2E_BROWSER_VERSION", "Chrome/Chromium (version not recorded)"),
+        "python": platform.python_version(),
+        "pytest": package_version("pytest"),
+        "selenium": package_version("selenium"),
+        "django": package_version("django"),
+        "react": frontend_versions.get("react", "unknown"),
+        "vite": frontend_versions.get("vite", "unknown"),
+        "tailwind": frontend_versions.get("tailwindcss", "unknown"),
+    }
+
+
+def load_run_details():
+    """Read optional run details (tested commit, how the run was made) from report.json.
+    Output: dict, empty if the file or the fields are missing."""
+    try:
+        with open(JSON_REPORT_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {"tested_commit": data.get("tested_commit"), "run_note": data.get("run_note")}
+    except Exception:
+        return {}
+
+
 def load_pytest_results():
     """Load pytest JSON report if available, else derive from screenshots and directory."""
     results = {}
@@ -354,6 +402,12 @@ def generate_markdown_report():
     lines.append(f"- **Passed:** {passed_tests}")
     lines.append(f"- **Failed:** {failed_tests}")
     lines.append(f"- **Overall Pass Rate:** **{pass_percentage}%**")
+    # Say how and on which commit this run was made, if the JSON report records it.
+    run_details = load_run_details()
+    if run_details.get("tested_commit"):
+        lines.append(f"- **Tested Commit:** `{run_details['tested_commit']}`")
+    if run_details.get("run_note"):
+        lines.append(f"- **Execution Note:** {run_details['run_note']}")
     lines.append("")
 
     # Summary table
@@ -379,7 +433,7 @@ def generate_markdown_report():
     lines.append("| **Functional** | Web application dashboards (Admin, Coach, Driver) | ESP32 physical hardware & glove firmware flashing |")
     lines.append("| **Security** | Role-based access control, CSRF, IDOR isolation | Physical CAN bus / Wi-Fi physical layer sniffing |")
     lines.append("| **UI / Layout** | Responsive breakpoints (375px, 768px, 1440px), modal flows | Native mobile application (PWA container only) |")
-    lines.append("| **Roadmap** | Phase 1 Production Pit-Wall System | Phase 1.5 Video Sync & Phase 2 ML (non-interactive placeholders) |")
+    lines.append("| **Roadmap** | Phase 1 validated prototype (sensor input simulated) | Phase 1.5 Video Sync & Phase 2 ML (non-interactive placeholders) |")
     lines.append("")
 
     # 3. Test Environment
@@ -387,11 +441,12 @@ def generate_markdown_report():
     lines.append("")
     lines.append("| Component | Specification / Version | Description |")
     lines.append("| :--- | :--- | :--- |")
-    lines.append("| **Operating System** | Windows 11 Professional (x64) | Host execution platform |")
-    lines.append("| **Browser** | Google Chrome Headless (`--headless=new`) | Chrome 120+ with Blink engine |")
-    lines.append("| **Test Framework** | pytest 8.x + pytest-html + selenium 4.x | Python test runner & reporting engine |")
-    lines.append("| **Backend Platform** | Django 5.x + Daphne ASGI + Channels | High-concurrency WebSockets & REST API |")
-    lines.append("| **Frontend Stack** | React 18 + Vite 6 + Tailwind CSS | Single Page Application (SPA) client |")
+    env_info = detect_test_environment()
+    lines.append(f"| **Operating System** | {env_info['os']} | Host execution platform (detected at report time) |")
+    lines.append(f"| **Browser** | {env_info['browser']} | Headless (`--headless=new`), driven by ChromeDriver |")
+    lines.append(f"| **Test Framework** | pytest {env_info['pytest']} + selenium {env_info['selenium']} + pytest-json-report | Python {env_info['python']} test runner |")
+    lines.append(f"| **Backend Platform** | Django {env_info['django']} + Channels (Daphne ASGI) | Started with `LOGIN_THROTTLE_RATE=1000/min` for this run only; the normal setting is 5/min |")
+    lines.append(f"| **Frontend Stack** | React {env_info['react']} + Vite {env_info['vite']} + Tailwind CSS {env_info['tailwind']} | Single Page Application (SPA) client, Vite dev server |")
     lines.append("| **Viewports Tested** | 375×812 (Mobile), 768×1024 (Tablet), 1440×900 (Desktop) | Responsive multi-factor testing |")
     lines.append("")
 
@@ -428,7 +483,7 @@ def generate_markdown_report():
     lines.append("| Defect ID | Associated TC | Severity | Root Cause | Resolution | Verification Status |")
     lines.append("| :--- | :--- | :---: | :--- | :--- | :---: |")
     lines.append("| **DEF-001** | TC-AUTH-03 | Medium | `api.ts` intercepted all HTTP 401 responses and triggered `window.location.href = '/login'`, causing a hard page reload that erased login error messages. | Exempted `/api/auth/login/` and `/api/auth/me/` from automatic reload so login error state surfaces to the UI. | ✅ VERIFIED |")
-    lines.append("| **DEF-002** | TC-AUTH-04..07 | High | Backend anonymous login throttle limit of 5 requests/min per IP blocked rapid sequential role testing with HTTP 429. | Configured `DEFAULT_THROTTLE_RATES` to allow test rate overrides (`LOGIN_THROTTLE_RATE`, defaulting to 1000/min in DEBUG mode). | ✅ VERIFIED |")
+    lines.append("| **DEF-002** | TC-AUTH-04..07 | High | Backend anonymous login throttle limit of 5 requests/min per IP blocked rapid sequential role testing with HTTP 429. | The login limit stays 5/min by default in every mode. Only the E2E test server is started with `LOGIN_THROTTLE_RATE=1000/min` so sequential role logins are not blocked. | ✅ VERIFIED |")
     lines.append("| **DEF-003** | TC-COACH-05 | High | `SessionNoteSerializer` omitted `session` from `read_only_fields`, causing `POST /api/sessions/<uuid>/notes/` to reject valid notes with `{'session': ['This field is required.']}`. | Added `session` to `read_only_fields` in `SessionNoteSerializer` since it is populated from view URL kwargs. | ✅ VERIFIED |")
     lines.append("| **DEF-004** | TC-DRIVER-04 | Low | `dev-banner.tsx` testId slugification regex stripped decimal points (`Phase 1.5` became `dev-banner-phase-1-5`). | Updated slugification regex in `dev-banner.tsx` to preserve decimal numbers (`dev-banner-phase-1.5`). | ✅ VERIFIED |")
     lines.append("")
