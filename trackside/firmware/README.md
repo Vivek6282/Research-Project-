@@ -90,3 +90,57 @@ The Bridge firmware line `const char* GLOVE_MAC` is specifically configured for 
 - **Bridge Port in Simulator Configuration**: In `trackside/demo/.env`, `SERIAL_PORT` must be the **BRIDGE's** port (e.g., `SERIAL_PORT=COM7`).
 - **USB Behavior**: Python reports "Connected" even for the wrong board; the glove ignores USB.
 - **"Access is denied" Error**: "Access is denied" means a Serial Monitor (or another program) has the port open. Close the Serial Monitor and retry.
+
+---
+
+## 8. Radio Security & Encryption (ESP-NOW)
+
+The wireless ESP-NOW link between the bridge and glove is encrypted with AES-128 and protected against replay attacks and malformed input.
+
+### Step-by-Step Setup Guide (Click-by-Click for Beginners)
+
+#### 1. Generate Radio Secret Keys
+Before compiling or uploading the sketches, generate your unique 16-byte Primary Master Key (PMK) and Local Master Key (LMK):
+```bash
+python firmware/tools/make_radio_keys.py
+```
+This automatically writes `radio_secrets.h` into both `firmware/trackside_bridge/` and `firmware/trackside_glove/`. If you forget this step and attempt to compile with unconfigured all-zero keys, the compiler will safely stop with an error prompting you to run this script.
+
+#### 2. Upload Bridge Firmware
+1. Plug your **Bridge ESP32** into your computer with a USB cable.
+2. In Arduino IDE, open `firmware/trackside_bridge/trackside_bridge.ino`.
+3. Verify that `GLOVE_MAC` matches your glove board's MAC address (`B0:CB:D8:0A:4F:20`).
+4. Select `Tools > Port` (choose the bridge COM port).
+5. Click **Upload** (the Right Arrow icon).
+
+#### 3. Upload Glove Firmware
+1. Plug your **Glove ESP32** into your computer with a USB cable.
+2. In Arduino IDE, open `firmware/trackside_glove/trackside_glove.ino`.
+3. Verify that `BRIDGE_MAC` matches your bridge board's MAC address (`B0:CB:D8:0A:95:64`).
+4. Select `Tools > Port` (choose the glove COM port).
+5. Click **Upload** (the Right Arrow icon).
+
+#### 4. How to Tell It Worked
+1. Power both boards. The glove will perform a brief self-test across all 5 LEDs and then show **one dim blue LED (WAITING)**.
+2. Send test telemetry from the bridge (or launch `python demo/virtual_lap_simulator.py`).
+3. As valid encrypted telemetry arrives, the glove immediately switches from the dim blue waiting light to the active signal strip:
+   - **NOMINAL**: 2 steady green LEDs.
+   - **MONITORING**: 2 steady green LEDs + 2 flashing amber LEDs.
+   - **INTERVENE**: All 5 LEDs flashing at 2.5 Hz.
+
+#### 5. What a Key Mismatch Looks Like & How to Fix It
+- **Symptoms**: The bridge sends telemetry (`send=ok`), but the glove **stays on the single dim blue LED (WAITING)** and never updates.
+- **Why this happens**: If the bridge and glove were compiled with different `radio_secrets.h` keys, the glove hardware cannot decrypt the radio frames. Dropping unauthenticated frames is the intentional, safe failure state.
+- **The Fix**: Re-run `python firmware/tools/make_radio_keys.py`, then re-upload `trackside_bridge.ino` to the bridge and `trackside_glove.ino` to the glove so both boards share identical keys.
+
+### Threat Model & Known Security Limits
+
+1. **Replay Exposure Window**:
+   - The bridge uses persistent non-volatile storage (`Preferences` NVS namespace `radio`) to maintain a monotonically increasing sequence counter with a 1000-packet ceiling.
+   - The glove keeps `lastCounter` in RAM and strictly rejects packets with `counter <= lastCounter`.
+   - **Honest disclosure on boot exposure**: After a glove reboot, the glove accepts the first valid packet it receives to establish its baseline counter. There is a theoretical one-packet exposure window upon glove reboot. However, any replayed stage lasts at most **1.5 seconds**, because the glove automatically falls back to WAITING unless continuous, strictly increasing, valid packets arrive. Furthermore, an attacker cannot forge packets without possessing the 16-byte shared LMK encryption key.
+2. **Flash Storage of Keys**:
+   - Radio keys reside in ESP32 flash memory. They are protected against wireless eavesdropping over the air, but remain extractable via physical chip readout unless ESP32 Hardware Flash Encryption and Secure Boot are enabled (recommended for production deployment).
+3. **Encrypted Peer Limits**:
+   - ESP-NOW supports a hardware maximum of encrypted peers (typically 6–17 depending on ESP-IDF configuration). For Trackside's 2-board point-to-point architecture (1 Bridge to 1 Glove), this limit is never approached.
+
