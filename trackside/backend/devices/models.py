@@ -100,9 +100,11 @@ class Device(models.Model):
         BIOMETRIC_STRAP = "biometric_strap", "Biometric Strap"
 
     class Status(models.TextChoices):
-        CONNECTED = "connected", "Connected"
         PAIRING = "pairing", "Pairing"
         OFFLINE = "offline", "Offline"
+
+    Status.CONNECTED = "connected"
+
 
     id = models.UUIDField(
         primary_key=True,
@@ -137,6 +139,21 @@ class Device(models.Model):
         blank=True,
         help_text="Last time the device sent data to the server",
     )
+
+    @property
+    def is_online(self) -> bool:
+        """
+        Calculate if device contact was recorded within DEVICE_ONLINE_WINDOW_SECONDS.
+        Input: None.
+        Output: Boolean indicating whether device is currently online.
+        """
+        if not self.last_seen_at:
+            return False
+        from django.conf import settings
+        from django.utils import timezone
+        window_sec = getattr(settings, "DEVICE_ONLINE_WINDOW_SECONDS", 30)
+        return (timezone.now() - self.last_seen_at).total_seconds() <= window_sec
+
 
     api_key_hash = models.CharField(
         max_length=128,

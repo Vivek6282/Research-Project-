@@ -7,6 +7,7 @@ All endpoints require administrator privileges (IsAdmin).
 
 import time
 from datetime import timedelta
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import generics, status
@@ -191,7 +192,9 @@ class AdminDiagnosticsView(APIView):
 
         total_user_count = User.objects.count()
         total_hardware_nodes = Device.objects.count()
-        active_hardware_nodes = Device.objects.filter(status=Device.Status.CONNECTED).count()
+        window_sec = getattr(settings, "DEVICE_ONLINE_WINDOW_SECONDS", 30)
+        online_cutoff = timezone.now() - timedelta(seconds=window_sec)
+        active_hardware_nodes = Device.objects.filter(last_seen_at__gte=online_cutoff).count()
         thirty_days_cutoff = timezone.now() - timedelta(days=30)
         recent_audit_count = AuditLogEntry.objects.filter(timestamp__gte=thirty_days_cutoff).count()
 

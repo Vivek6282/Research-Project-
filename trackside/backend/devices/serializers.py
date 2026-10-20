@@ -16,15 +16,16 @@ class DeviceSerializer(serializers.ModelSerializer):
     """
 
     assigned_to_name = serializers.SerializerMethodField()
+    is_online = serializers.BooleanField(read_only=True)
     raw_api_key = serializers.CharField(read_only=True, required=False)
 
     class Meta:
         model = Device
         fields = [
             "id", "device_type", "assigned_to", "assigned_to_name",
-            "status", "last_seen_at", "raw_api_key",
+            "status", "last_seen_at", "is_online", "raw_api_key",
         ]
-        read_only_fields = ["id", "last_seen_at", "raw_api_key"]
+        read_only_fields = ["id", "last_seen_at", "is_online", "raw_api_key"]
 
     def get_assigned_to_name(self, obj):
         """

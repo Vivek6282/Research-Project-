@@ -2,6 +2,8 @@
 Trackside — Unit tests for Audit Log Store & Diagnostics API.
 """
 
+from datetime import timedelta
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -63,14 +65,15 @@ class TestAuditLogAndDiagnostics(APITestCase):
         self.assertIn("results", data)
 
     def test_diagnostics_endpoint(self):
-        # Create sample devices
+        # Create sample devices: dev1 seen now (online), dev2 seen 60s ago (offline)
+        now = timezone.now()
         dev1 = Device.objects.create(
             device_type=Device.DeviceType.GLOVE,
-            status=Device.Status.CONNECTED,
+            last_seen_at=now,
         )
         dev2 = Device.objects.create(
             device_type=Device.DeviceType.KART_UNIT,
-            status=Device.Status.OFFLINE,
+            last_seen_at=now - timedelta(seconds=60),
         )
 
         url = "/api/auth/diagnostics/"
@@ -85,8 +88,8 @@ class TestAuditLogAndDiagnostics(APITestCase):
         self.assertNotIn("packet_drops_last_60_min", data)
         self.assertNotIn("is_simulated_packet_data", data)
 
-        # Update offline device to connected -> verify active_nodes dynamically reflects real DB state
-        dev2.status = Device.Status.CONNECTED
+        # Update offline device last_seen_at to now -> verify active_nodes dynamically reflects real DB state
+        dev2.last_seen_at = timezone.now()
         dev2.save()
 
         response2 = self.client.get(url)

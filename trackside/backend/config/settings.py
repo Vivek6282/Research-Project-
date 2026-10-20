@@ -272,12 +272,14 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # ---------------------------------------------------------------------------
-# INTERNATIONALIZATION
+# INTERNATIONALIZATION & HARDWARE WINDOWS
 # ---------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
+DEVICE_ONLINE_WINDOW_SECONDS = env.int("DEVICE_ONLINE_WINDOW_SECONDS", default=30)
+
 
 # ---------------------------------------------------------------------------
 # STATIC FILES

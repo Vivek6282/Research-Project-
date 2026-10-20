@@ -98,7 +98,18 @@ export function DeviceDiagnosticPanel({
     return <WifiOff size={16} />;
   };
 
-  const isOnline = device.status === "connected";
+  const isOnline = !!device.is_online;
+  const statusText = (() => {
+    if (isOnline) return "Online";
+    if (!device.last_seen_at) return "Never seen";
+    const diffSec = Math.max(0, Math.floor((Date.now() - new Date(device.last_seen_at).getTime()) / 1000));
+    if (diffSec < 60) return "Offline — last seen just now";
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `Offline — last seen ${diffMin} min ago`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `Offline — last seen ${diffHours} hr ago`;
+    return `Offline — last seen ${Math.floor(diffHours / 24)} d ago`;
+  })();
 
   return (
     <Panel
@@ -110,19 +121,24 @@ export function DeviceDiagnosticPanel({
         <div className="flex items-center gap-2">
           <span
             className={`w-2.5 h-2.5 rounded-full ${
-              isOnline ? "bg-[#33D17E] animate-pulse" : "bg-[#E5473C]"
+              isOnline
+                ? "bg-[#33D17E] animate-pulse"
+                : device.last_seen_at
+                ? "bg-[#E5473C]"
+                : "bg-[#7C8898]"
             }`}
           />
           <span
+            data-testid={`admin-device-status-text-${device.id}`}
             className={`text-xs font-mono font-bold ${
-              isOnline ? "text-[#E7EDF3]" : "text-[#E5473C]"
+              isOnline ? "text-[#33D17E]" : device.last_seen_at ? "text-[#E5473C]" : "text-[#7C8898]"
             }`}
           >
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {statusText}
           </span>
         </div>
-        <Chip color={isOnline ? "#33D17E" : "#E5473C"}>
-          {device.status.toUpperCase()}
+        <Chip color={isOnline ? "#33D17E" : device.last_seen_at ? "#E5473C" : "#7C8898"}>
+          {isOnline ? "ONLINE" : "OFFLINE"}
         </Chip>
       </div>
 

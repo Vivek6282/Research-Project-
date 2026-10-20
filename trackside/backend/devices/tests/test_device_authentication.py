@@ -111,7 +111,8 @@ class TestDeviceAuthentication(TestCase):
         # Verify last_seen_at updated
         self.device.refresh_from_db()
         assert self.device.last_seen_at is not None
-        assert self.device.status == Device.Status.CONNECTED
+        assert self.device.is_online is True
+        assert self.device.status == Device.Status.OFFLINE
         if initial_last_seen:
             assert self.device.last_seen_at > initial_last_seen
 

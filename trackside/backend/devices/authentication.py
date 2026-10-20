@@ -68,14 +68,17 @@ class DeviceTokenAuthentication(BaseAuthentication):
         if not device or not device.verify_api_key(raw_token):
             raise exceptions.AuthenticationFailed("Invalid or inactive device token.")
 
-        # Update last_seen_at and status automatically
+        # Update last_seen_at at most once every 5 seconds per device (D3)
         now = timezone.now()
-        Device.objects.filter(pk=device.pk).update(
-            last_seen_at=now,
-            status=Device.Status.CONNECTED,
-        )
-        device.last_seen_at = now
-        device.status = Device.Status.CONNECTED
+        should_update = False
+        if not device.last_seen_at:
+            should_update = True
+        elif (now - device.last_seen_at).total_seconds() >= 5:
+            should_update = True
+
+        if should_update:
+            Device.objects.filter(pk=device.pk).update(last_seen_at=now)
+            device.last_seen_at = now
 
         device_user = DeviceUser(device)
         return (device_user, device)
