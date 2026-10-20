@@ -92,15 +92,6 @@ export function AuditAndDiagnostics({
               </span>
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-[#7C8898]">Packet Drops (60 min):</span>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-[#E7EDF3]">
-                  {diagnostics ? diagnostics.packet_drops_last_60_min : 0}
-                </span>
-              </div>
-            </div>
-
             <div className="flex items-center justify-between border-t border-[#232B35] pt-2 mt-2">
               <span className="text-[#7C8898]">Database ORM Query Time:</span>
               <span className="font-bold text-[#3FA6E0]">

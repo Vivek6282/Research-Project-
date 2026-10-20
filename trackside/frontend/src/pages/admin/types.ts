@@ -31,8 +31,8 @@ export interface DiagnosticsData {
   active_nodes: number;
   total_nodes: number;
   db_query_time_ms: number;
-  packet_drops_last_60_min: number;
-  is_simulated_packet_data: boolean;
+  user_count?: number;
+  audit_count_30_days?: number;
 }
 
 export interface SuccessData {

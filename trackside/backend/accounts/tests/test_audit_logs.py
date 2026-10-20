@@ -80,7 +80,10 @@ class TestAuditLogAndDiagnostics(APITestCase):
         self.assertEqual(data["active_nodes"], 1)
         self.assertEqual(data["total_nodes"], 2)
         self.assertIn("db_query_time_ms", data)
-        self.assertTrue(data["is_simulated_packet_data"])
+        self.assertIn("user_count", data)
+        self.assertIn("audit_count_30_days", data)
+        self.assertNotIn("packet_drops_last_60_min", data)
+        self.assertNotIn("is_simulated_packet_data", data)
 
         # Update offline device to connected -> verify active_nodes dynamically reflects real DB state
         dev2.status = Device.Status.CONNECTED

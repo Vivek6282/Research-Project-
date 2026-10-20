@@ -203,8 +203,6 @@ class AdminDiagnosticsView(APIView):
                 "active_nodes": active_hardware_nodes,
                 "total_nodes": total_hardware_nodes,
                 "user_count": total_user_count,
-                "packet_drops_last_60_min": 0,
-                "is_simulated_packet_data": True,
                 "db_query_time_ms": measured_database_latency_ms,
                 "audit_count_30_days": recent_audit_count,
             },
