@@ -53,6 +53,25 @@ static inline bool trackside_validate_g(float g) {
 }
 
 /**
+ * Evaluates whether an incoming packet source MAC matches the expected peer address.
+ * Input: source_mac (const uint8_t* 6-byte buffer), expected_mac (const uint8_t* 6-byte buffer).
+ * Output: true if both pointers non-null and all 6 bytes match; false otherwise.
+ * Security: Filters out accidental frames from other ESP-NOW transmitters.
+ * Note: MAC addresses can be forged over the air, so this complements but does not replace AES-128 encryption.
+ */
+static inline bool trackside_is_expected_sender(const uint8_t* source_mac, const uint8_t* expected_mac) {
+  if (source_mac == NULL || expected_mac == NULL) {
+    return false;
+  }
+  for (size_t i = 0; i < 6; i++) {
+    if (source_mac[i] != expected_mac[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Validates raw packet buffer against strict protocol length, version, stage, and g range.
  * Input: buffer (byte pointer), length (size in bytes), outPacket (destination pointer).
  * Output: true if valid, false if rejected.

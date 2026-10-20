@@ -65,6 +65,17 @@ uint8_t  shownStage = 254;        // remembers the stage currently shown
 uint8_t  shownMask  = 0xFF;       // remembers which segments are currently lit
 uint32_t lastMacPrint = 0;
 
+// Rejection counters for diagnostic monitoring (C3)
+volatile uint32_t rejectedWrongSender = 0;
+volatile uint32_t rejectedBadPacket   = 0;
+volatile uint32_t rejectedReplay      = 0;
+
+// State tracking for rate-limited serial reporting in loop()
+uint32_t lastRejectPrint   = 0;
+uint32_t lastPrintedWrong  = 0;
+uint32_t lastPrintedBad    = 0;
+uint32_t lastPrintedReplay = 0;
+
 // Which of the 5 segments are lit RIGHT NOW? One bit per segment (bit 0 = left).
 // This also makes the flashing: the answer changes with the time.
 uint8_t segmentMask(uint8_t stage, uint32_t nowMs) {
@@ -93,16 +104,24 @@ void drawMask(uint8_t stage, uint8_t mask) {
 }
 
 // Runs by itself every time a radio message arrives
-// Validates packet structure (G3) and enforces strictly increasing sequence counter (G4)
+// Evaluates checks strictly in order: 1) sender MAC, 2) packet format, 3) replay guard (C2, C3)
 void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-  RadioPacket pkt;
-  // Strict packet validation: length, protocol version, stage limits, finite g (G3)
-  if (!trackside_validate_packet(data, (size_t)len, &pkt)) {
+  // Step 1: Sender check against bridge MAC address (blocks accidental frames)
+  if (info == NULL || !trackside_is_expected_sender(info->src_addr, bridgeAddr)) {
+    rejectedWrongSender++;
     return;
   }
 
-  // Replay guard check: monotonically increasing sequence counter (G4)
+  // Step 2: Strict packet validation: length, protocol version, stage limits, finite g (G3)
+  RadioPacket pkt;
+  if (!trackside_validate_packet(data, (size_t)len, &pkt)) {
+    rejectedBadPacket++;
+    return;
+  }
+
+  // Step 3: Replay guard check: monotonically increasing sequence counter (G4)
   if (!trackside_check_replay_guard(pkt.counter, &lastPacketCounter, &hasReceivedValidPacket)) {
+    rejectedReplay++;
     return;
   }
 
@@ -203,5 +222,21 @@ void loop() {
     Serial.print("GLOVE MAC ADDRESS: ");
     Serial.println(WiFi.macAddress());
   }
+
+  // Print rejected packet summary at most once every 3 seconds, only when counters change (C3)
+  if ((now - lastRejectPrint) >= 3000) {
+    uint32_t curWrong  = rejectedWrongSender;
+    uint32_t curBad    = rejectedBadPacket;
+    uint32_t curReplay = rejectedReplay;
+    if (curWrong != lastPrintedWrong || curBad != lastPrintedBad || curReplay != lastPrintedReplay) {
+      Serial.printf("Rejected so far: wrong_sender=%lu bad_packet=%lu replay=%lu\n",
+                    (unsigned long)curWrong, (unsigned long)curBad, (unsigned long)curReplay);
+      lastRejectPrint   = now;
+      lastPrintedWrong  = curWrong;
+      lastPrintedBad    = curBad;
+      lastPrintedReplay = curReplay;
+    }
+  }
+
   delay(5);
 }

@@ -133,6 +133,22 @@ This automatically writes `radio_secrets.h` into both `firmware/trackside_bridge
 - **Why this happens**: If the bridge and glove were compiled with different `radio_secrets.h` keys, the glove hardware cannot decrypt the radio frames. Dropping unauthenticated frames is the intentional, safe failure state.
 - **The Fix**: Re-run `python firmware/tools/make_radio_keys.py`, then re-upload `trackside_bridge.ino` to the bridge and `trackside_glove.ino` to the glove so both boards share identical keys.
 
+#### 6. Reject Line Diagnostics & The Beginner Spoof Test
+- **What the Reject Line Means**: When rejected packets arrive, the glove logs diagnostic counter summaries over Serial at most once every 3 seconds:
+  ```text
+  Rejected so far: wrong_sender=2 bad_packet=0 replay=1
+  ```
+  - `wrong_sender`: Packet arrived from a source MAC address that does not match `BRIDGE_MAC`.
+  - `bad_packet`: Packet failed length (not 10 bytes), version (not 1), stage (> 2), or acceleration checks (NaN, infinite, or out of 0.0–10.0 g range).
+  - `replay`: Packet arrived with a sequence counter less than or equal to `lastPacketCounter`.
+- **MAC Filtering vs. Encryption**: A MAC address can be easily forged over the air, so sender checking is only a small extra layer that blocks accidental or lazy interference from other ESP-NOW devices; AES-128 encryption with a shared key is the real protection.
+- **The Beginner Spoof Test (Proving Unencrypted Spoofing Fails)**:
+  1. In `firmware/trackside_bridge/trackside_bridge.ino`, change `peer.encrypt = true;` to `false`.
+  2. Upload the bridge sketch to your Bridge ESP32 board.
+  3. Run the simulator (`python demo/virtual_lap_simulator.py`).
+  4. The glove must ignore the unencrypted packets and stay on one dim blue LED (WAITING).
+  5. Change `peer.encrypt` back to `true` in `trackside_bridge.ino` and upload again to restore normal encrypted telemetry.
+
 ### Threat Model & Known Security Limits
 
 1. **Replay Exposure Window**:

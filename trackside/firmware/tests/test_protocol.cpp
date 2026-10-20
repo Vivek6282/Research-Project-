@@ -172,6 +172,24 @@ void testAdditionalEdgeCases() {
   TEST_ASSERT(stage == TRACKSIDE_STAGE_INTERVENE, "Plain '1.25' classified as INTERVENE");
 }
 
+void testSenderCheck() {
+  const uint8_t expectedMac[6] = {0xB0, 0xCB, 0xD8, 0x0A, 0x95, 0x64};
+  const uint8_t matchingMac[6] = {0xB0, 0xCB, 0xD8, 0x0A, 0x95, 0x64};
+  const uint8_t differentMac[6] = {0xB0, 0xCB, 0xD8, 0x0A, 0x95, 0x65}; // Last byte differs
+
+  // Matching MAC accepted
+  TEST_ASSERT(trackside_is_expected_sender(matchingMac, expectedMac) == true, "Matching MAC accepted");
+
+  // One-byte-different MAC rejected
+  TEST_ASSERT(trackside_is_expected_sender(differentMac, expectedMac) == false, "One-byte-different MAC rejected");
+
+  // Null source rejected
+  TEST_ASSERT(trackside_is_expected_sender(NULL, expectedMac) == false, "Null source rejected");
+
+  // Null expected rejected
+  TEST_ASSERT(trackside_is_expected_sender(matchingMac, NULL) == false, "Null expected rejected");
+}
+
 int main() {
   std::cout << "==================================================" << std::endl;
   std::cout << " TRACKSIDE FIRMWARE PROTOCOL SECURITY UNIT TESTS  " << std::endl;
@@ -188,6 +206,7 @@ int main() {
   testGarbageStageWordRejected();
   testInterveneAccepted();
   testAdditionalEdgeCases();
+  testSenderCheck();
 
   std::cout << "--------------------------------------------------" << std::endl;
   std::cout << "Total assertions passed: " << gPassedTestCount << std::endl;
@@ -195,7 +214,7 @@ int main() {
   std::cout << "--------------------------------------------------" << std::endl;
 
   if (gFailedTestCount == 0) {
-    std::cout << "RESULT: ALL TESTS PASSED (10/10 Core Scenarios Verified)" << std::endl;
+    std::cout << "RESULT: ALL TESTS PASSED (11/11 Core Scenarios Verified)" << std::endl;
     return 0;
   } else {
     std::cerr << "RESULT: TESTS FAILED (" << gFailedTestCount << " failures)" << std::endl;
