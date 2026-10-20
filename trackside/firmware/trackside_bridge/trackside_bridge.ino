@@ -15,6 +15,7 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <ctype.h>
+#include <Preferences.h>
 #include "radio_secrets.h"
 
 // =====================================================================
@@ -35,6 +36,10 @@ typedef struct __attribute__((packed)) {
   float    g;        // Lateral acceleration in g
   uint32_t counter;  // Monotonically increasing sequence number
 } RadioPacket;
+
+Preferences radioPrefs;
+uint32_t packetCounter = 0;
+uint32_t counterCeiling = 0;
 
 uint8_t  gloveAddr[6];
 char     lineBuf[48];
@@ -88,17 +93,28 @@ void handleLine(char* line) {
     stage = classify(g);
   }
 
+  // Advance replay counter; when ceiling reached, write next ceiling to NVS (G4)
+  packetCounter++;
+  if (packetCounter >= counterCeiling) {
+    radioPrefs.begin("radio", false);
+    counterCeiling += 1000;
+    radioPrefs.putUInt("ceiling", counterCeiling);
+    radioPrefs.end();
+    Serial.printf("Advanced NVS replay ceiling to %lu\n", (unsigned long)counterCeiling);
+  }
+
   RadioPacket packet;
   packet.version = 1;
   packet.stage   = stage;
   packet.g       = g;
-  packet.counter = sentCount + 1;
+  packet.counter = packetCounter;
   esp_err_t result = esp_now_send(gloveAddr, (uint8_t*)&packet, sizeof(packet));
 
   sentCount++;
   digitalWrite(ONBOARD_LED, sentCount % 2);   // blink the blue light on every send
-  Serial.printf("g=%.2f  stage=%u  send=%s  (#%lu)\n",
-                g, stage, (result == ESP_OK) ? "ok" : "FAILED", (unsigned long)sentCount);
+  Serial.printf("g=%.2f  stage=%u  send=%s  (#%lu, seq=%lu)\n",
+                g, stage, (result == ESP_OK) ? "ok" : "FAILED",
+                (unsigned long)sentCount, (unsigned long)packetCounter);
 }
 
 void setup() {
@@ -145,6 +161,16 @@ void setup() {
     Serial.println("ERROR: could not add the glove as an encrypted radio partner.");
     return;
   }
+
+  // Initialize persistent replay counter ceiling in NVS (G4)
+  radioPrefs.begin("radio", false);
+  uint32_t storedCeiling = radioPrefs.getUInt("ceiling", 0);
+  packetCounter = storedCeiling;
+  counterCeiling = storedCeiling + 1000;
+  radioPrefs.putUInt("ceiling", counterCeiling);
+  radioPrefs.end();
+  Serial.printf("Replay guard: counter starts at %lu, next ceiling %lu\n",
+                (unsigned long)packetCounter, (unsigned long)counterCeiling);
 
   Serial.println("Bridge ready. Waiting for numbers from the laptop...");
 }

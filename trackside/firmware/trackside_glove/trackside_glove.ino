@@ -66,6 +66,8 @@ const uint32_t SEG_COLOR[5] = {
 volatile uint8_t  gStage      = WAITING;
 volatile uint32_t gLastPacket = 0;
 volatile float    gLastG      = 0;
+uint32_t lastPacketCounter = 0;
+bool     hasReceivedValidPacket = false;
 uint8_t  shownStage = 254;        // remembers the stage currently shown
 uint8_t  shownMask  = 0xFF;       // remembers which segments are currently lit
 uint32_t lastMacPrint = 0;
@@ -114,6 +116,19 @@ void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
 
   // Reject non-finite g or values outside physical kart bounds (0.0 .. 10.0)
   if (isnan(pkt.g) || isinf(pkt.g) || pkt.g < 0.0f || pkt.g > 10.0f) return;
+
+  // Replay guard check (G4):
+  // The first valid packet establishes initial baseline counter.
+  // Subsequent packets are accepted strictly if incoming counter > lastPacketCounter.
+  if (!hasReceivedValidPacket) {
+    lastPacketCounter = pkt.counter;
+    hasReceivedValidPacket = true;
+  } else if (pkt.counter <= lastPacketCounter) {
+    // Replayed or out-of-order counter: reject packet and do NOT refresh timestamp
+    return;
+  } else {
+    lastPacketCounter = pkt.counter;
+  }
 
   // Valid packet accepted: update telemetry and timestamp
   gLastG      = pkt.g;
