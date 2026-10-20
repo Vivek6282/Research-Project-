@@ -17,6 +17,7 @@
 #include <ctype.h>
 #include <Preferences.h>
 #include "radio_secrets.h"
+#include "trackside_radio_protocol.h"
 
 // =====================================================================
 //  CHANGE THIS LINE: paste the GLOVE MAC ADDRESS between the quotes.
@@ -29,14 +30,6 @@ const float FALLBACK_THRESHOLD = 1.15;
 
 const int ONBOARD_LED = 2;      // the little blue light on the board
 
-// Strict radio packet layout (must be identical on bridge and glove)
-typedef struct __attribute__((packed)) {
-  uint8_t  version;  // Protocol version (must be 1)
-  uint8_t  stage;    // 0 = NOMINAL, 1 = MONITORING, 2 = INTERVENE
-  float    g;        // Lateral acceleration in g
-  uint32_t counter;  // Monotonically increasing sequence number
-} RadioPacket;
-
 Preferences radioPrefs;
 uint32_t packetCounter = 0;
 uint32_t counterCeiling = 0;
@@ -46,7 +39,8 @@ char     lineBuf[48];
 uint8_t  lineLen  = 0;
 uint32_t sentCount = 0;
 
-// Turn "AA:BB:CC:DD:EE:FF" into 6 numbers. Returns false if the text is wrong.
+// Parses a colon-separated MAC string into 6 raw bytes.
+// Input: text (MAC string), out (destination 6-byte buffer). Output: true on success, false on format error.
 bool parseMac(const char* text, uint8_t* out) {
   unsigned int m[6];
   int n = sscanf(text, "%x:%x:%x:%x:%x:%x", &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]);
@@ -55,89 +49,15 @@ bool parseMac(const char* text, uint8_t* out) {
   return true;
 }
 
-// Decides the stage from a plain g-force number using fallback threshold.
-// Input: g (float). Output: 0 (NOMINAL), 1 (MONITORING), or 2 (INTERVENE).
-uint8_t classify(float g) {
-  if (g >= FALLBACK_THRESHOLD)        return 2;   // INTERVENE
-  if (g >= FALLBACK_THRESHOLD * 0.82f) return 1;   // MONITORING
-  return 0;                                        // NOMINAL
-}
-
-// Validates that g-force reading is finite and within physical bounds (0.0 to 10.0 g).
-// Input: g (float). Output: true if valid, false if NaN, inf, or out-of-range (G5).
-bool isValidG(float g) {
-  if (isnan(g) || isinf(g)) return false;
-  if (g < 0.0f || g > 10.0f) return false;
-  return true;
-}
-
-// Parses stage word strictly against allowed names (case-insensitive).
-// Input: text (const char*), outStage (uint8_t*). Output: true on match, false otherwise (G5).
-// Security: Never defaults unknown words to NOMINAL.
-bool parseStageWord(const char* text, uint8_t* outStage) {
-  while (*text == ' ' || *text == '\t') text++;
-  char word[16];
-  size_t idx = 0;
-  while (*text != '\0' && !isspace((unsigned char)*text) && *text != '\r' && *text != '\n') {
-    if (idx + 1 < sizeof(word)) {
-      word[idx++] = (char)toupper((unsigned char)*text);
-    } else {
-      return false;
-    }
-    text++;
-  }
-  word[idx] = '\0';
-
-  if (strcmp(word, "NOMINAL") == 0) {
-    *outStage = 0;
-    return true;
-  }
-  if (strcmp(word, "MONITORING") == 0) {
-    *outStage = 1;
-    return true;
-  }
-  if (strcmp(word, "INTERVENE") == 0) {
-    *outStage = 2;
-    return true;
-  }
-  return false;
-}
-
-// Handles one complete serial line from USB with strict validation (G5).
+// Handles one complete serial line from USB using shared protocol parsing (G5, G6).
 // Discards lines with malformed numbers, out-of-range g, or unrecognized stage words.
 void handleLine(char* line) {
-  while (*line == ' ' || *line == '\t') line++;
-  if (*line == '\0') return;
-
-  // A real line must start with a digit, a dot or a minus sign
-  if (!(isdigit((unsigned char)*line) || *line == '.' || *line == '-')) {
-    Serial.println("Ignored invalid line. Expected number or number,STAGE.");
-    return;
-  }
-
-  uint8_t stage = 0;
   float   g     = 0.0f;
-  char* comma = strchr(line, ',');
-  if (comma) {
-    *comma = '\0';
-    char* endPtr = NULL;
-    g = (float)strtod(line, &endPtr);
-    if (endPtr == line || !isValidG(g)) {
-      Serial.println("Ignored invalid line: g-force must be between 0.0 and 10.0.");
-      return;
-    }
-    if (!parseStageWord(comma + 1, &stage)) {
-      Serial.println("Ignored invalid line: unknown stage word (allowed: NOMINAL, MONITORING, INTERVENE).");
-      return;
-    }
-  } else {
-    char* endPtr = NULL;
-    g = (float)strtod(line, &endPtr);
-    if (endPtr == line || !isValidG(g)) {
-      Serial.println("Ignored invalid line: g-force must be between 0.0 and 10.0.");
-      return;
-    }
-    stage = classify(g);
+  uint8_t stage = TRACKSIDE_STAGE_NOMINAL;
+
+  if (!trackside_parse_serial_line(line, FALLBACK_THRESHOLD, &g, &stage)) {
+    Serial.println("Ignored invalid line. Expected number or number,STAGE (0.0..10.0, NOMINAL/MONITORING/INTERVENE).");
+    return;
   }
 
   // Advance replay counter; when ceiling reached, write next ceiling to NVS (G4)

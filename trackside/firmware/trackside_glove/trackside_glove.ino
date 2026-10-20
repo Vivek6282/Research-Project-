@@ -21,6 +21,7 @@
 #include <esp_wifi.h>
 #include <Adafruit_NeoPixel.h>
 #include "radio_secrets.h"
+#include "trackside_radio_protocol.h"
 
 // Hardware MAC address of the paired bridge board
 const char* BRIDGE_MAC = "B0:CB:D8:0A:95:64";
@@ -39,18 +40,10 @@ bool parseMac(const char* text, uint8_t* out) {
 #define LED_PIN    18   // data wire of the LED strip (G18 on your board)
 #define NUM_LEDS   10   // your strip has 10 LEDs; we only use the first 5
 
-// Strict radio packet layout (must match bridge)
-typedef struct __attribute__((packed)) {
-  uint8_t  version;  // Protocol version (must be 1)
-  uint8_t  stage;    // 0 = NOMINAL, 1 = MONITORING, 2 = INTERVENE
-  float    g;        // Lateral acceleration in g
-  uint32_t counter;  // Monotonically increasing sequence number
-} RadioPacket;
-
-const uint8_t NOMINAL    = 0;
-const uint8_t MONITORING = 1;
-const uint8_t INTERVENE  = 2;
-const uint8_t WAITING    = 255;   // "no radio messages arriving"
+const uint8_t NOMINAL    = TRACKSIDE_STAGE_NOMINAL;
+const uint8_t MONITORING = TRACKSIDE_STAGE_MONITORING;
+const uint8_t INTERVENE  = TRACKSIDE_STAGE_INTERVENE;
+const uint8_t WAITING    = TRACKSIDE_STAGE_WAITING;   // "no radio messages arriving"
 
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -100,34 +93,17 @@ void drawMask(uint8_t stage, uint8_t mask) {
 }
 
 // Runs by itself every time a radio message arrives
-// Rejects corrupted, wrong-version, invalid-stage, or out-of-bounds packets (G3)
+// Validates packet structure (G3) and enforces strictly increasing sequence counter (G4)
 void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-  // Reject frames with incorrect byte length
-  if (data == NULL || len != (int)sizeof(RadioPacket)) return;
-
   RadioPacket pkt;
-  memcpy(&pkt, data, sizeof(pkt));
-
-  // Reject unsupported protocol version (must be 1)
-  if (pkt.version != 1) return;
-
-  // Reject invalid stage enum values (> INTERVENE)
-  if (pkt.stage > INTERVENE) return;
-
-  // Reject non-finite g or values outside physical kart bounds (0.0 .. 10.0)
-  if (isnan(pkt.g) || isinf(pkt.g) || pkt.g < 0.0f || pkt.g > 10.0f) return;
-
-  // Replay guard check (G4):
-  // The first valid packet establishes initial baseline counter.
-  // Subsequent packets are accepted strictly if incoming counter > lastPacketCounter.
-  if (!hasReceivedValidPacket) {
-    lastPacketCounter = pkt.counter;
-    hasReceivedValidPacket = true;
-  } else if (pkt.counter <= lastPacketCounter) {
-    // Replayed or out-of-order counter: reject packet and do NOT refresh timestamp
+  // Strict packet validation: length, protocol version, stage limits, finite g (G3)
+  if (!trackside_validate_packet(data, (size_t)len, &pkt)) {
     return;
-  } else {
-    lastPacketCounter = pkt.counter;
+  }
+
+  // Replay guard check: monotonically increasing sequence counter (G4)
+  if (!trackside_check_replay_guard(pkt.counter, &lastPacketCounter, &hasReceivedValidPacket)) {
+    return;
   }
 
   // Valid packet accepted: update telemetry and timestamp
