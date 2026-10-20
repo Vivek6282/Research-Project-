@@ -20,6 +20,11 @@ from sim_track import TRACK
 
 CONNECTED_CLIENTS = set()
 WS_LOOP = None
+LATEST_RUN_START = None
+RUN_START_LOCK = threading.Lock()
+WS_SERVER = None
+SERVER_READY = threading.Event()
+ACTUAL_PORT = None
 
 
 async def _ws_handler(websocket):
@@ -50,6 +55,16 @@ async def _ws_handler(websocket):
             "track_length": sum(turn["readings"] for turn in TRACK),
         }
         await websocket.send(json.dumps(handshake_payload))
+
+        replayed_start = None
+        with RUN_START_LOCK:
+            if LATEST_RUN_START is not None:
+                replayed_start = dict(LATEST_RUN_START)
+                replayed_start["replay"] = True
+
+        if replayed_start is not None:
+            await websocket.send(json.dumps(replayed_start))
+
         await websocket.wait_closed()
     except Exception:
         pass
@@ -91,13 +106,41 @@ def broadcast_reading(telemetry_data):
 def broadcast_event(event_payload):
     """
     Dispatches non-reading event payload dictionary directly to background asyncio loop.
+    Remembers run_start and clears on run_end for late-joining clients.
     Input: event_payload (dict).
     Output: None.
     """
-    global WS_LOOP
+    global WS_LOOP, LATEST_RUN_START
+    if isinstance(event_payload, dict):
+        event_type = event_payload.get("type")
+        if event_type == "run_start":
+            with RUN_START_LOCK:
+                LATEST_RUN_START = dict(event_payload)
+        elif event_type == "run_end":
+            with RUN_START_LOCK:
+                LATEST_RUN_START = None
+
     if WS_LOOP and WS_LOOP.is_running():
         formatted_message = json.dumps(event_payload)
         asyncio.run_coroutine_threadsafe(_async_broadcast(formatted_message), WS_LOOP)
+
+
+def reset_server_state():
+    """
+    Resets remembered run_start payload and connected clients for test isolation.
+    Output: None.
+    """
+    global LATEST_RUN_START
+    with RUN_START_LOCK:
+        LATEST_RUN_START = None
+
+
+def get_actual_port():
+    """
+    Returns the port number the WebSocket server is currently listening on.
+    Output: int or None.
+    """
+    return ACTUAL_PORT
 
 
 async def _run_ws_server(listen_host, listen_port):
@@ -106,10 +149,14 @@ async def _run_ws_server(listen_host, listen_port):
     Input: listen_host (str), listen_port (int).
     Output: None.
     """
-    global WS_LOOP
+    global WS_LOOP, WS_SERVER, ACTUAL_PORT
     WS_LOOP = asyncio.get_running_loop()
-    async with websockets.serve(_ws_handler, listen_host, listen_port):
-        print(f"  [OK] WebSocket telemetry broadcaster active on ws://{listen_host}:{listen_port}")
+    async with websockets.serve(_ws_handler, listen_host, listen_port) as server:
+        WS_SERVER = server
+        if server.sockets:
+            ACTUAL_PORT = server.sockets[0].getsockname()[1]
+        SERVER_READY.set()
+        print(f"  [OK] WebSocket telemetry broadcaster active on ws://{listen_host}:{ACTUAL_PORT or listen_port}")
         await asyncio.Future()
 
 
@@ -123,6 +170,8 @@ def start_websocket_server(host=WS_HOST, port=WS_PORT):
         print("  [!] Warning: 'websockets' library is not installed. WebSocket broadcasting disabled.")
         return None
 
+    SERVER_READY.clear()
+
     def worker_loop():
         try:
             asyncio.run(_run_ws_server(host, port))
@@ -131,5 +180,5 @@ def start_websocket_server(host=WS_HOST, port=WS_PORT):
 
     server_thread = threading.Thread(target=worker_loop, daemon=True, name="TelemetryWebSocketBroadcaster")
     server_thread.start()
-    time.sleep(0.3)
+    SERVER_READY.wait(timeout=3.0)
     return server_thread

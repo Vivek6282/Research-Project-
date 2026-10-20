@@ -139,15 +139,20 @@ window.TracksideStream = (function () {
   }
 
   function handleRunStart(eventData) {
-    if (alertList) {
-      alertList.innerHTML = '<div id="empty-state" class="empty-alerts mono">No Intervene Alerts Recorded Yet</div>';
-    }
-    alertCount = 0;
-    if (alertCounter) alertCounter.textContent = "0 ALERTS";
-    lastReading = null;
+    const isReplay = Boolean(eventData && eventData.replay);
 
-    if (lapValueEl) lapValueEl.textContent = "1";
-    if (lapPillEl) lapPillEl.textContent = "LAP 01";
+    if (!isReplay) {
+      if (alertList) {
+        alertList.innerHTML = '<div id="empty-state" class="empty-alerts mono">No Intervene Alerts Recorded Yet</div>';
+      }
+      alertCount = 0;
+      if (alertCounter) alertCounter.textContent = "0 ALERTS";
+      lastReading = null;
+
+      if (lapValueEl) lapValueEl.textContent = "1";
+      if (lapPillEl) lapPillEl.textContent = "LAP 01";
+      if (progressTextEl) progressTextEl.textContent = "PROGRESS 0.0%";
+    }
 
     const lapTotalEl = document.getElementById("lap-total");
     if (lapTotalEl) {
@@ -160,7 +165,6 @@ window.TracksideStream = (function () {
       }
     }
 
-    if (progressTextEl) progressTextEl.textContent = "PROGRESS 0.0%";
     const modeEl = document.getElementById("session-mode-sub");
     if (modeEl) modeEl.textContent = "Session Mode: Active";
   }
