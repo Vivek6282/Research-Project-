@@ -15,6 +15,7 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <ctype.h>
+#include "radio_secrets.h"
 
 // =====================================================================
 //  CHANGE THIS LINE: paste the GLOVE MAC ADDRESS between the quotes.
@@ -124,12 +125,20 @@ void setup() {
     return;
   }
 
+  // Set Primary Master Key (PMK) used by ESP-NOW to encrypt Local Master Keys
+  if (esp_now_set_pmk(TRACKSIDE_PMK) != ESP_OK) {
+    Serial.println("ERROR: could not set Primary Master Key (PMK).");
+    return;
+  }
+
+  // Configure glove as an encrypted ESP-NOW peer using shared LMK
   esp_now_peer_info_t peer = {};
   memcpy(peer.peer_addr, gloveAddr, 6);
-  peer.channel = 0;
-  peer.encrypt = false;
+  peer.channel = 1;
+  peer.encrypt = true;
+  memcpy(peer.lmk, TRACKSIDE_LMK, 16);
   if (esp_now_add_peer(&peer) != ESP_OK) {
-    Serial.println("ERROR: could not add the glove as a radio partner.");
+    Serial.println("ERROR: could not add the glove as an encrypted radio partner.");
     return;
   }
 

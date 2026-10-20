@@ -20,6 +20,20 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <Adafruit_NeoPixel.h>
+#include "radio_secrets.h"
+
+// Hardware MAC address of the paired bridge board
+const char* BRIDGE_MAC = "B0:CB:D8:0A:95:64";
+uint8_t bridgeAddr[6];
+
+// Parses a colon-separated MAC string into 6 raw bytes. Returns false on invalid format.
+bool parseMac(const char* text, uint8_t* out) {
+  unsigned int m[6];
+  int n = sscanf(text, "%x:%x:%x:%x:%x:%x", &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]);
+  if (n != 6) return false;
+  for (int i = 0; i < 6; i++) out[i] = (uint8_t)m[i];
+  return true;
+}
 
 // ---------- pins and sizes (change only if you wired differently) ----------
 #define LED_PIN    18   // data wire of the LED strip (G18 on your board)
@@ -124,10 +138,33 @@ void setup() {
   Serial.print("GLOVE MAC ADDRESS: ");
   Serial.println(WiFi.macAddress());
 
+  if (!parseMac(BRIDGE_MAC, bridgeAddr)) {
+    Serial.println("ERROR: BRIDGE_MAC is not a valid address.");
+    return;
+  }
+
   if (esp_now_init() != ESP_OK) {
     Serial.println("ERROR: radio (ESP-NOW) failed to start. Press the EN button.");
     return;
   }
+
+  // Set Primary Master Key (PMK) used by ESP-NOW to decrypt Local Master Keys
+  if (esp_now_set_pmk(TRACKSIDE_PMK) != ESP_OK) {
+    Serial.println("ERROR: could not set Primary Master Key (PMK).");
+    return;
+  }
+
+  // Register bridge as an encrypted peer with shared LMK so receiver hardware can decrypt incoming packets
+  esp_now_peer_info_t peer = {};
+  memcpy(peer.peer_addr, bridgeAddr, 6);
+  peer.channel = 1;
+  peer.encrypt = true;
+  memcpy(peer.lmk, TRACKSIDE_LMK, 16);
+  if (esp_now_add_peer(&peer) != ESP_OK) {
+    Serial.println("ERROR: could not add the bridge as an encrypted radio partner.");
+    return;
+  }
+
   esp_now_register_recv_cb(onReceive);
   Serial.println("Radio ready. Waiting for the bridge...");
 }
