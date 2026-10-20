@@ -33,11 +33,9 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     setCurrentGForce(null);
     setCurrentGpsLat(null);
     setCurrentGpsLng(null);
-    if (selectedDriver) {
-      setCurrentHr(selectedDriver.baseHr);
-      setCurrentSpo2(selectedDriver.baseSpo2);
-      setCurrentBreathing(selectedDriver.baseBreathing);
-    }
+    setCurrentHr(selectedDriver?.baseHr ?? 0);
+    setCurrentSpo2(selectedDriver?.baseSpo2 ?? 0);
+    setCurrentBreathing(selectedDriver?.baseBreathing ?? 0);
   }, [selectedDriver]);
 
   // WebSocket telemetry connection

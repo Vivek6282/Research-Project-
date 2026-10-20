@@ -88,7 +88,7 @@ export function useCoachDashboard() {
           res.roster.forEach((item: any) => {
             if (item.kart) {
               map[item.kart] = {
-                current_g: item.current_g || 0.85,
+                current_g: item.current_g ?? 0,
                 active_threshold: item.active_threshold || DEFAULT_SPRINT_CEILING,
                 stage: item.stage || "nominal",
               };
@@ -106,36 +106,117 @@ export function useCoachDashboard() {
     return () => clearInterval(interval);
   }, [activeTab]);
 
-  // Fetch Drivers Roster from API
+  /**
+   * Fetches real drivers from the API (roster-status and users) and correlates with session data.
+   */
   const loadDrivers = async () => {
     try {
       setDriversError(null);
-      const res = await api.get<any>("/api/auth/users/");
-      const userList = Array.isArray(res) ? res : res.results || [];
-      const driverUsers = userList.filter((u: any) => u.role === "driver");
-      if (driverUsers.length > 0) {
-        const mapped: DriverProfile[] = driverUsers.map((u: any, idx: number) => ({
-          pos: idx + 1,
-          kart: String(((idx * 5 + 3) % 20) + 1),
-          name: u.name || u.email,
-          lapTime: "1:24.312",
-          session: "Race Sim 3",
-          gap: idx === 0 ? "---" : `+0.${300 + idx * 250}`,
-          baseSpeed: 80 + (idx % 3) * 4,
-          baseHr: 140 + idx * 5,
-          baseSpo2: 97,
-          baseBreathing: 22,
-          stressIndex: 0.6,
-          hydration: 88,
-          status: "OPTIMAL",
-          statusColor: "#33D17E",
-          alerts: idx * 2,
-          customThreshold: DEFAULT_SPRINT_CEILING,
-        }));
+      let rosterList: any[] = [];
+      let fetchSuccess = false;
+
+      // 1. Try /api/sessions/roster-status/ (accessible by Coach and Admin)
+      try {
+        const rosterRes: any = await api.get("/api/sessions/roster-status/");
+        if (rosterRes && Array.isArray(rosterRes.roster)) {
+          rosterList = rosterRes.roster;
+          fetchSuccess = true;
+        }
+      } catch {
+        // Fall through to /api/auth/users/
+      }
+
+      // 2. Try /api/auth/users/ (accessible by Admin)
+      let userList: any[] = [];
+      try {
+        const userRes: any = await api.get("/api/auth/users/");
+        const list = Array.isArray(userRes) ? userRes : userRes?.results || [];
+        userList = list.filter((u: any) => u.role === "driver");
+        fetchSuccess = true;
+      } catch {
+        // Expected 403 for Coach
+      }
+
+      if (!fetchSuccess) {
+        throw new Error("Unable to retrieve drivers from API");
+      }
+
+      // 3. Fetch sessions to associate real session name and alert counts
+      let sessionList: any[] = [];
+      try {
+        const sessRes: any = await api.get("/api/sessions/");
+        sessionList = Array.isArray(sessRes) ? sessRes : sessRes?.results || [];
+      } catch {
+        // non-fatal
+      }
+
+      // Build driver profiles from real API sources only
+      const driversSource =
+        rosterList.length > 0
+          ? rosterList.map((r: any) => ({
+              id: r.driver_id,
+              name: r.driver_name || "—",
+              kart: r.kart || "—",
+              stage: r.stage,
+              active_threshold: r.active_threshold,
+              in_pit: r.in_pit,
+            }))
+          : userList.map((u: any) => ({
+              id: u.id,
+              name: u.name || u.email || "—",
+              kart: "—",
+              stage: undefined,
+              active_threshold: undefined,
+              in_pit: false,
+            }));
+
+      if (driversSource.length > 0) {
+        const mapped: DriverProfile[] = driversSource.map((d: any, idx: number) => {
+          const matchedSession = sessionList.find(
+            (s: any) => s.driver_name === d.name || s.driver === d.name || s.driver_id === d.id,
+          );
+          const sessionName = matchedSession?.mode
+            ? matchedSession.mode.charAt(0).toUpperCase() + matchedSession.mode.slice(1)
+            : matchedSession?.id
+            ? `SESS-${matchedSession.id.slice(0, 4).toUpperCase()}`
+            : "—";
+
+          const stage = d.stage || "nominal";
+          const statusColor =
+            stage === "intervene"
+              ? "#E5473C"
+              : stage === "monitoring"
+              ? "#F2A93B"
+              : stage === "nominal"
+              ? "#33D17E"
+              : "#7C8898";
+
+          return {
+            pos: idx + 1,
+            kart: d.kart !== "—" ? d.kart : matchedSession?.kart || "—",
+            name: d.name,
+            lapTime: "—",
+            session: sessionName,
+            gap: "—",
+            baseSpeed: 0,
+            baseHr: 0,
+            baseSpo2: 0,
+            baseBreathing: 0,
+            stressIndex: 0,
+            hydration: 0,
+            status: d.stage ? d.stage.toUpperCase() : "—",
+            statusColor,
+            alerts: matchedSession?.alert_count ?? 0,
+            customThreshold: d.active_threshold || DEFAULT_SPRINT_CEILING,
+            inPit: d.in_pit ?? false,
+          };
+        });
+
         setDrivers(mapped);
         if (mapped[0]) setSelectedKart(mapped[0].kart);
       } else {
         setDrivers([]);
+        setSelectedKart("");
       }
     } catch (err) {
       console.warn("Failed loading drivers from API:", err);

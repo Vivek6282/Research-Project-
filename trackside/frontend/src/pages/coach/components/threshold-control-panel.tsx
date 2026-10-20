@@ -45,7 +45,7 @@ export function ThresholdControlPanel({
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
             <span className="text-[#7C8898]">
-              ZONE: {currentZoneObj ? currentZoneObj.label.toUpperCase() : "TURN 4 HAIRPIN"}
+              ZONE: {currentZoneObj ? currentZoneObj.label.toUpperCase() : "—"}
             </span>
             <span className="text-[#E7EDF3] font-bold">
               DRIVER: {selectedDriver.name.toUpperCase()}

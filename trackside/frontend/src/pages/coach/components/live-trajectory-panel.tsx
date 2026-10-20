@@ -41,7 +41,8 @@ export function LiveTrajectoryPanel({
             LIVE TRAJECTORY
           </span>
           <span className="text-xs text-[#7C8898]">
-            KART #{selectedDriver.kart} · SESSION 3 · LAP 7/12
+            {selectedDriver.kart !== "—" ? `KART #${selectedDriver.kart}` : "—"}
+            {selectedDriver.session !== "—" ? ` · ${selectedDriver.session}` : ""}
           </span>
         </div>
         {/* Live Signal Indicator & Stage Label */}
@@ -76,7 +77,7 @@ export function LiveTrajectoryPanel({
           </div>
           <div>
             <span className="text-[10px] text-[#7C8898] block mb-0.5">BEST</span>
-            <span className="font-semibold text-[#33D17E]">1:23.104</span>
+            <span className="font-semibold text-[#33D17E]">—</span>
           </div>
           <div>
             <span className="text-[10px] text-[#7C8898] block mb-0.5">DELTA</span>

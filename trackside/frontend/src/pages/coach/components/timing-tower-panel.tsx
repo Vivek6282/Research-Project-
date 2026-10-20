@@ -70,9 +70,7 @@ export function TimingTowerPanel({
           const rosterInfo = rosterMap[d.kart];
           const driverG = rosterInfo
             ? rosterInfo.current_g
-            : thresholds[d.kart]
-            ? thresholds[d.kart] * 0.7
-            : 0.85;
+            : 0;
           const driverThresh = rosterInfo
             ? rosterInfo.active_threshold
             : thresholds[d.kart] || 1.15;
