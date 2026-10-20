@@ -1,11 +1,12 @@
 /**
- * Unit Tests for Trackside Alert Decision Engine (Prompt 6, F2).
- * Executable via plain Node.js: `node --test`
+ * Unit Tests for Trackside Alert Decision Engine (Prompt 6, F2 & Prompt 6b, H5).
+ * Executable via plain Node.js: `node --test tests/demo/test_alerts.test.mjs`
+ * Requires Node.js >= 18.0.0 (built-in node:test and node:assert).
  */
 
 import test from "node:test";
 import assert from "node:assert";
-import "../track_visualization_alerts.js";
+import "../../public/demo/track_visualization_alerts.js";
 
 const { shouldRecordAlert } = globalThis;
 

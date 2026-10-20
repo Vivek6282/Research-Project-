@@ -207,3 +207,17 @@ However, a sandboxed web page in an attacker's browser can also send `null` as i
 
 **To harden the setup**:
 Set `WS_ALLOW_NULL_ORIGIN=false` in `demo/.env`. Then, do not open the visualizer directly from the disk; instead, open the visualizer from the Coach's Demo Tools button in the web frontend (served securely from `http://localhost:5173`).
+
+---
+
+## 10. Automated Tests
+
+### Visualizer Alert Deduplication Tests (Node.js)
+The visualizer alert deduplication logic is tested using Node.js:
+* **Command**: `node --test tests/demo/test_alerts.test.mjs` (run from `trackside/frontend/`)
+* **Minimum Node.js Version**: `Node.js >= 18.0.0` (uses built-in `node:test` and `node:assert`)
+
+### Simulator WebSocket Server Tests (Python)
+The simulator WebSocket replay and origin security suites are tested using Python `unittest`:
+* **Command**: `python -m unittest discover demo/tests` (run from `trackside/`)
+* **Requirements**: Python environment with `websockets` installed
