@@ -193,3 +193,17 @@ When a run completes (or is halted cleanly with Ctrl+C in continuous mode), the 
 
 **Known Limit (Windows Hard Terminate)**:
 If the simulator process is forcefully killed (such as closing the console window abruptly or terminating the process via Windows Task Manager without allowing Ctrl+C cleanup to run), process termination handlers cannot execute. A hard-stopped run leaves its session "In progress" in the database.
+
+---
+
+## 9. WebSocket Origin Security & Null Origin
+
+The simulator validates incoming WebSocket connections using exact equality matching against configured origins (`http://localhost:5173` and `http://127.0.0.1:5173`). Prefix tricks (e.g. `http://127.0.0.1:51730` or `http://localhost:5173.evil.com`) are strictly rejected with close code 1008.
+
+### The `null` Origin and `WS_ALLOW_NULL_ORIGIN` Setting
+By default, the simulator allows connections with `Origin: null` (`WS_ALLOW_NULL_ORIGIN=true`) because `run_demo.bat` launches the visualizer file directly from the local filesystem (`file:///`), and browsers send `null` as the origin for local files.
+
+However, a sandboxed web page in an attacker's browser can also send `null` as its origin. While the demo simulator runs on your laptop, such a page could potentially connect to `ws://127.0.0.1:8765` and read the simulated telemetry stream.
+
+**To harden the setup**:
+Set `WS_ALLOW_NULL_ORIGIN=false` in `demo/.env`. Then, do not open the visualizer directly from the disk; instead, open the visualizer from the Coach's Demo Tools button in the web frontend (served securely from `http://localhost:5173`).

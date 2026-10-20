@@ -26,12 +26,22 @@ SESSION_ID = os.getenv("SESSION_ID", "")
 WS_HOST = "127.0.0.1"
 WS_PORT = int(os.getenv("WS_PORT", "8765"))
 
-# Allowed WebSocket origins (S6 security hardening)
+# Null origin toggle (defaults to True for run_demo.bat local file launch)
+raw_allow_null = os.getenv("WS_ALLOW_NULL_ORIGIN", "true").strip().lower()
+WS_ALLOW_NULL_ORIGIN = raw_allow_null in ("true", "1", "yes")
+
+# Allowed WebSocket origins (S6 security hardening - exact matches only)
 raw_allowed_origins = os.getenv("WS_ALLOWED_ORIGINS", "")
 if raw_allowed_origins.strip():
     WS_ALLOWED_ORIGINS = [origin.strip() for origin in raw_allowed_origins.split(",") if origin.strip()]
 else:
-    WS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "null", "file://"]
+    WS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+if WS_ALLOW_NULL_ORIGIN:
+    if "null" not in WS_ALLOWED_ORIGINS:
+        WS_ALLOWED_ORIGINS.append("null")
+else:
+    WS_ALLOWED_ORIGINS = [o for o in WS_ALLOWED_ORIGINS if o.lower() != "null"]
 
 NUM_LAPS = 5
 READING_DELAY_SECONDS = 0.2

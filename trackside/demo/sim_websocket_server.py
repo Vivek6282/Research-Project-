@@ -9,13 +9,16 @@ import json
 import threading
 import time
 
+import os
+from urllib.parse import urlsplit
+
 try:
     import websockets
     HAS_WEBSOCKETS = True
 except ImportError:
     HAS_WEBSOCKETS = False
 
-from sim_config import WS_HOST, WS_PORT, WS_ALLOWED_ORIGINS
+from sim_config import WS_HOST, WS_PORT, WS_ALLOWED_ORIGINS, WS_ALLOW_NULL_ORIGIN
 from sim_track import TRACK
 
 CONNECTED_CLIENTS = set()
@@ -27,9 +30,52 @@ SERVER_READY = threading.Event()
 ACTUAL_PORT = None
 
 
+def normalize_origin(origin_str):
+    """
+    Normalizes origin string for case-insensitive scheme and authority matching.
+    Input: origin_str (str).
+    Output: normalized origin string (str).
+    """
+    if not origin_str or not isinstance(origin_str, str):
+        return ""
+    origin_stripped = origin_str.strip()
+    if origin_stripped.lower() == "null":
+        return "null"
+    try:
+        parts = urlsplit(origin_stripped)
+        if not parts.scheme or not parts.netloc:
+            return origin_stripped.lower()
+        return f"{parts.scheme.lower()}://{parts.netloc.lower()}"
+    except Exception:
+        return origin_stripped.lower()
+
+
+def is_origin_allowed(origin_header):
+    """
+    Validates WebSocket Origin header using exact equality matching.
+    Allows clients without an Origin header (e.g. local tools, CLI scripts).
+    Input: origin_header (str or None).
+    Output: bool.
+    """
+    if origin_header is None:
+        return True
+
+    norm_origin = normalize_origin(origin_header)
+
+    if norm_origin == "null":
+        allow_null_env = os.getenv("WS_ALLOW_NULL_ORIGIN", "true").strip().lower() in ("true", "1", "yes")
+        return allow_null_env and ("null" in [o.lower() for o in WS_ALLOWED_ORIGINS] or WS_ALLOW_NULL_ORIGIN)
+
+    if "*" in WS_ALLOWED_ORIGINS:
+        return True
+
+    normalized_allowed = [normalize_origin(o) for o in WS_ALLOWED_ORIGINS if o.lower() != "null"]
+    return norm_origin in normalized_allowed
+
+
 async def _ws_handler(websocket):
     """
-    Handles incoming WebSocket connections and enforces origin check.
+    Handles incoming WebSocket connections and enforces exact origin checks.
     Input: websocket connection instance.
     Output: None.
     """
@@ -39,12 +85,10 @@ async def _ws_handler(websocket):
     elif hasattr(websocket, "request") and hasattr(websocket.request, "headers"):
         origin_header = websocket.request.headers.get("Origin")
 
-    if origin_header is not None and "*" not in WS_ALLOWED_ORIGINS:
-        is_origin_allowed = origin_header in WS_ALLOWED_ORIGINS or any(origin_header.startswith(allowed_origin) for allowed_origin in WS_ALLOWED_ORIGINS)
-        if not is_origin_allowed:
-            print(f"  [!] Rejected WebSocket connection from unauthorized origin: {origin_header}")
-            await websocket.close(code=1008, reason="Origin not allowed")
-            return
+    if not is_origin_allowed(origin_header):
+        print(f"  [!] Rejected WebSocket connection from unauthorized origin: {origin_header}")
+        await websocket.close(code=1008, reason="Origin not allowed")
+        return
 
     CONNECTED_CLIENTS.add(websocket)
     try:
