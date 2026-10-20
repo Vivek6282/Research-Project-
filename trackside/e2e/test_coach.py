@@ -57,10 +57,10 @@ def test_tc_coach_02_signal_strip_segments_and_stage_label(driver, base_url, coa
         assert "INTERVENE" in stage_label
 
 
-def test_tc_coach_03_simulated_data_badge_visible_in_mock_mode(driver, base_url, coach_login):
-    """TC-COACH-03: "SIMULATED DATA" badge is visible when mock telemetry mode is on."""
+def test_tc_coach_03_no_simulated_data_badge_in_real_data_mode(driver, base_url, coach_login):
+    """TC-COACH-03: Real-data only mode: no fake "SIMULATED DATA" badge is displayed."""
     coach_page = coach_login
-    assert coach_page.is_simulated_data_badge_visible()
+    assert not coach_page.is_simulated_data_badge_visible()
 
 
 def test_tc_coach_04_threshold_slider_reflects_kart_bounds(driver, base_url, coach_login):
@@ -116,8 +116,29 @@ def test_tc_coach_08_historical_sessions_count_matches_rows(driver, base_url, co
     coach_page = coach_login
     coach_page.switch_tab("history")
 
-    coach_page.wait_for_visible("coach-historical-table")
     badge_count = coach_page.get_historical_count()
     row_count = coach_page.get_historical_rows_count()
 
     assert badge_count == row_count, f"Badge count ({badge_count}) does not match table row count ({row_count})"
+    if badge_count == 0:
+        assert coach_page.is_visible("coach-historical-empty")
+
+
+def test_tc_coach_09_no_mock_drivers_and_phase2_biometrics_and_survey(driver, base_url, coach_login):
+    """TC-COACH-09: Verify no invented driver names appear, biometric cards show Phase 2 state, and survey button is disabled."""
+    from selenium.webdriver.common.by import By
+
+    page_text = driver.execute_script("return document.body.innerText;")
+
+    # None of the 5 fictional names exist
+    mock_names = ["Lucas Vance", "Lena Hartmann", "Kai Nakamura", "Marcus Brody", "Ethan Cole"]
+    for name in mock_names:
+        assert name not in page_text, f"Invented driver name '{name}' found in Coach view!"
+
+    # Biometrics cards show Phase 2 state
+    assert "No sensor connected — the biometric strap is Phase 2." in page_text
+
+    # Survey button is disabled
+    survey_btns = driver.find_elements(By.CSS_SELECTOR, '[data-testid="track-survey-button"], [data-testid="survey-run-button"]')
+    for btn in survey_btns:
+        assert not btn.is_enabled(), "Survey button must be disabled in Phase 1"
