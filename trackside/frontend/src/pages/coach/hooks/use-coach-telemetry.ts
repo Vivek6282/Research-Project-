@@ -18,9 +18,6 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
 
   const [actualSpeedPath, setActualSpeedPath] = useState<number[]>([]);
 
-  const [hrHistory, setHrHistory] = useState<number[]>([30, 25, 20, 15, 22, 18, 25, 20, 15, 24]);
-  const [spo2History, setSpo2History] = useState<number[]>([15, 18, 22, 20, 16, 18, 22, 19, 17, 15]);
-  const [breathingHistory, setBreathingHistory] = useState<number[]>([25, 28, 20, 22, 26, 24, 28, 20, 22, 25]);
 
   // Sync state when driver changes
   useEffect(() => {
@@ -75,18 +72,9 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
               }
             } else if (message.type === "biometric_reading" && message.data) {
               const { heart_rate, spo2, breathing_rate } = message.data;
-              if (heart_rate) {
-                setCurrentHr(heart_rate);
-                setHrHistory((prev) => [...prev.slice(1), heart_rate]);
-              }
-              if (spo2) {
-                setCurrentSpo2(spo2);
-                setSpo2History((prev) => [...prev.slice(1), spo2]);
-              }
-              if (breathing_rate) {
-                setCurrentBreathing(breathing_rate);
-                setBreathingHistory((prev) => [...prev.slice(1), breathing_rate]);
-              }
+              if (heart_rate) setCurrentHr(heart_rate);
+              if (spo2) setCurrentSpo2(spo2);
+              if (breathing_rate) setCurrentBreathing(breathing_rate);
             }
           } catch (e) {
             console.warn("Error parsing incoming WebSocket telemetry packet:", e);
@@ -126,8 +114,5 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     currentGpsLng,
     wsStatus,
     actualSpeedPath,
-    hrHistory,
-    spo2History,
-    breathingHistory,
   };
 }

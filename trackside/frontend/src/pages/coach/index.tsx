@@ -63,17 +63,11 @@ export function CoachDashboard() {
     handleAddNote,
     rosterMap,
     currentSpeed,
-    currentHr,
-    currentSpo2,
-    currentBreathing,
     currentGForce,
     currentGpsLat,
     currentGpsLng,
     wsStatus,
     actualSpeedPath,
-    hrHistory,
-    spo2History,
-    breathingHistory,
   } = useCoachDashboard();
 
   return (
@@ -162,14 +156,7 @@ export function CoachDashboard() {
               />
 
               {/* BIOMETRICS 3-Card Row */}
-              <BiometricsCards
-                currentHr={currentHr}
-                currentSpo2={currentSpo2}
-                currentBreathing={currentBreathing}
-                hrHistory={hrHistory}
-                spo2History={spo2History}
-                breathingHistory={breathingHistory}
-              />
+              <BiometricsCards />
 
               {/* CUSTOM ZONE THRESHOLD CONTROL Panel */}
               <ThresholdControlPanel
