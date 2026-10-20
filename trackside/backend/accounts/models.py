@@ -116,6 +116,8 @@ class AuditLogEntry(models.Model):
 
     Action.SIMULATOR_START = "SIMULATOR_START"
     Action.SIMULATOR_STOP = "SIMULATOR_STOP"
+    Action.DEVICE_ASSIGNED = "DEVICE_ASSIGNED"
+    Action.DEVICE_UNASSIGNED = "DEVICE_UNASSIGNED"
 
 
     id = models.UUIDField(

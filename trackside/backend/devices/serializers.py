@@ -112,6 +112,49 @@ class DeviceSerializer(serializers.ModelSerializer):
                     dev_label = locked_device.get_device_type_display()
                     notice = f"{dev_label} unassigned from {old_driver.name}"
 
+                # Write audit log entries (D2)
+                request = self.context.get("request")
+                actor = (
+                    request.user
+                    if request and hasattr(request, "user") and request.user.is_authenticated
+                    else None
+                )
+                from accounts.models import AuditLogEntry
+
+                if target_driver != old_driver:
+                    prev_name = old_driver.name if old_driver else "Unassigned"
+                    new_name = target_driver.name if target_driver else "Unassigned"
+                    assign_action = (
+                        AuditLogEntry.Action.DEVICE_ASSIGNED
+                        if target_driver
+                        else AuditLogEntry.Action.DEVICE_UNASSIGNED
+                    )
+                    AuditLogEntry.objects.create(
+                        actor=actor,
+                        action=assign_action,
+                        target_user_id=str(target_driver.id) if target_driver else (str(old_driver.id) if old_driver else None),
+                        target_user_name=new_name if target_driver else prev_name,
+                        details=(
+                            f"Device {locked_device.id} ({locked_device.device_type}) assigned: "
+                            f"previous driver '{prev_name}', new driver '{new_name}'"
+                        ),
+                    )
+
+                if displaced_device:
+                    displaced_prev_name = (
+                        displaced_prev_driver.name if displaced_prev_driver else "Unassigned"
+                    )
+                    AuditLogEntry.objects.create(
+                        actor=actor,
+                        action=AuditLogEntry.Action.DEVICE_UNASSIGNED,
+                        target_user_id=str(displaced_prev_driver.id) if displaced_prev_driver else None,
+                        target_user_name=displaced_prev_name,
+                        details=(
+                            f"Device {displaced_device.id} ({displaced_device.device_type}) unassigned due to one-per-type move: "
+                            f"previous driver '{displaced_prev_name}', new driver 'Unassigned'"
+                        ),
+                    )
+
                 locked_device._displaced_device = displaced_device
                 locked_device._displaced_prev_driver = displaced_prev_driver
                 locked_device._old_driver = old_driver

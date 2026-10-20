@@ -89,6 +89,18 @@ class DeviceAssignmentAPITestCase(APITestCase):
         self.assertEqual(self.glove_2.assigned_to, self.driver_b)
         self.assertEqual(response.data["assigned_to_name"], "Driver B")
 
+        # Verify audit log entry created (D2)
+        from accounts.models import AuditLogEntry
+        audit = AuditLogEntry.objects.filter(
+            action=AuditLogEntry.Action.DEVICE_ASSIGNED,
+            target_user_id=str(self.driver_b.id),
+        ).first()
+        self.assertIsNotNone(audit)
+        self.assertEqual(audit.actor, self.admin)
+        self.assertIn(str(self.glove_2.id), audit.details)
+        self.assertIn("glove", audit.details)
+        self.assertIn("Driver B", audit.details)
+
     def test_non_admin_cannot_patch_device(self):
         """
         Non-admin users receive 403 Forbidden when trying to PATCH a device.
@@ -180,6 +192,24 @@ class DeviceAssignmentAPITestCase(APITestCase):
         # Reassignment notice is present
         self.assertIn("reassignment_notice", response.data)
         self.assertIn("Glove was moved from Driver A", response.data["reassignment_notice"])
+
+        # Both audit entries exist (D2)
+        from accounts.models import AuditLogEntry
+        assign_entry = AuditLogEntry.objects.filter(
+            action=AuditLogEntry.Action.DEVICE_ASSIGNED,
+            target_user_id=str(self.driver_a.id),
+        ).first()
+        self.assertIsNotNone(assign_entry)
+        self.assertEqual(assign_entry.actor, self.admin)
+        self.assertIn(str(self.glove_2.id), assign_entry.details)
+
+        unassign_entry = AuditLogEntry.objects.filter(
+            action=AuditLogEntry.Action.DEVICE_UNASSIGNED,
+            target_user_id=str(self.driver_a.id),
+        ).first()
+        self.assertIsNotNone(unassign_entry)
+        self.assertEqual(unassign_entry.actor, self.admin)
+        self.assertIn(str(self.glove_1.id), unassign_entry.details)
 
     def test_one_per_type_allows_different_types(self):
         """
