@@ -13,6 +13,9 @@ import { useAuth } from "../../lib/auth";
 import { usePreferences } from "../../context/PreferencesContext";
 import { SettingsModal } from "../ui/settings-modal";
 
+/**
+ * Renders the persistent pit-wall top navigation bar with user badge and controls.
+ */
 export function TopBar() {
   const { user, logout } = useAuth();
   const { openSettings } = usePreferences();
@@ -54,9 +57,7 @@ export function TopBar() {
             </div>
             <span className="text-[#232B35] hidden sm:inline">|</span>
             <div className="flex items-center gap-2 text-[11px] font-mono text-[#7C8898] tracking-wider uppercase hidden md:flex">
-              <span>APEX ACADEMY</span>
-              <span>·</span>
-              <span>NODE 7</span>
+              <span>{import.meta.env.VITE_ACADEMY_NAME || "Trackside"}</span>
             </div>
           </div>
 

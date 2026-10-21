@@ -24,6 +24,9 @@ import { TimingTowerPanel } from "./components/timing-tower-panel";
 import { SectorDeltasPanel } from "./components/sector-deltas-panel";
 import { HistoricalSessionsTab } from "./components/historical-sessions-tab";
 
+/**
+ * Renders the pit-wall coach console with live telemetry, timing tower, and historical archives.
+ */
 export function CoachDashboard() {
   const {
     activeTab,
@@ -34,6 +37,7 @@ export function CoachDashboard() {
     selectedDriverId,
     setSelectedDriverId,
     selectedDriver,
+    selectedDriverTrack,
     thresholds,
     setThresholds,
     currentThreshold,
@@ -117,12 +121,12 @@ export function CoachDashboard() {
             ) : (
               <span className="flex items-center gap-1.5 text-[10px] text-[#E5473C] bg-[#E5473C]/10 border border-[#E5473C]/30 px-2 py-0.5 rounded-[2px] font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E5473C]" />
-                OFFLINE FALLBACK
+                LIVE FEED OFFLINE
               </span>
             )}
             <div className="flex items-center gap-1 text-[11px] sm:text-xs truncate max-w-[180px] sm:max-w-none">
-              <span className="text-[#7C8898] hidden md:inline">ACADEMY TRACK:</span>
-              <span className="text-[#3FA6E0] font-bold truncate">APEX CIRCUIT NODE 7</span>
+              <span className="text-[#7C8898] hidden md:inline">Track:</span>
+              <span className="text-[#3FA6E0] font-bold truncate">{selectedDriverTrack || "No active track"}</span>
             </div>
           </div>
         </div>

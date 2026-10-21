@@ -117,7 +117,7 @@ export function LoginPage() {
 
         {/* Muted Monospace Page Footer */}
         <p className="text-center text-[9px] font-mono tracking-widest text-[#4B5563] mt-5 uppercase">
-          © 2026 APEX SYSTEMS
+          © 2026 TRACKSIDE
         </p>
       </div>
     </div>
