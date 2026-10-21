@@ -2,7 +2,7 @@
 
 from tracks.importing.corners import DEFAULT_RADIUS_THRESHOLD_M, corner_to_json, find_corners
 from tracks.importing.outline import build_outline
-from tracks.importing.safe_speed import DEFAULT_LIMIT_G, LIMIT_MAX_G, LIMIT_MIN_G, safe_speed_kmh
+from tracks.importing.safe_speed import DEFAULT_LIMIT_G, LIMIT_MAX_G, LIMIT_MIN_G
 from tracks.importing.samples import ParsedTrackFile
 
 
