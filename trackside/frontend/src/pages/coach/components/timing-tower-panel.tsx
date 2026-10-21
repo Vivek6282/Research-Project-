@@ -100,30 +100,30 @@ export function TimingTowerPanel({
                 <div>
                   <p className="font-semibold text-xs text-[#E7EDF3] leading-none mb-1">{d.name}</p>
                   <p className="text-[9px] text-[#7C8898] leading-none">
-                    {d.lapTime} ·{" "}
-                    <span className={d.inPit ? "text-[#F2A93B]" : "text-[#7C8898]"}>
-                      {d.session}
-                    </span>
+                    {rosterInfo?.session_state === "in_progress"
+                      ? "IN PROGRESS"
+                      : rosterInfo?.session_state === "ended"
+                      ? "ENDED"
+                      : (d.session && d.session !== "—" ? d.session : "—")}
                   </p>
                 </div>
               </div>
 
               <div className="flex flex-col items-end gap-1">
-                {hasRealData && driverG !== null ? (
-                  <>
-                    <SignalStrip
-                      currentG={driverG}
-                      threshold={driverThresh}
-                      size="sm"
-                      showLabel={false}
-                    />
-                    <span className="text-[#3FA6E0] text-right font-bold text-[10px]">
-                      {driverG.toFixed(2)}g
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-[#7C8898] text-right font-bold text-[10px]">—</span>
-                )}
+                <SignalStrip
+                  stage={hasRealData ? (rosterInfo?.stage as any) : "no_data"}
+                  currentG={hasRealData && driverG !== null ? driverG : undefined}
+                  threshold={driverThresh}
+                  size="sm"
+                  showLabel={false}
+                />
+                <span
+                  className={`text-right font-bold text-[10px] ${
+                    hasRealData && driverG !== null ? "text-[#3FA6E0]" : "text-[#7C8898]"
+                  }`}
+                >
+                  {hasRealData && driverG !== null ? `${driverG.toFixed(2)}g` : "—"}
+                </span>
               </div>
             </div>
           );
