@@ -1,10 +1,12 @@
 """Trackside — Build the JSON the import preview screen needs (nothing is saved)."""
 
+from tracks.importing.outline import build_outline
 from tracks.importing.samples import ParsedTrackFile
 
 
 def build_preview(parsed: ParsedTrackFile) -> dict:
     """Describe a parsed file for the preview response."""
+    outline = build_outline(parsed.samples)
     return {
         "source": parsed.source,
         "session_title": parsed.session_title,
@@ -12,4 +14,7 @@ def build_preview(parsed: ParsedTrackFile) -> dict:
         "rows_total": parsed.rows_total,
         "rows_used": len(parsed.samples),
         "rows_rejected": parsed.rows_rejected,
+        "outline": outline.as_lat_lng(),
+        "outline_length_m": round(outline.length_m, 1),
+        "outline_spacing_m": round(outline.spacing_m, 2),
     }

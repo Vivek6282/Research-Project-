@@ -27,6 +27,7 @@ class TrackImportPreviewView(GenericAPIView):
         """Parse the uploaded file and return the preview, or a clear 4xx error."""
         try:
             parsed = parse_uploaded_track_file(request.FILES.get("file"))
+            preview = build_preview(parsed)
         except TrackImportError as error:
             return Response({"detail": error.message}, status=error.status_code)
-        return Response(build_preview(parsed))
+        return Response(preview)
