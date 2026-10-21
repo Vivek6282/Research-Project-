@@ -17,6 +17,7 @@ from drivers.models import DriverZoneThreshold
 from tracks.models import Track, Zone, ZoneThresholdHistory
 from tracks.demo_circuit_setup import ensure_demo_circuit
 from tracks.limit_history import record_initial_limit
+from tracks.outline_gps import schematic_corner_segments, schematic_reference_line, stored_corner_segments
 from tracks.zone_retirement import DEACTIVATED, retire_zone
 from tracks.serializers import TrackSerializer, ZoneSerializer, ZoneThresholdHistorySerializer
 
@@ -237,23 +238,27 @@ class DemoCircuitView(generics.GenericAPIView):
 
 class TrackReferenceLineView(generics.GenericAPIView):
     """
-    GET /api/tracks/<uuid>/reference-line/ — return the track's surveyed GPS polyline.
+    GET /api/tracks/<uuid>/reference-line/ — the outline the Live Track View draws.
 
-    Lightweight endpoint for the Live Track View panel: returns only the
-    reference_line JSONB array (ordered {lat, lng} points) without loading
-    zones or other nested data.  Returns null when the track hasn't been
-    surveyed yet, so the frontend can show a graceful fallback.
+    Other maps: their stored reference_line (null when never surveyed), unchanged.
+    Built-in Demo Circuit: a schematic outline turned into pseudo lat/lng when asked
+    (never stored) and marked is_schematic. Active corners are returned as outline segments.
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk=None):
-        from rest_framework.response import Response
-        from django.shortcuts import get_object_or_404
-
+        """Return the outline, the is_schematic flag and the corner segments of the track."""
         track = get_object_or_404(Track, pk=pk)
+        zones = list(track.zones.filter(is_active=True))
+        if track.is_builtin:
+            line, corners = schematic_reference_line(), schematic_corner_segments(zones)
+        else:
+            line, corners = track.reference_line, stored_corner_segments(zones)
         return Response({
             "track_id": str(track.id),
             "track_name": track.name,
-            "reference_line": track.reference_line,
+            "reference_line": line,
+            "is_schematic": bool(track.is_builtin),
+            "corners": corners,
         })
