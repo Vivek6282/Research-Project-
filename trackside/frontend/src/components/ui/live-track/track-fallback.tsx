@@ -61,13 +61,13 @@ export function TrackFallback({ type }: TrackFallbackProps) {
             <p className="text-[#7C8898] text-xs text-center leading-relaxed max-w-[320px]">
               Live Track View unavailable — this track hasn't been surveyed yet.
             </p>
-            <button
-              disabled
-              data-testid="track-survey-button"
-              className="text-[10px] bg-[#161D26] text-[#7C8898] border border-[#232B35] px-2.5 py-1 rounded-[2px] uppercase tracking-wider cursor-not-allowed opacity-75"
+            <a
+              href="/maps"
+              data-testid="open-maps-link"
+              className="text-[10px] bg-[#161D26] text-[#3FA6E0] border border-[#232B35] px-2.5 py-1 rounded-[2px] uppercase tracking-wider hover:border-[#3FA6E0]"
             >
-              Phase 2 — needs the kart GPS unit
-            </button>
+              Open Maps
+            </a>
           </div>
         )}
       </div>
