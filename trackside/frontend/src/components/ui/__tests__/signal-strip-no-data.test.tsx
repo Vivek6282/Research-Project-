@@ -32,7 +32,7 @@ describe("SignalStrip No Data State", () => {
         session: "—",
         lapTime: "—",
         inPit: false,
-      },
+      } as unknown as DriverProfile,
     ];
 
     render(
