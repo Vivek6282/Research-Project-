@@ -17,6 +17,14 @@ export function BestLapTargetPanel({ latestSession }: BestLapTargetPanelProps) {
       <Panel testId="driver-panel-best-lap" title="Best Lap Highlight (Raw Telemetry)" icon={Trophy}>
         {latestSession ? (
           <div className="space-y-1 font-mono">
+            {latestSession.is_demo && (
+              <span
+                data-testid="driver-demo-run-label"
+                className="inline-block text-[10px] font-bold px-2 py-0.5 rounded border border-[#F2A93B66] bg-[#F2A93B14] text-[#F2A93B]"
+              >
+                DEMO RUN: simulated, not real driving
+              </span>
+            )}
             <div className="flex items-baseline justify-between">
               <span className="text-2xl font-mono font-bold text-[#33D17E]">
                 {latestSession.best_lap_time || "—"}

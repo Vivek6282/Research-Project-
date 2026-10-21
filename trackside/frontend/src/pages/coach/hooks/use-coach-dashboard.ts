@@ -248,6 +248,7 @@ export function useCoachDashboard() {
           bestLap: s.best_lap || "—",
           maxG: s.max_g || "—",
           alerts: s.alert_count ?? 0,
+          isDemo: Boolean(s.is_demo),
         }));
         setHistoricalSessions(mapped);
       } else {

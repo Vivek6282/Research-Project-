@@ -116,6 +116,7 @@ class AlertSummaryView(APIView):
             "started_at": most_recent_session.started_at,
             "track_name": most_recent_session.track.name if most_recent_session.track else "Standard Track",
             "best_lap_time": SessionSerializer(most_recent_session).data.get("best_lap"),
+            "is_demo": most_recent_session.is_demo,
         }
 
         return Response(
@@ -215,6 +216,7 @@ class RosterStatusView(APIView):
                 {
                     "driver_id": str(driver.id),
                     "driver_name": driver.name,
+                    "is_active": driver.is_active,
                     "current_g": measured_current_g,
                     "active_zone": active_zone_name,
                     "active_threshold": effective_threshold_g,

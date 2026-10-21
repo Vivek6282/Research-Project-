@@ -44,6 +44,7 @@ export interface HistoricalSession {
   bestLap: string;
   maxG: string;
   alerts: number;
+  isDemo?: boolean;
 }
 
 export interface TrackZone {

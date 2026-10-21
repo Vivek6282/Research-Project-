@@ -49,3 +49,30 @@ class TestSessionIsDemo(APITestCase):
         self.client.patch(f"/api/sessions/{self.session.id}/", {"is_demo": True}, format="json")
         self.session.refresh_from_db()
         self.assertFalse(self.session.is_demo)
+
+
+class TestRosterShowsActiveFlag(APITestCase):
+    """The roster says which drivers are active, so the Play demo dialog can list only those."""
+
+    def test_roster_entries_have_is_active(self):
+        """A deactivated driver is in the roster with is_active False."""
+        coach = User.objects.create_user(email="ra_coach@trackside.local", name="C", password="CoachPassword123!", role="coach")
+        User.objects.create_user(email="ra_on@trackside.local", name="On Driver", password="DriverPassword123!", role="driver")
+        User.objects.create_user(email="ra_off@trackside.local", name="Off Driver", password="DriverPassword123!", role="driver", is_active=False)
+        self.client.force_authenticate(coach)
+        roster = {r["driver_name"]: r["is_active"] for r in self.client.get("/api/sessions/roster-status/").data["roster"]}
+        self.assertEqual(roster, {"On Driver": True, "Off Driver": False})
+
+
+class TestDriverSummaryShowsDemoFlag(APITestCase):
+    """The driver dashboard's latest session says whether it was a demo run."""
+
+    def test_latest_session_carries_is_demo(self):
+        """A demo run shows is_demo True; a later real session shows False."""
+        driver = User.objects.create_user(email="ds_driver@trackside.local", name="D", password="DriverPassword123!", role="driver")
+        track = Track.objects.create(name="Summary Track")
+        Session.objects.create(driver=driver, track=track, started_at=timezone.now(), is_demo=True)
+        self.client.force_authenticate(driver)
+        self.assertTrue(self.client.get("/api/sessions/alerts/summary/").data["latest_session"]["is_demo"])
+        Session.objects.create(driver=driver, track=track, started_at=timezone.now() + timezone.timedelta(minutes=5))
+        self.assertFalse(self.client.get("/api/sessions/alerts/summary/").data["latest_session"]["is_demo"])

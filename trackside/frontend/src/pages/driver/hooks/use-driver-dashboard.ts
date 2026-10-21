@@ -24,6 +24,7 @@ export interface LatestSessionData {
   started_at: string;
   track_name: string;
   best_lap_time?: string;
+  is_demo?: boolean;
 }
 
 export function useDriverDashboard() {
