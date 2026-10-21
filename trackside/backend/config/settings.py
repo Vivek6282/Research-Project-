@@ -284,3 +284,6 @@ USE_TZ = True
 # ---------------------------------------------------------------------------
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Live driver telemetry freshness window (in seconds)
+DRIVER_LIVE_WINDOW_SECONDS = env.int("DRIVER_LIVE_WINDOW_SECONDS", default=30)
