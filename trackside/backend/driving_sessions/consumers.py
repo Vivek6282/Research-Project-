@@ -5,6 +5,8 @@ Provides real-time telemetry, alert, and biometric streaming to connected Coach 
 """
 
 import json
+
+from django.core.serializers.json import DjangoJSONEncoder
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from driving_sessions.access import can_access_session
@@ -77,7 +79,8 @@ class TelemetryConsumer(AsyncWebsocketConsumer):
                 {
                     "type": "telemetry_reading",
                     "data": event["data"],
-                }
+                },
+                cls=DjangoJSONEncoder,
             )
         )
 
@@ -88,7 +91,8 @@ class TelemetryConsumer(AsyncWebsocketConsumer):
                 {
                     "type": "alert_triggered",
                     "data": event["data"],
-                }
+                },
+                cls=DjangoJSONEncoder,
             )
         )
 
@@ -99,6 +103,7 @@ class TelemetryConsumer(AsyncWebsocketConsumer):
                 {
                     "type": "biometric_reading",
                     "data": event["data"],
-                }
+                },
+                cls=DjangoJSONEncoder,
             )
         )
