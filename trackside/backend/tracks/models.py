@@ -23,6 +23,12 @@ class Track(models.Model):
         RENTAL = "rental", "Rental"
         SPRINT = "sprint", "Sprint"
 
+    class Source(models.TextChoices):
+        MANUAL = "manual", "Added by hand"
+        BUILTIN = "builtin", "Built-in"
+        RACECHRONO_CSV = "racechrono_csv", "RaceChrono CSV"
+        VBO = "vbo", "Racelogic VBO"
+
     # Sustained nominal cornering thresholds for sprint karts (1.0g-1.5g) vs rental karts (0.4g-0.8g)
     KART_CLASS_FLOOR = {
         KartClass.RENTAL: 0.4,
@@ -56,6 +62,23 @@ class Track(models.Model):
         choices=KartClass.choices,
         default=KartClass.RENTAL,
         help_text="Type of karts used on this track — affects threshold calibration",
+    )
+
+    is_builtin = models.BooleanField(
+        default=False,
+        help_text="Built-in tracks (the Demo Circuit) are locked: no edit, archive or delete",
+    )
+
+    is_archived = models.BooleanField(
+        default=False,
+        help_text="Archived tracks are hidden from pickers but keep their session history",
+    )
+
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
+        default=Source.MANUAL,
+        help_text="Where the track shape came from",
     )
 
     surveyed_at = models.DateTimeField(

@@ -53,10 +53,14 @@ class Command(BaseCommand):
             name="Demo Circuit",
             defaults={
                 "kart_class": Track.KartClass.SPRINT,
+                "is_builtin": True,
+                "source": Track.Source.BUILTIN,
             },
         )
-        if track.kart_class != Track.KartClass.SPRINT:
+        if track.kart_class != Track.KartClass.SPRINT or not track.is_builtin:
             track.kart_class = Track.KartClass.SPRINT
+            track.is_builtin = True
+            track.source = Track.Source.BUILTIN
             track.save()
 
         # 3. Create or reuse Zones: Hairpin (1.15, hairpin), Sweeper (1.55, sweeper), Chicane (1.30, chicane)

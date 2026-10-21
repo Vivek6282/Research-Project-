@@ -30,7 +30,9 @@ class TrackSerializer(serializers.ModelSerializer):
         model = Track
         fields = [
             "id", "name", "reference_line", "kart_class", "min_threshold_g",
-            "surveyed_at", "created_by", "zones",
+            "surveyed_at", "created_by", "zones", "is_builtin", "is_archived", "source",
         ]
-        read_only_fields = ["id", "created_by", "min_threshold_g"]
+        read_only_fields = [
+            "id", "created_by", "min_threshold_g", "is_builtin", "is_archived", "source",
+        ]
 
