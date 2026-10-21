@@ -18,6 +18,7 @@ import { TelemetryPanel } from "./components/telemetry-panel";
 import { ModeSelectorPanel } from "./components/mode-selector-panel";
 import { ZoneHeatmapPanel } from "./components/zone-heatmap-panel";
 import { BestLapTargetPanel } from "./components/best-lap-target-panel";
+import { CornerTimesPanel } from "./components/corner-times-panel";
 
 export function DriverDashboard() {
   const {
@@ -59,6 +60,9 @@ export function DriverDashboard() {
 
         {/* Best Lap & Session Goal Progress */}
         <BestLapTargetPanel latestSession={latestSession} />
+
+        {/* Time through each corner of the latest session */}
+        <CornerTimesPanel sessionId={latestSession?.id ?? null} />
 
         {/* Phase 1.5 Dev Banner — Alert Clips */}
         <DevBanner phase="Phase 1.5">
