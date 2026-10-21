@@ -138,6 +138,12 @@ class ProfileSimulator:
         self.member = corner_membership(profile)
         self.corner_radii = tightest_radius(profile, self.curvature)
         self.total_m = profile.spacing_m * len(profile.outline)
+        self.current_index = 0
+
+    def current_gps(self):
+        """The (lat, lng) of the outline point the latest packet is on, or None when the profile has no gps list."""
+        gps = self.profile.gps
+        return gps[self.current_index] if gps else None
 
     def lap_packets(self, lap_number: int):
         """Yield one telemetry packet every 0.2 s of simulated time for a full lap."""
@@ -147,6 +153,7 @@ class ProfileSimulator:
         distance_m = 0.0
         while distance_m < self.total_m:
             i = min(int(distance_m / self.profile.spacing_m), len(speeds) - 1)
+            self.current_index = i
             speed = speeds[i]
             number = self.member[i]
             corner = self.profile.corners[number] if number is not None else None

@@ -87,15 +87,18 @@ class TestStartBuiltin(DemoRunBase):
     """The Demo Circuit keeps its own simulation."""
 
     def test_builtin_run_has_no_track_file_or_pace_and_maps_the_three_corners(self):
-        """argv is only --laps; DEMO_ZONES has Hairpin, Sweeper, Chicane; pace is reported as not applied."""
+        """argv is --laps and --gps-file (no track file); DEMO_ZONES has Hairpin, Sweeper, Chicane; pace is reported as not applied."""
         demo = ensure_demo_circuit()
         response = self.client.post(START, {"track_id": str(demo.id), "driver_id": str(self.ana.id), "laps": 3, "pace": "over"}, format="json")
         self.assertEqual(response.status_code, 200, response.data)
         args, kwargs = self.popen_mock.call_args
-        self.assertEqual(args[0][3:], ["--laps", "3"])
+        gps_path = os.path.join(self.profile_dir, f"{demo.id}.gps.json")
+        self.assertEqual(args[0][3:], ["--laps", "3", "--gps-file", gps_path])
+        with open(gps_path, encoding="utf-8") as handle:
+            self.assertEqual(len(json.load(handle)["points"]), 400)
         self.assertEqual(set(json.loads(kwargs["env"]["DEMO_ZONES"])), {"Hairpin", "Sweeper", "Chicane"})
         self.assertFalse(response.data["pace_applied"])
-        self.assertFalse(os.path.exists(self.profile_dir))
+        self.assertFalse(os.path.exists(os.path.join(self.profile_dir, f"{demo.id}.json")))
 
 
 class TestValidation(DemoRunBase):

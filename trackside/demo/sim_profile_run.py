@@ -23,7 +23,8 @@ def run_profile_lap(simulator: ProfileSimulator, serial_connection, session_id, 
     for packet in simulator.lap_packets(lap_number):
         broadcast_reading(packet)
         send_to_bridge(serial_connection, packet["g_force"], packet["stage"])
-        send_to_backend(session_id, packet["g_force"], packet["zone"], packet["stage"], packet["speed_kmh"], lap_number=lap_number)
+        send_to_backend(session_id, packet["g_force"], packet["zone"], packet["stage"], packet["speed_kmh"], lap_number=lap_number,
+                        gps=simulator.current_gps())
         if packet["zone"] != "Straight":
             best = peaks.get(packet["zone"])
             if best is None or packet["g_force"] > best[0]:

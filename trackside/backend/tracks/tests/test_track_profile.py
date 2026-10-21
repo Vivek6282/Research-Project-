@@ -123,3 +123,22 @@ class TestExportTrackCommand(APITestCase):
             with self.assertRaises(CommandError):
                 self.run_command(str(self.track.id), "--out", target)
             self.assertFalse(os.path.exists(target))
+
+
+class TestProfileGps(APITestCase):
+    """The profile carries one lat/lng for every outline point, on the drawn outline."""
+
+    def test_gps_matches_outline_and_lies_on_the_map_outline(self):
+        """Same length as the outline; every point within 10 m of a stored outline point."""
+        from tracks.importing.geometry import LocalFrame, distance
+        coach = User.objects.create_user(
+            email="prof_gps@trackside.local", name="C", password="CoachPassword123!", role="coach")
+        track = make_imported_track(coach)
+        profile = build_track_profile(track)
+        self.assertEqual(len(profile["gps"]), len(profile["outline"]))
+        line = track.reference_line
+        frame = LocalFrame(sum(p["lat"] for p in line) / len(line), sum(p["lng"] for p in line) / len(line))
+        stored = [frame.to_xy(p["lat"], p["lng"]) for p in line]
+        for lat, lng in profile["gps"][::10]:
+            here = frame.to_xy(lat, lng)
+            self.assertLess(min(distance(here, p) for p in stored), 10.0)

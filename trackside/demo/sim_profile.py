@@ -10,6 +10,8 @@ import os
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
+from sim_gps import GpsLoadError, parse_gps_points
+
 MAX_PROFILE_BYTES = 5 * 1024 * 1024
 MIN_OUTLINE_POINTS = 20
 MAX_OUTLINE_POINTS = 5000
@@ -42,6 +44,7 @@ class TrackProfile:
     length_m: float
     outline: List[Tuple[float, float]]
     corners: List[ProfileCorner] = field(default_factory=list)
+    gps: List[Tuple[float, float]] = field(default_factory=list)
 
 
 def finite_number(value, name: str, low: float, high: float) -> float:
@@ -88,6 +91,19 @@ def parse_corner(raw_corner, point_count: int) -> ProfileCorner:
     )
 
 
+def parse_profile_gps(raw_gps, point_count: int) -> List[Tuple[float, float]]:
+    """The optional "gps" list: one [lat, lng] per outline point, or empty when the file has none."""
+    if raw_gps is None:
+        return []
+    try:
+        points = parse_gps_points(raw_gps)
+    except GpsLoadError as error:
+        raise ProfileLoadError(f"'gps': {error}")
+    if len(points) != point_count:
+        raise ProfileLoadError("'gps' must have one point for every outline point.")
+    return points
+
+
 def load_profile(path: str) -> TrackProfile:
     """Load and fully check a profile file; raises ProfileLoadError with a clear message on any problem."""
     if not os.path.isfile(path):
@@ -116,4 +132,5 @@ def load_profile(path: str) -> TrackProfile:
         length_m=finite_number(raw.get("length_m"), "length_m", 50.0, 100000.0),
         outline=outline,
         corners=corners,
+        gps=parse_profile_gps(raw.get("gps"), len(outline)),
     )

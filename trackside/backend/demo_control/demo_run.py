@@ -21,6 +21,7 @@ from driving_sessions.models import Session
 from driving_sessions.session_close import close_session_if_open
 from tracks.demo_circuit_setup import ensure_demo_circuit
 from tracks.models import Track
+from tracks.outline_gps import write_schematic_gps_file
 from tracks.track_profile import ProfileError, write_track_profile
 
 DEMO_DEVICE_NAME = "Demo kart unit"
@@ -150,7 +151,8 @@ def start_demo_run(request) -> dict:
 
     if track.is_builtin:
         track = ensure_demo_circuit()
-        extra_args = ["--laps", str(laps)]
+        gps_path = write_schematic_gps_file(profile_directory(), track.id)
+        extra_args = ["--laps", str(laps), "--gps-file", gps_path]
     else:
         try:
             profile_path = write_track_profile(track, profile_directory())

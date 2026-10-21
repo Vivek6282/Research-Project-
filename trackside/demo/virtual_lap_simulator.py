@@ -46,18 +46,19 @@ from sim_serial_bridge import (
     connect_serial_bridge,
     send_to_bridge,
 )
+from sim_gps import gps_for_reading, load_gps_or_exit
 from sim_profile import ProfileLoadError, load_profile
 from sim_physics import DEFAULT_CRUISE_KMH, PACES, ProfileSimulator
 from sim_profile_run import build_run_start_extras, run_profile_lap
 
 
-def run_lap(serial_connection, session_id, lap_number, total_laps, reading_delay):
+def run_lap(serial_connection, session_id, lap_number, total_laps, reading_delay, gps_points=None):
     """
     Executes one simulated lap around the virtual track.
     Computes track progress (0.0 to 1.0) and synchronizes readings across
     WebSocket broadcast, serial bridge, and backend REST ingestion.
     Input: serial_connection (serial.Serial or None), session_id (str), lap_number (int),
-           total_laps (int), reading_delay (float).
+           total_laps (int), reading_delay (float), gps_points (list of (lat, lng) or None).
     Output: None.
     """
     lap_header = f"\n===== LAP {lap_number}{f' / {total_laps}' if total_laps > 0 else ''} ====="
@@ -96,7 +97,8 @@ def run_lap(serial_connection, session_id, lap_number, total_laps, reading_delay
             send_to_bridge(serial_connection, measured_g, current_stage)
 
             # 3. Post to backend REST API
-            send_to_backend(session_id, measured_g, turn["name"], current_stage, derived_speed_kmh, lap_number=lap_number)
+            send_to_backend(session_id, measured_g, turn["name"], current_stage, derived_speed_kmh, lap_number=lap_number,
+                            gps=gps_for_reading(gps_points, current_reading_index - 1, total_readings_in_lap))
 
             time.sleep(reading_delay)
 
@@ -148,6 +150,7 @@ def main():
     cli_parser.add_argument("--ws-host", type=str, default=WS_HOST, help=f"Host for local WebSocket telemetry broadcaster (default: {WS_HOST})")
     cli_parser.add_argument("--limit", action="append", default=[], help="Custom corner limit, e.g. --limit Hairpin=1.00 (repeatable)")
     cli_parser.add_argument("--track-file", type=str, default=None, help="Track profile JSON from 'manage.py export_track' (default: built-in Demo Circuit)")
+    cli_parser.add_argument("--gps-file", type=str, default=None, help="GPS points of the built-in Demo Circuit outline (written by the backend); each reading carries one")
     cli_parser.add_argument("--pace", choices=sorted(PACES), default=None, help="Corner pace for --track-file runs: safe (green), edge (amber), over (red). Default safe")
     cli_parser.add_argument("--seed", type=int, default=None, help="Random seed so a --track-file run repeats exactly")
     cli_parser.add_argument("--cruise-kmh", type=float, default=None, help=f"Straight-line speed for --track-file runs (default {DEFAULT_CRUISE_KMH:.0f})")
@@ -157,6 +160,9 @@ def main():
         cli_parser.error("--pace, --seed and --cruise-kmh only work together with --track-file.")
     if cli_args.track_file and cli_args.limit:
         cli_parser.error("--limit is for the built-in track; a --track-file run uses each corner's own limit.")
+    if cli_args.track_file and cli_args.gps_file:
+        cli_parser.error("--gps-file is for the built-in track; a --track-file profile carries its own gps list.")
+    gps_points = load_gps_or_exit(cli_args.gps_file)
     if cli_args.cruise_kmh is not None and not (20.0 <= cli_args.cruise_kmh <= 200.0):
         cli_parser.error("--cruise-kmh must be between 20 and 200.")
 
@@ -256,7 +262,7 @@ def main():
             if profile_simulator:
                 run_profile_lap(profile_simulator, serial_connection, active_session_id, current_lap, target_lap_count, cli_args.delay)
             else:
-                run_lap(serial_connection, active_session_id, current_lap, target_lap_count, cli_args.delay)
+                run_lap(serial_connection, active_session_id, current_lap, target_lap_count, cli_args.delay, gps_points)
             current_lap += 1
             if target_lap_count > 0 and current_lap > target_lap_count:
                 break

@@ -3,7 +3,7 @@ Trackside — Build the track profile file the simulator reads (SIM-1).
 
 A profile holds one closed outline in local metres (even spacing, about 2 m) and
 the track's active corners: label, where they start and end on the outline, the
-tightest radius inside them, and their g limit. It is made from the stored
+tightest radius inside them, and their g limit. "gps" gives the lat/lng of each outline point. It is made from the stored
 Track outline and Zones only; nothing is read from the browser.
 """
 
@@ -16,6 +16,7 @@ from tracks.importing.corners import radius_profile, sustained_radius
 from tracks.importing.geometry import LocalFrame, Point, distance, path_length, resample_closed
 from tracks.importing.lap_picker import CLOSE_GAP_M
 from tracks.models import Track, Zone
+from tracks.outline_gps import frame_gps_pairs
 
 PROFILE_VERSION = 1
 SPACING_M = 2.0
@@ -108,6 +109,7 @@ def build_track_profile(track: Track) -> dict:
         "spacing_m": round(spacing, 3),
         "length_m": round(loop_length, 1),
         "outline": [[round(x, 2), round(y, 2)] for x, y in points],
+        "gps": frame_gps_pairs(frame, points),
         "corners": corners,
         "skipped_corners": skipped,
     }
