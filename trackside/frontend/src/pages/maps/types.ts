@@ -21,6 +21,11 @@ export interface MapTrack {
   is_builtin: boolean;
   is_archived: boolean;
   zones: MapZone[];
+  /** The stored GPS outline (custom maps) */
+  reference_line?: LatLng[] | null;
+  /** The built-in map's drawn-shape outline: a schematic picture, not a survey */
+  schematic_outline?: LatLng[] | null;
+  is_schematic?: boolean;
 }
 
 /** One corner found in an uploaded file (from the import preview) */

@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CornerTable } from "../components/corner-table";
-import { MapList } from "../components/map-list";
+import { MapCardGrid } from "../components/map-card-grid";
 import { AddMapWizard } from "../components/add-map-wizard";
 import type { CornerPreview, ImportPreview, MapTrack } from "../types";
 
@@ -61,32 +61,68 @@ describe("CornerTable", () => {
   });
 });
 
-describe("MapList", () => {
+describe("MapCardGrid", () => {
   const handlers = { onArchive: vi.fn(), onRestore: vi.fn() };
+  const square = [{ lat: 12.97, lng: 77.59 }, { lat: 12.97, lng: 77.592 }, { lat: 12.972, lng: 77.592 }, { lat: 12.972, lng: 77.59 }];
 
-  it("shows a Built-in badge and no archive button for the Demo Circuit", () => {
-    render(<MapList maps={[map({ name: "Demo Circuit", is_builtin: true, source: "builtin" })]} canManage {...handlers} />);
-    expect(screen.getByText("Built-in", { selector: "span.rounded" })).toBeTruthy();
+  it("shows Built-in and Simulator map badges, the schematic note, and no archive button for the Demo Circuit", () => {
+    const demo = map({ name: "Demo Circuit", is_builtin: true, source: "builtin", is_schematic: true, schematic_outline: square });
+    render(<MapCardGrid maps={[demo]} canArchive {...handlers} />);
+    const card = screen.getByTestId("map-card-Demo Circuit");
+    expect(card.textContent).toContain("Built-in");
+    expect(card.textContent).toContain("Simulator map");
+    expect(card.textContent).toContain("Schematic");
+    expect(screen.getByTestId("outline-thumbnail")).toBeTruthy();
     expect(screen.queryByTestId("archive-Demo Circuit")).toBeNull();
   });
 
+  it("shows the number of alert corners and a thumbnail from the stored outline", () => {
+    const zones = [{ id: "a", label: "T1", threshold_g: 1.2 }, { id: "b", label: "T2", threshold_g: 1.3 }];
+    render(<MapCardGrid maps={[map({ name: "Kari", zones, reference_line: square }), map({ id: "2", name: "Bare" })]} canArchive {...handlers} />);
+    expect(screen.getByTestId("map-card-corners-Kari").textContent).toContain("2 alert corners");
+    expect(screen.getByTestId("map-card-corners-Bare").textContent).toContain("0 alert corners");
+    expect(screen.getAllByTestId("outline-thumbnail")).toHaveLength(1);
+    expect(screen.getAllByTestId("outline-thumbnail-empty")).toHaveLength(1);
+  });
+
   it("offers Archive on active maps and Restore on archived maps", () => {
-    render(<MapList maps={[map({ name: "A" }), map({ id: "2", name: "B", is_archived: true })]} canManage {...handlers} />);
+    render(<MapCardGrid maps={[map({ name: "A" }), map({ id: "2", name: "B", is_archived: true })]} canArchive {...handlers} />);
     expect(screen.getByTestId("archive-A")).toBeTruthy();
     expect(screen.getByTestId("restore-B")).toBeTruthy();
-    expect(screen.getByText("Archived")).toBeTruthy();
+    expect(screen.getByTestId("map-card-B").textContent).toContain("Archived");
     fireEvent.click(screen.getByTestId("restore-B"));
     expect(handlers.onRestore).toHaveBeenCalled();
   });
 
-  it("gives drivers no change buttons at all", () => {
-    render(<MapList maps={[map({ name: "A" }), map({ id: "2", name: "B", is_archived: true })]} canManage={false} {...handlers} />);
+  it("gives read-only users no change buttons at all", () => {
+    render(<MapCardGrid maps={[map({ name: "A" }), map({ id: "2", name: "B", is_archived: true })]} canArchive={false} {...handlers} />);
     expect(screen.queryByTestId("archive-A")).toBeNull();
     expect(screen.queryByTestId("restore-B")).toBeNull();
+    expect(screen.queryByTestId("play-A")).toBeNull();
+    expect(screen.queryByTestId("edit-corners-A")).toBeNull();
+  });
+
+  it("shows Play demo and Edit corners only when the caller allows them, and never Play on archived maps", () => {
+    const onPlay = vi.fn();
+    const onEdit = vi.fn();
+    render(<MapCardGrid maps={[map({ name: "A" }), map({ id: "2", name: "B", is_archived: true })]} canArchive onPlay={onPlay} onEditCorners={onEdit} {...handlers} />);
+    fireEvent.click(screen.getByTestId("play-A"));
+    fireEvent.click(screen.getByTestId("edit-corners-A"));
+    expect(onPlay).toHaveBeenCalledWith(expect.objectContaining({ name: "A" }));
+    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ name: "A" }));
+    expect(screen.queryByTestId("play-B")).toBeNull();
+    expect(screen.getByTestId("edit-corners-B").textContent).toContain("View corners");
+  });
+
+  it("disables Play with the reason when a demo is running", () => {
+    render(<MapCardGrid maps={[map({ name: "A" })]} canArchive onPlay={vi.fn()} playDisabledReason="A demo is running" {...handlers} />);
+    const button = screen.getByTestId("play-A") as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.title).toBe("A demo is running");
   });
 
   it("says so when there are no maps", () => {
-    render(<MapList maps={[]} canManage {...handlers} />);
+    render(<MapCardGrid maps={[]} canArchive {...handlers} />);
     expect(screen.getByTestId("maps-empty")).toBeTruthy();
   });
 });

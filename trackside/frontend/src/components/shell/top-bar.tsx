@@ -76,7 +76,7 @@ export function TopBar() {
 
             {/* Maps link (icon only on small screens so the bar never overflows) */}
             <Link
-              to="/maps"
+              to={user.role === "coach" ? "/coach?tab=maps" : "/maps"}
               data-testid="topbar-maps-link"
               title="Maps"
               className="flex items-center gap-1 text-[11px] font-mono px-2 py-1.5 min-h-[32px] sm:min-h-[36px] rounded text-[#7C8898] hover:text-[#3FA6E0] border border-[#232B35] bg-[#161D26]"

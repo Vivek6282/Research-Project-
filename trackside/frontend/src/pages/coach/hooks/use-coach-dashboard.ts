@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { api } from "../../../lib/api";
 import { useCoachTelemetry } from "./use-coach-telemetry";
 import { useCoachNotes } from "./use-coach-notes";
+import { useCoachTab } from "./use-coach-tab";
 import {
   DriverProfile,
   HistoricalSession,
@@ -40,7 +41,7 @@ const EMPTY_DRIVER: DriverProfile = {
 };
 
 export function useCoachDashboard() {
-  const [activeTab, setActiveTab] = useState<"live" | "history">("live");
+  const { activeTab, setActiveTab } = useCoachTab();
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [driversError, setDriversError] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState("");
@@ -262,8 +263,8 @@ export function useCoachDashboard() {
   };
 
   useEffect(() => {
-    loadSessions();
-  }, []);
+    loadSessions(); // reload on every tab change so a run started meanwhile (a demo) shows up
+  }, [activeTab]);
 
   const matchedDriverSession = (historicalSessions as any[]).find(
     (s) => s.driver === selectedDriver.name || s.rawId === activeSessionId,

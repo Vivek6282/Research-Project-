@@ -23,6 +23,7 @@ import { SessionNotesPanel } from "./components/session-notes-panel";
 import { TimingTowerPanel } from "./components/timing-tower-panel";
 import { SectorDeltasPanel } from "./components/sector-deltas-panel";
 import { HistoricalSessionsTab } from "./components/historical-sessions-tab";
+import { MapsDemoTab } from "./components/maps-demo-tab";
 
 /**
  * Renders the pit-wall coach console with live telemetry, timing tower, and historical archives.
@@ -93,6 +94,17 @@ export function CoachDashboard() {
               }`}
             >
               LIVE PIT-WALL CONSOLE
+            </button>
+            <button
+              data-testid="coach-tab-maps"
+              onClick={() => setActiveTab("maps")}
+              className={`px-2.5 sm:px-3 py-1 rounded-[2px] font-bold cursor-pointer transition-all text-[11px] sm:text-xs ${
+                activeTab === "maps"
+                  ? "bg-[#3FA6E0] text-[#0A0E13]"
+                  : "bg-[#161D26] text-[#7C8898] border border-[#232B35] hover:text-[#E7EDF3]"
+              }`}
+            >
+              MAPS &amp; DEMO
             </button>
             <button
               data-testid="coach-tab-history"
@@ -232,6 +244,9 @@ export function CoachDashboard() {
             </div>
           </main>
         </>
+      ) : activeTab === "maps" ? (
+        /* MAPS & DEMO TAB */
+        <MapsDemoTab />
       ) : (
         /* HISTORICAL SESSIONS TAB */
         <HistoricalSessionsTab
