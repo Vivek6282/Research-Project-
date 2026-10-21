@@ -292,7 +292,7 @@ export function useCoachDashboard() {
     historicalSessions,
     sessionsError,
     retryLoadSessions: loadSessions,
-    activeTrackId,
+    activeSessionId, activeTrackId,
     rosterMap,
     ...telemetry,
     ...notesManager,

@@ -21,7 +21,7 @@ import { BiometricsCards } from "./components/biometrics-cards";
 import { ThresholdControlPanel } from "./components/threshold-control-panel";
 import { SessionNotesPanel } from "./components/session-notes-panel";
 import { TimingTowerPanel } from "./components/timing-tower-panel";
-import { SectorDeltasPanel } from "./components/sector-deltas-panel";
+import { CornerDeltasPanel } from "./components/corner-deltas-panel";
 import { HistoricalSessionsTab } from "./components/historical-sessions-tab";
 import { MapsDemoTab } from "./components/maps-demo-tab";
 
@@ -72,6 +72,8 @@ export function CoachDashboard() {
     currentGpsLat,
     currentGpsLng,
     currentZoneId,
+    currentLap,
+    activeSessionId,
     wsStatus,
     actualSpeedPath,
   } = useCoachDashboard();
@@ -241,8 +243,12 @@ export function CoachDashboard() {
                 onRetry={retryLoadDrivers}
               />
 
-              {/* SECTOR DELTAS Panel */}
-              <SectorDeltasPanel />
+              {/* CORNER DELTAS Panel */}
+              <CornerDeltasPanel
+                sessionId={activeSessionId}
+                lapNumber={currentLap}
+                isLive={!selectedDriver?.inPit}
+              />
             </div>
           </main>
         </>

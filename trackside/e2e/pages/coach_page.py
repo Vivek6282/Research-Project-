@@ -21,7 +21,7 @@ class CoachDashboardPage(BasePage):
         panel_map = {
             "live_trajectory": "coach-panel-live-trajectory",
             "timing_tower": "coach-panel-timing-tower",
-            "sector_deltas": "coach-panel-sector-deltas",
+            "corner_deltas": "coach-panel-corner-deltas",
             "biometrics": "coach-panel-biometrics",
             "threshold_control": "coach-panel-threshold-control",
             "session_notes": "coach-panel-session-notes",
@@ -124,8 +124,8 @@ class CoachDashboardPage(BasePage):
         return len(rows)
 
     def is_sidebar_column_containing_panels(self) -> bool:
-        """Regression test for grid placement bug: Timing Tower and Sector Deltas are inside sidebar."""
+        """Regression test for grid placement bug: Timing Tower and Corner Deltas are inside sidebar."""
         sidebar = self.wait_for_element("coach-sidebar-column")
         tt_inside = len(sidebar.find_elements(By.CSS_SELECTOR, '[data-testid="coach-panel-timing-tower"]')) > 0
-        sd_inside = len(sidebar.find_elements(By.CSS_SELECTOR, '[data-testid="coach-panel-sector-deltas"]')) > 0
-        return tt_inside and sd_inside
+        cd_inside = len(sidebar.find_elements(By.CSS_SELECTOR, '[data-testid="coach-panel-corner-deltas"]')) > 0
+        return tt_inside and cd_inside

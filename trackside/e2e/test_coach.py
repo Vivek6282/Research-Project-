@@ -23,12 +23,12 @@ def coach_login(driver, base_url):
 
 
 def test_tc_coach_01_dashboard_loads_all_panels(driver, base_url, coach_login):
-    """TC-COACH-01: Dashboard loads all panels: Live Trajectory, Timing Tower, Sector Deltas, biometric cards, Custom Zone Threshold Control, Session Notes, Live Track View."""
+    """TC-COACH-01: Dashboard loads all panels: Live Trajectory, Timing Tower, Corner Deltas, biometric cards, Custom Zone Threshold Control, Session Notes, Live Track View."""
     coach_page = coach_login
     expected_panels = [
         "live_trajectory",
         "timing_tower",
-        "sector_deltas",
+        "corner_deltas",
         "biometrics",
         "threshold_control",
         "session_notes",

@@ -137,7 +137,7 @@ TEST_METADATA = {
         "description": "Coach dashboard loads all 7 core analytical panels simultaneously",
         "preconditions": "Authenticated as Coach on /coach",
         "steps": "1. Load /coach. 2. Verify visibility of all 7 dashboard panels.",
-        "expected": "Live Trajectory, Timing Tower, Sector Deltas, Biometrics, Threshold Control, Notes, and Track View render",
+        "expected": "Live Trajectory, Timing Tower, Corner Deltas, Biometrics, Threshold Control, Notes, and Track View render",
     },
     "TC-COACH-02": {
         "module": "Coach Module",
@@ -253,10 +253,10 @@ TEST_METADATA = {
     },
     "TC-RESP-03": {
         "module": "Responsive Layout",
-        "description": "Desktop layout places Timing Tower and Sector Deltas inside right sidebar column",
+        "description": "Desktop layout places Timing Tower and Corner Deltas inside right sidebar column",
         "preconditions": "Coach dashboard loaded at 1440px desktop width",
         "steps": "1. Inspect right sidebar container DOM element.",
-        "expected": "Both Timing Tower and Sector Deltas panels reside inside the 25% right sidebar container",
+        "expected": "Both Timing Tower and Corner Deltas panels reside inside the 25% right sidebar container",
     },
 }
 

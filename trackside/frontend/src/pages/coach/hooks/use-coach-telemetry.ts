@@ -15,6 +15,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
   const [currentGpsLat, setCurrentGpsLat] = useState<number | null>(null);
   const [currentGpsLng, setCurrentGpsLng] = useState<number | null>(null);
   const [currentZoneId, setCurrentZoneId] = useState<string | null>(null);
+  const [currentLap, setCurrentLap] = useState<number | null>(null);
   const [wsStatus, setWsStatus] = useState<"connected" | "reconnecting" | "disconnected">("disconnected");
 
   const [actualSpeedPath, setActualSpeedPath] = useState<number[]>([]);
@@ -27,6 +28,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     setCurrentGpsLat(null);
     setCurrentGpsLng(null);
     setCurrentZoneId(null);
+    setCurrentLap(null);
     setCurrentHr(selectedDriver?.baseHr ?? 0);
     setCurrentSpo2(selectedDriver?.baseSpo2 ?? 0);
     setCurrentBreathing(selectedDriver?.baseBreathing ?? 0);
@@ -57,7 +59,8 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
           try {
             const message = JSON.parse(event.data);
             if (message.type === "telemetry_reading" && message.data) {
-              const { speed_kmh, lateral_g, gps_lat, gps_lng, zone } = message.data;
+              const { speed_kmh, lateral_g, gps_lat, gps_lng, zone, lap_number } = message.data;
+              if (typeof lap_number === "number") setCurrentLap(lap_number);
               setCurrentZoneId(typeof zone === "string" ? zone : null);
               if (typeof speed_kmh === "number") {
                 setCurrentSpeed(Math.round(speed_kmh));
@@ -116,6 +119,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     currentGpsLat,
     currentGpsLng,
     currentZoneId,
+    currentLap,
     wsStatus,
     actualSpeedPath,
   };

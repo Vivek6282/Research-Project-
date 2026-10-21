@@ -68,8 +68,8 @@ def test_tc_resp_02_admin_user_table_transforms_to_cards_on_mobile(driver, base_
     driver.set_window_size(1440, 900)
 
 
-def test_tc_resp_03_desktop_timing_tower_and_sector_deltas_in_sidebar(driver, base_url):
-    """TC-RESP-03: On desktop, Timing Tower and Sector Deltas are both inside right sidebar column (regression test for grid placement bug)."""
+def test_tc_resp_03_desktop_timing_tower_and_corner_deltas_in_sidebar(driver, base_url):
+    """TC-RESP-03: On desktop, Timing Tower and Corner Deltas are both inside right sidebar column (regression test for grid placement bug)."""
     login_page = LoginPage(driver, base_url)
     coach_page = CoachDashboardPage(driver, base_url)
 
@@ -83,5 +83,5 @@ def test_tc_resp_03_desktop_timing_tower_and_sector_deltas_in_sidebar(driver, ba
 
     driver.set_window_size(1440, 900)
     assert coach_page.is_sidebar_column_containing_panels(), (
-        "Timing Tower and Sector Deltas are not both placed within the right sidebar column"
+        "Timing Tower and Corner Deltas are not both placed within the right sidebar column"
     )
