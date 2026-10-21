@@ -5,8 +5,8 @@ POST /api/tracks/<uuid>/survey/ submits raw GPS survey points.
 """
 
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
 
+from accounts.permissions import IsAdminOrCoach
 from tracks.models import Track
 
 
@@ -18,9 +18,11 @@ class TrackSurveyView(generics.GenericAPIView):
     averages multi-lap GPS noise, and returns suggested corner zones for coach/admin confirmation.
     """
 
-    permission_classes = [IsAuthenticated]
+    # C8: this view overwrites the track's outline and survey time, so it is not for drivers
+    permission_classes = [IsAdminOrCoach]
 
     def post(self, request, pk=None):
+        """Average the survey laps, suggest corner zones, and save the outline on the track."""
         import math
         from django.utils import timezone
         from rest_framework.response import Response
@@ -29,6 +31,11 @@ class TrackSurveyView(generics.GenericAPIView):
         from tracks.models import Track
 
         track = get_object_or_404(Track, pk=pk)
+        if track.is_builtin:
+            return Response(
+                {"detail": "The built-in Demo Circuit is locked: it cannot be edited, archived or deleted."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         payload = request.data
         if isinstance(payload, list):
