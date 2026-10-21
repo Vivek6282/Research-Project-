@@ -1,32 +1,32 @@
 """
 Trackside — Devices views.
 
-Device management is Admin-only. Other roles can view device status
-for awareness but cannot modify device records.
+Device management is Admin-only. Coaches can view device status; drivers
+cannot see devices at all (the data names other drivers). Only Admin can modify.
 """
 
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from devices.authentication import DeviceTokenAuthentication
 
-from accounts.permissions import IsAdmin
+from accounts.permissions import IsAdmin, IsAdminOrCoach
 from devices.models import Device, DeviceCommand
 from devices.serializers import DeviceSerializer, DeviceCommandSerializer
 
 
 class DeviceListCreateView(generics.ListCreateAPIView):
     """
-    GET /api/devices/ — list all devices (any authenticated user)
+    GET /api/devices/ — list all devices (Admin and Coach; drivers get 403)
     POST /api/devices/ — register a new device (Admin only)
     """
 
     serializer_class = DeviceSerializer
 
     def get_permissions(self):
+        """Admin registers devices; Admin and Coach read them."""
         if self.request.method == "POST":
             return [IsAdmin()]
-        return [IsAuthenticated()]
+        return [IsAdminOrCoach()]
 
     def get_queryset(self):
         return Device.objects.select_related("assigned_to").all()
@@ -34,16 +34,17 @@ class DeviceListCreateView(generics.ListCreateAPIView):
 
 class DeviceDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    GET /api/devices/<uuid>/ — device details
+    GET /api/devices/<uuid>/ — device details (Admin and Coach; drivers get 403)
     PUT/PATCH/DELETE — Admin only
     """
 
     serializer_class = DeviceSerializer
 
     def get_permissions(self):
+        """Admin changes a device; Admin and Coach read it."""
         if self.request.method in ("PUT", "PATCH", "DELETE"):
             return [IsAdmin()]
-        return [IsAuthenticated()]
+        return [IsAdminOrCoach()]
 
     def get_queryset(self):
         return Device.objects.select_related("assigned_to").all()
