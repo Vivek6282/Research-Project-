@@ -202,6 +202,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "login": env("LOGIN_THROTTLE_RATE", default="5/min"),
         "device_telemetry": env("DEVICE_TELEMETRY_THROTTLE_RATE", default="600/min"),
+        # C2: at most 10 track-file import previews per hour per user
+        "track_import": "10/hour",
     },
     # JSON only — no browsable API in production
     "DEFAULT_RENDERER_CLASSES": [
