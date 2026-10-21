@@ -173,6 +173,11 @@ class Zone(models.Model):
         help_text="GPS boundary for this zone (JSON with start/end coordinates)",
     )
 
+    is_active = models.BooleanField(
+        default=True,
+        help_text="False once a corner with history is removed: hidden from new sessions, history kept",
+    )
+
     class Meta:
         db_table = "zones"
         ordering = ["track", "label"]
@@ -195,4 +200,51 @@ class Zone(models.Model):
         return f"{self.track.name} — {self.label}"
 
 
+class ZoneThresholdHistoryQuerySet(models.QuerySet):
+    """Blocks bulk updates and deletes so the history can only grow."""
 
+    def update(self, **kwargs):
+        """Refuse bulk updates: history rows are never changed."""
+        raise ValueError("Zone limit history is insert-only.")
+
+    def delete(self):
+        """Refuse bulk deletes: history rows are never removed."""
+        raise ValueError("Zone limit history is insert-only.")
+
+
+class ZoneThresholdHistory(models.Model):
+    """
+    One row each time a zone's calibrated g limit changes (insert-only).
+
+    The newest row for a zone shows the latest change; the zone itself holds the
+    current limit. Rows are removed only when their zone is deleted.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    zone = models.ForeignKey(Zone, on_delete=models.CASCADE, related_name="limit_history")
+    old_g = models.FloatField(help_text="The limit before the change")
+    new_g = models.FloatField(help_text="The limit after the change")
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="zone_limit_changes",
+    )
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    objects = ZoneThresholdHistoryQuerySet.as_manager()
+
+    class Meta:
+        db_table = "zone_threshold_history"
+        ordering = ["-changed_at"]
+
+    def save(self, *args, **kwargs):
+        """Allow inserts only; an existing row can never be rewritten."""
+        if not self._state.adding:
+            raise ValueError("Zone limit history is insert-only.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Refuse single-row deletes."""
+        raise ValueError("Zone limit history is insert-only.")
+
+    def __str__(self):
+        """Show the zone id and the change, e.g. "<id>: 1.3 -> 1.1"."""
+        return f"{self.zone_id}: {self.old_g} -> {self.new_g}"

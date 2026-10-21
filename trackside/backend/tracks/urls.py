@@ -9,6 +9,7 @@ from tracks.views import (
     ZoneDetailView,
     TrackReferenceLineView,
     TrackRestoreView,
+    ZoneLimitHistoryView,
 )
 from tracks.views_survey import TrackSurveyView
 
@@ -29,5 +30,10 @@ urlpatterns = [
         "<uuid:track_pk>/zones/<uuid:pk>/",
         ZoneDetailView.as_view(),
         name="zone-detail",
+    ),
+    path(
+        "<uuid:track_pk>/zones/<uuid:pk>/limit-history/",
+        ZoneLimitHistoryView.as_view(),
+        name="zone-limit-history",
     ),
 ]

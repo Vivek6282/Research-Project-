@@ -13,8 +13,9 @@ from rest_framework.response import Response
 
 from accounts.permissions import IsAdmin, IsAdminOrCoach
 from drivers.models import DriverZoneThreshold
-from tracks.models import Track, Zone
-from tracks.serializers import TrackSerializer, ZoneSerializer
+from tracks.models import Track, Zone, ZoneThresholdHistory
+from tracks.zone_retirement import DEACTIVATED, retire_zone
+from tracks.serializers import TrackSerializer, ZoneSerializer, ZoneThresholdHistorySerializer
 
 BUILTIN_LOCKED_MESSAGE = "The built-in Demo Circuit is locked: it cannot be edited, archived or deleted."
 
@@ -132,9 +133,9 @@ class ZoneListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Scope zones to the track in the URL."""
+        """Active zones of the track in the URL (removed corners are hidden from new sessions)."""
         track_id = self.kwargs.get("track_pk")
-        return Zone.objects.filter(track_id=track_id)
+        return Zone.objects.filter(track_id=track_id, is_active=True)
 
     def perform_create(self, serializer):
         """Associate the zone with the track from the URL."""
@@ -145,19 +146,42 @@ class ZoneListCreateView(generics.ListCreateAPIView):
 class ZoneDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET /api/tracks/<uuid>/zones/<uuid>/ — retrieve a zone
-    PUT/PATCH/DELETE — Admin only
+    PUT/PATCH/DELETE — Admin only. DELETE keeps history: a zone with telemetry,
+    alerts, notes or driver limits is deactivated instead of removed.
     """
 
     serializer_class = ZoneSerializer
 
     def get_permissions(self):
+        """Admin changes zones; any signed-in user can read them."""
         if self.request.method in ("PUT", "PATCH", "DELETE"):
             return [IsAdmin()]
         return [IsAuthenticated()]
 
     def get_queryset(self):
+        """Zones of the track in the URL."""
         track_id = self.kwargs.get("track_pk")
         return Zone.objects.filter(track_id=track_id)
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete a zone with no history; deactivate one that has history."""
+        outcome = retire_zone(self.get_object())
+        if outcome == DEACTIVATED:
+            return Response({"detail": "Zone has history, so it was deactivated and hidden.", "status": outcome})
+        return Response(status=204)
+
+
+class ZoneLimitHistoryView(generics.ListAPIView):
+    """GET /api/tracks/<uuid>/zones/<uuid>/limit-history/ — read-only list of limit changes (Admin/Coach)."""
+
+    permission_classes = [IsAdminOrCoach]
+    serializer_class = ZoneThresholdHistorySerializer
+
+    def get_queryset(self):
+        """History rows of one zone, newest first."""
+        return ZoneThresholdHistory.objects.filter(
+            zone_id=self.kwargs["pk"], zone__track_id=self.kwargs["track_pk"],
+        ).select_related("changed_by")
 
 
 class TrackReferenceLineView(generics.GenericAPIView):
