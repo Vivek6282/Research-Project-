@@ -176,8 +176,9 @@ class ZoneListCreateView(generics.ListCreateAPIView):
 class ZoneDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET /api/tracks/<uuid>/zones/<uuid>/ — retrieve a zone
-    PUT/PATCH/DELETE — Admin only. DELETE keeps history: a zone with telemetry,
-    alerts, notes or driver limits is deactivated instead of removed.
+    PUT/PATCH/DELETE — Admin only, refused with 409 on the built-in and on archived tracks.
+    DELETE keeps history: a zone with telemetry, alerts, notes or driver limits is
+    deactivated instead of removed.
     """
 
     serializer_class = ZoneSerializer
@@ -193,9 +194,18 @@ class ZoneDetailView(generics.RetrieveUpdateDestroyAPIView):
         track_id = self.kwargs.get("track_pk")
         return Zone.objects.filter(track_id=track_id)
 
+    def update(self, request, *args, **kwargs):
+        """Refuse changes on a locked track, otherwise save (a changed limit is written to the history)."""
+        locked = track_lock_response(self.get_object().track)
+        return locked if locked else super().update(request, *args, **kwargs)
+
     def destroy(self, request, *args, **kwargs):
-        """Delete a zone with no history; deactivate one that has history."""
-        outcome = retire_zone(self.get_object())
+        """Delete a zone with no history; deactivate one that has history; refuse on a locked track."""
+        zone = self.get_object()
+        locked = track_lock_response(zone.track)
+        if locked:
+            return locked
+        outcome = retire_zone(zone)
         if outcome == DEACTIVATED:
             return Response({"detail": "Zone has history, so it was deactivated and hidden.", "status": outcome})
         return Response(status=204)
