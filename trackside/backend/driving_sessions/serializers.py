@@ -34,12 +34,12 @@ class SessionSerializer(serializers.ModelSerializer):
             "id", "driver", "driver_name", "track", "track_name",
             "mode", "goal_text", "goal_passed", "kart_number",
             "started_at", "ended_at", "alert_count", "default_suggested_threshold",
-            "duration", "kart", "laps", "best_lap", "max_g",
+            "duration", "kart", "laps", "best_lap", "max_g", "is_demo",
         ]
         read_only_fields = [
             "id", "driver_name", "track_name", "alert_count",
             "default_suggested_threshold", "duration", "kart",
-            "laps", "best_lap", "max_g",
+            "laps", "best_lap", "max_g", "is_demo",
         ]
 
     def get_driver_name(self, obj):
