@@ -141,15 +141,16 @@
                 <stop offset="100%" stop-color="#161D26" stop-opacity="0.1" />
               </linearGradient>
             </defs>
-            <path d="M 120 330 C 60 250, 80 120, 200 100 C 350 80, 520 70, 600 140 C 670 200, 620 310, 500 330 C 420 340, 390 280, 310 280 C 230 280, 180 380, 120 330 Z" fill="url(#track-gradient)" stroke="#161D26" stroke-width="28" stroke-linejoin="round" stroke-linecap="round" />
+            <path id="track-bed" d="M 120 330 C 60 250, 80 120, 200 100 C 350 80, 520 70, 600 140 C 670 200, 620 310, 500 330 C 420 340, 390 280, 310 280 C 230 280, 180 380, 120 330 Z" fill="url(#track-gradient)" stroke="#161D26" stroke-width="28" stroke-linejoin="round" stroke-linecap="round" />
             <path id="track-path" d="M 120 330 C 60 250, 80 120, 200 100 C 350 80, 520 70, 600 140 C 670 200, 620 310, 500 330 C 420 340, 390 280, 310 280 C 230 280, 180 380, 120 330 Z" fill="none" stroke="#3FA6E0" stroke-width="3" stroke-dasharray="6 4" stroke-opacity="0.8" />
-            <line x1="105" y1="315" x2="135" y2="345" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />
-            <text x="90" y="360" fill="#7C8898" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700">S/F</text>
+            <line id="start-finish-line" x1="105" y1="315" x2="135" y2="345" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />
+            <text id="start-finish-label" x="90" y="360" fill="#7C8898" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700">S/F</text>
+            <g id="corner-labels"></g>
             <circle id="kart-pulse" cx="120" cy="330" r="10" fill="#33D17E" opacity="0.4"></circle>
             <circle id="kart-dot" cx="120" cy="330" r="7" fill="#33D17E" stroke="#FFFFFF" stroke-width="2"></circle>
           </svg>
         </div>
-        <div class="corner-chips-bar mono">
+        <div id="corner-chips-bar" class="corner-chips-bar mono">
           <span id="zone-pill-hairpin" class="zone-pill">HAIRPIN (1.15g)</span>
           <span id="zone-pill-straight1" class="zone-pill">MAIN STRAIGHT</span>
           <span id="zone-pill-sweeper" class="zone-pill">SWEEPER (1.00g)</span>
@@ -256,6 +257,8 @@
 
   <script src="track_visualization_chart.js"></script>
   <script src="track_visualization_alerts.js"></script>
+  <script src="track_visualization_map_geometry.js"></script>
+  <script src="track_visualization_map.js"></script>
   <script src="track_visualization_stream.js"></script>
   <script src="track_visualization_limits.js"></script>
   <script src="track_visualization_demo_control.js"></script>
