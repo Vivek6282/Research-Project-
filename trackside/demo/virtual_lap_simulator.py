@@ -45,6 +45,7 @@ from sim_serial_bridge import (
     connect_serial_bridge,
     send_to_bridge,
 )
+from sim_profile import ProfileLoadError, load_profile
 
 
 def run_lap(serial_connection, session_id, lap_number, total_laps, reading_delay):
@@ -143,7 +144,17 @@ def main():
     cli_parser.add_argument("--ws-port", type=int, default=WS_PORT, help=f"Port for local WebSocket telemetry broadcaster (default: {WS_PORT})")
     cli_parser.add_argument("--ws-host", type=str, default=WS_HOST, help=f"Host for local WebSocket telemetry broadcaster (default: {WS_HOST})")
     cli_parser.add_argument("--limit", action="append", default=[], help="Custom corner limit, e.g. --limit Hairpin=1.00 (repeatable)")
+    cli_parser.add_argument("--track-file", type=str, default=None, help="Track profile JSON from 'manage.py export_track' (default: built-in Demo Circuit)")
     cli_args = cli_parser.parse_args()
+
+    track_profile = None
+    if cli_args.track_file:
+        try:
+            track_profile = load_profile(cli_args.track_file)
+        except ProfileLoadError as load_error:
+            print(f"Error: {load_error}")
+            sys.exit(2)
+        print(f"Track profile loaded: {track_profile.name} ({len(track_profile.outline)} points, {len(track_profile.corners)} corners)")
 
     custom_corner_limits = parse_and_validate_limits(cli_args.limit)
     corner_sources = {"Hairpin": "default", "Sweeper": "default", "Chicane": "default"}
