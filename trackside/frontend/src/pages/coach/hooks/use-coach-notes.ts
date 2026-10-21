@@ -81,7 +81,7 @@ export function useCoachNotes(
       }
     }
     loadNotes();
-  }, [activeSessionId, selectedDriver.name, selectedDriver.kart]);
+  }, [activeSessionId, selectedDriver.name, selectedDriver.id]);
 
   const handleZoneSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
@@ -113,7 +113,6 @@ export function useCoachNotes(
         const res: any = await api.post(`/api/tracks/${targetTrackId}/zones/`, {
           label: name,
           corner_type: newCornerType,
-          threshold_g: 1.15,
         });
 
         if (res && res.id) {
@@ -172,7 +171,6 @@ export function useCoachNotes(
           ? new Date(res.created_at).toLocaleTimeString("en-GB")
           : new Date().toLocaleTimeString("en-GB"),
         driverName: res.coach_name || selectedDriver.name,
-        kart: selectedDriver.kart,
         zone: res.zone_label || (selectedZoneObj ? selectedZoneObj.label : "General"),
         lap: "Lap 7",
         text: noteText,

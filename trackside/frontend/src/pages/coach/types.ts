@@ -3,6 +3,7 @@
  */
 
 export interface DriverProfile {
+  id: string;
   pos: number;
   kart: string;
   name: string;
@@ -18,7 +19,7 @@ export interface DriverProfile {
   status: string;
   statusColor: string;
   alerts: number;
-  customThreshold: number;
+  customThreshold?: number | null;
   inPit?: boolean;
 }
 
@@ -26,7 +27,6 @@ export interface SessionNote {
   id: string;
   timestamp: string;
   driverName: string;
-  kart: string;
   zone: string;
   lap: string;
   text: string;
@@ -55,7 +55,9 @@ export interface TrackZone {
 }
 
 export interface RosterStatusItem {
-  current_g: number;
-  active_threshold: number;
+  current_g: number | null;
+  active_threshold: number | null;
   stage: string;
+  live?: boolean;
+  session_state?: string;
 }

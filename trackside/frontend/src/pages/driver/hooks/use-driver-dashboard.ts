@@ -35,7 +35,8 @@ export function useDriverDashboard() {
   const [latestSession, setLatestSession] = useState<LatestSessionData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const activeThreshold = 1.15; // Hairpin Zone Threshold
+  const activeZone = zones.length > 0 ? zones[0].name : null;
+  const activeThreshold = zones.length > 0 && typeof zones[0].threshold === "number" ? zones[0].threshold : null;
 
   // 1. Fetch real driver-scoped zone alert summary & session goals
   useEffect(() => {
@@ -120,5 +121,6 @@ export function useDriverDashboard() {
     latestSession,
     loading,
     activeThreshold,
+    activeZone,
   };
 }

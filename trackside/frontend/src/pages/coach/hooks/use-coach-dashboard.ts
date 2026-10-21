@@ -20,6 +20,7 @@ import {
 export { DEFAULT_SPRINT_FLOOR, DEFAULT_SPRINT_CEILING };
 
 const EMPTY_DRIVER: DriverProfile = {
+  id: "",
   pos: 0,
   kart: "—",
   name: "—",
@@ -32,17 +33,17 @@ const EMPTY_DRIVER: DriverProfile = {
   baseBreathing: 0,
   stressIndex: 0,
   hydration: 0,
-  status: "—",
+  status: "NO DATA",
   statusColor: "#7C8898",
   alerts: 0,
-  customThreshold: DEFAULT_SPRINT_CEILING,
+  customThreshold: null,
 };
 
 export function useCoachDashboard() {
   const [activeTab, setActiveTab] = useState<"live" | "history">("live");
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [driversError, setDriversError] = useState<string | null>(null);
-  const [selectedKart, setSelectedKart] = useState("");
+  const [selectedDriverId, setSelectedDriverId] = useState("");
   const [thresholds, setThresholds] = useState<Record<string, number>>({});
 
   const [historicalSessions, setHistoricalSessions] = useState<HistoricalSession[]>([]);
@@ -52,7 +53,7 @@ export function useCoachDashboard() {
   const [rosterMap, setRosterMap] = useState<Record<string, RosterStatusItem>>({});
 
   const selectedDriver =
-    drivers.find((d) => d.kart === selectedKart) || drivers[0] || EMPTY_DRIVER;
+    drivers.find((d) => d.id === selectedDriverId) || drivers[0] || EMPTY_DRIVER;
 
   // Compose telemetry hook
   const telemetry = useCoachTelemetry(selectedDriver, activeSessionId);
@@ -70,11 +71,7 @@ export function useCoachDashboard() {
   const sliderMin = currentZoneObj?.min_threshold_g ?? DEFAULT_SPRINT_FLOOR;
   const sliderMax = currentZoneObj?.threshold_g ?? DEFAULT_SPRINT_CEILING;
 
-  const selectedDriverMode = (selectedDriver?.session || "").toLowerCase().includes("safety")
-    ? "Safety"
-    : "Performance";
-  const modeDefaultThreshold = selectedDriverMode === "Safety" ? sliderMin : sliderMax;
-  const currentThreshold = thresholds[selectedKart] ?? modeDefaultThreshold;
+  const currentThreshold = thresholds[selectedDriver.id] ?? (selectedDriver?.customThreshold ?? (currentZoneObj?.threshold_g ?? null));
 
   // Poll GET /api/sessions/roster-status/ every 2.5s for Timing Tower signal strips
   useEffect(() => {
@@ -86,11 +83,13 @@ export function useCoachDashboard() {
         if (res && Array.isArray(res.roster)) {
           const map: Record<string, RosterStatusItem> = {};
           res.roster.forEach((item: any) => {
-            if (item.kart) {
-              map[item.kart] = {
-                current_g: item.current_g ?? 0,
-                active_threshold: item.active_threshold || DEFAULT_SPRINT_CEILING,
-                stage: item.stage || "nominal",
+            if (item.driver_id) {
+              map[item.driver_id] = {
+                current_g: item.current_g ?? null,
+                active_threshold: item.active_threshold ?? null,
+                stage: item.stage || "no_data",
+                live: item.live ?? false,
+                session_state: item.session_state || "none",
               };
             }
           });
@@ -156,18 +155,16 @@ export function useCoachDashboard() {
           ? rosterList.map((r: any) => ({
               id: r.driver_id,
               name: r.driver_name || "—",
-              kart: r.kart || "—",
               stage: r.stage,
               active_threshold: r.active_threshold,
-              in_pit: r.in_pit,
+              session_state: r.session_state,
             }))
           : userList.map((u: any) => ({
               id: u.id,
               name: u.name || u.email || "—",
-              kart: "—",
-              stage: undefined,
-              active_threshold: undefined,
-              in_pit: false,
+              stage: "no_data",
+              active_threshold: null,
+              session_state: "none",
             }));
 
       if (driversSource.length > 0) {
@@ -181,7 +178,7 @@ export function useCoachDashboard() {
             ? `SESS-${matchedSession.id.slice(0, 4).toUpperCase()}`
             : "—";
 
-          const stage = d.stage || "nominal";
+          const stage = d.stage || "no_data";
           const statusColor =
             stage === "intervene"
               ? "#E5473C"
@@ -192,8 +189,9 @@ export function useCoachDashboard() {
               : "#7C8898";
 
           return {
+            id: d.id,
             pos: idx + 1,
-            kart: d.kart !== "—" ? d.kart : matchedSession?.kart || "—",
+            kart: "—",
             name: d.name,
             lapTime: "—",
             session: sessionName,
@@ -204,19 +202,19 @@ export function useCoachDashboard() {
             baseBreathing: 0,
             stressIndex: 0,
             hydration: 0,
-            status: d.stage ? d.stage.toUpperCase() : "—",
+            status: stage !== "no_data" ? stage.toUpperCase() : "NO DATA",
             statusColor,
             alerts: matchedSession?.alert_count ?? 0,
-            customThreshold: d.active_threshold || DEFAULT_SPRINT_CEILING,
-            inPit: d.in_pit ?? false,
+            customThreshold: d.active_threshold ?? null,
+            inPit: d.session_state === "ended",
           };
         });
 
         setDrivers(mapped);
-        if (mapped[0]) setSelectedKart(mapped[0].kart);
+        if (mapped[0]) setSelectedDriverId(mapped[0].id);
       } else {
         setDrivers([]);
-        setSelectedKart("");
+        setSelectedDriverId("");
       }
     } catch (err) {
       console.warn("Failed loading drivers from API:", err);
@@ -237,11 +235,12 @@ export function useCoachDashboard() {
       const sessionList = Array.isArray(res) ? res : res.results || [];
       if (sessionList.length > 0) {
         setActiveSessionId(sessionList[0].id);
-        const mapped: HistoricalSession[] = sessionList.map((s: any) => ({
+        const mapped: (HistoricalSession & { trackName?: string })[] = sessionList.map((s: any) => ({
           id: s.id.length > 8 ? `SESS-${s.id.slice(0, 4).toUpperCase()}` : s.id,
           rawId: s.id,
           driver: s.driver_name || "—",
           kart: s.kart || "—",
+          trackName: s.track_name || s.track?.name || "",
           date: s.started_at ? new Date(s.started_at).toISOString().split("T")[0] : "—",
           duration: s.duration || "—",
           mode: s.mode ? s.mode.charAt(0).toUpperCase() + s.mode.slice(1) : "—",
@@ -265,15 +264,23 @@ export function useCoachDashboard() {
     loadSessions();
   }, []);
 
+  const matchedDriverSession = (historicalSessions as any[]).find(
+    (s) => s.driver === selectedDriver.name || s.rawId === activeSessionId,
+  );
+  const selectedDriverTrack = matchedDriverSession?.trackName || "No active track";
+
   return {
     activeTab,
     setActiveTab,
     drivers,
     driversError,
     retryLoadDrivers: loadDrivers,
-    selectedKart,
-    setSelectedKart,
+    selectedDriverId,
+    setSelectedDriverId,
+    selectedKart: selectedDriverId,
+    setSelectedKart: setSelectedDriverId,
     selectedDriver,
+    selectedDriverTrack,
     thresholds,
     setThresholds,
     currentThreshold,

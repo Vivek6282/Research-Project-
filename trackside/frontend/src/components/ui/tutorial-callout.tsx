@@ -30,7 +30,7 @@ const COACH_STEPS: StepContent[] = [
   {
     title: "CUSTOM ZONE THRESHOLD CONTROL",
     badge: "3 OF 4",
-    description: "Calibrate per-driver lateral G-force safety thresholds (e.g. Turn 4 Hairpin max 1.15g) validated server-side to enforce safety envelopes.",
+    description: "Calibrate per-driver lateral G-force safety thresholds validated server-side to enforce safety envelopes.",
   },
   {
     title: "SESSION NOTES RECORDER",
@@ -43,7 +43,7 @@ const DRIVER_STEPS: StepContent[] = [
   {
     title: "SESSION MODE SELECTION",
     badge: "1 OF 3",
-    description: "Select your driving session mode: Performance mode (1.15g standard threshold) or Safety mode (1.00g conservative threshold).",
+    description: "Select your driving session mode: Performance mode (standard threshold) or Safety mode (conservative threshold).",
   },
   {
     title: "5-SEGMENT LED SIGNAL STRIP MIRROR",
@@ -75,6 +75,9 @@ const ADMIN_STEPS: StepContent[] = [
   },
 ];
 
+/**
+ * Renders role-based walkthrough tutorial cards to guide new users.
+ */
 export function TutorialCallout({ role }: { role: "coach" | "driver" | "admin" }) {
   const { tutorialCompleted, updatePreferences } = usePreferences();
   const [currentStep, setCurrentStep] = useState<number>(0);

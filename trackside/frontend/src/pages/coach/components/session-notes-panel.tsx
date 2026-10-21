@@ -26,6 +26,9 @@ interface SessionNotesPanelProps {
   notes: SessionNote[];
 }
 
+/**
+ * Renders the session notes list, new note composer, and new zone creation form.
+ */
 export function SessionNotesPanel({
   selectedDriver,
   selectedZoneId,
@@ -59,7 +62,7 @@ export function SessionNotesPanel({
           </span>
         </div>
         <span className="text-[10px] text-[#7C8898]">
-          ACTIVE: {selectedDriver.name} (#{selectedDriver.kart})
+          ACTIVE: {selectedDriver.name}
         </span>
       </div>
 

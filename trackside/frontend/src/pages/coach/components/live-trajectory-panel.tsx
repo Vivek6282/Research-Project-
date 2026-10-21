@@ -9,7 +9,7 @@ import { DriverProfile } from "../types";
 interface LiveTrajectoryPanelProps {
   selectedDriver: DriverProfile;
   currentGForce: number | null;
-  currentThreshold: number;
+  currentThreshold: number | null;
   currentSpeed: number | null;
   actualSpeedPath: number[];
 }
@@ -24,6 +24,7 @@ export function LiveTrajectoryPanel({
   currentSpeed,
   actualSpeedPath,
 }: LiveTrajectoryPanelProps) {
+  // Converts an array of speed data points into an SVG path string.
   const buildSvgPath = (points: number[]) => {
     if (!points || points.length === 0) return "";
     if (points.length === 1) return `M 0 ${points[0]} L 800 ${points[0]}`;
@@ -44,7 +45,7 @@ export function LiveTrajectoryPanel({
             LIVE TRAJECTORY
           </span>
           <span className="text-xs text-[#7C8898]">
-            {selectedDriver.kart !== "—" ? `KART #${selectedDriver.kart}` : "—"}
+            {selectedDriver.name !== "—" ? selectedDriver.name : "—"}
             {selectedDriver.session !== "—" ? ` · ${selectedDriver.session}` : ""}
           </span>
         </div>
@@ -52,7 +53,7 @@ export function LiveTrajectoryPanel({
         <SignalStrip
           testId="coach-signal-strip"
           currentG={currentGForce !== null ? currentGForce : undefined}
-          threshold={currentThreshold}
+          threshold={currentThreshold ?? undefined}
           size="md"
           showLabel={true}
         />

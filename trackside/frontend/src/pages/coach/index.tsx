@@ -31,8 +31,8 @@ export function CoachDashboard() {
     drivers,
     driversError,
     retryLoadDrivers,
-    selectedKart,
-    setSelectedKart,
+    selectedDriverId,
+    setSelectedDriverId,
     selectedDriver,
     thresholds,
     setThresholds,
@@ -162,7 +162,6 @@ export function CoachDashboard() {
               <ThresholdControlPanel
                 currentZoneObj={currentZoneObj}
                 selectedDriver={selectedDriver}
-                selectedKart={selectedKart}
                 sliderMin={sliderMin}
                 sliderMax={sliderMax}
                 currentThreshold={currentThreshold}
@@ -216,8 +215,8 @@ export function CoachDashboard() {
               {/* TIMING TOWER Panel */}
               <TimingTowerPanel
                 drivers={drivers}
-                selectedKart={selectedKart}
-                setSelectedKart={setSelectedKart}
+                selectedDriverId={selectedDriverId}
+                setSelectedDriverId={setSelectedDriverId}
                 rosterMap={rosterMap}
                 thresholds={thresholds}
                 driversError={driversError}

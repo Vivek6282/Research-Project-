@@ -30,6 +30,7 @@ export function DriverDashboard() {
     latestSession,
     loading,
     activeThreshold,
+    activeZone,
   } = useDriverDashboard();
 
   return (
@@ -42,6 +43,7 @@ export function DriverDashboard() {
         <TelemetryPanel
           currentG={currentG}
           activeThreshold={activeThreshold}
+          activeZone={activeZone}
           lastSyncTime={lastSyncTime}
         />
 

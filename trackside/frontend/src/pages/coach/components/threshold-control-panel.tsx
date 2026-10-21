@@ -8,24 +8,27 @@ import { DriverProfile, TrackZone } from "../types";
 interface ThresholdControlPanelProps {
   currentZoneObj: TrackZone | undefined;
   selectedDriver: DriverProfile;
-  selectedKart: string;
   sliderMin: number;
   sliderMax: number;
-  currentThreshold: number;
+  currentThreshold: number | null;
   thresholds: Record<string, number>;
   setThresholds: (val: Record<string, number>) => void;
 }
 
+/**
+ * Renders the custom threshold slider and input for adjusting zone limits.
+ */
 export function ThresholdControlPanel({
   currentZoneObj,
   selectedDriver,
-  selectedKart,
   sliderMin,
   sliderMax,
   currentThreshold,
   thresholds,
   setThresholds,
 }: ThresholdControlPanelProps) {
+  const activeVal = currentThreshold ?? sliderMax;
+
   return (
     <div
       data-testid="coach-panel-threshold-control"
@@ -57,9 +60,9 @@ export function ThresholdControlPanel({
             min={sliderMin}
             max={sliderMax}
             step="0.05"
-            value={currentThreshold}
+            value={activeVal}
             onChange={(e) =>
-              setThresholds({ ...thresholds, [selectedKart]: Number(e.target.value) })
+              setThresholds({ ...thresholds, [selectedDriver.id]: Number(e.target.value) })
             }
             className="w-full accent-[#3FA6E0] cursor-pointer min-h-[36px]"
           />
@@ -77,7 +80,9 @@ export function ThresholdControlPanel({
               data-testid="coach-calibrated-limit-value"
               className="text-xl font-bold text-[#3FA6E0]"
             >
-              {currentThreshold.toFixed(2)} g
+              {currentThreshold !== null && currentThreshold !== undefined
+                ? `${currentThreshold.toFixed(2)} g`
+                : "—"}
             </p>
           </div>
           <div className="text-right">
