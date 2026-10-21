@@ -139,6 +139,13 @@ class RosterStatusView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    def handle_exception(self, exc):
+        # Maps NotAuthenticated exception to 401 response for unauthenticated clients.
+        from rest_framework.exceptions import NotAuthenticated
+        if isinstance(exc, NotAuthenticated):
+            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        return super().handle_exception(exc)
+
     def get(self, request):
         """
         Compiles the active roster status for all drivers visible to the requester.

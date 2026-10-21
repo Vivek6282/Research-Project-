@@ -48,8 +48,10 @@ def test_tc_coach_02_signal_strip_segments_and_stage_label(driver, base_url, coa
     stage_label = state["stageLabel"]
 
     # Stage label mapping logic:
-    # 2 lit -> NOMINAL, 4 lit -> MONITORING, 5 lit -> INTERVENE
-    if lit_count <= 2:
+    # 0 lit -> NO DATA, 2 lit -> NOMINAL, 4 lit -> MONITORING, 5 lit -> INTERVENE
+    if lit_count == 0:
+        assert "NO DATA" in stage_label
+    elif lit_count <= 2:
         assert "NOMINAL" in stage_label
     elif lit_count <= 4:
         assert "MONITORING" in stage_label
@@ -142,3 +144,17 @@ def test_tc_coach_09_no_mock_drivers_and_phase2_biometrics_and_survey(driver, ba
     survey_btns = driver.find_elements(By.CSS_SELECTOR, '[data-testid="track-survey-button"], [data-testid="survey-run-button"]')
     for btn in survey_btns:
         assert not btn.is_enabled(), "Survey button must be disabled in Phase 1"
+
+
+def test_tc_coach_10_empty_driver_shows_no_data_and_no_fictional_strings(driver, base_url, coach_login):
+    """TC-COACH-10: Newly seeded driver without session shows NO DATA, 0 live, and none of old strings."""
+    coach_page = coach_login
+    page_text = driver.execute_script("return document.body.innerText;")
+
+    # Verify honest states
+    assert "0 live" in page_text or "NO DATA" in page_text
+
+    # None of the old strings appear in product view
+    for forbidden in ["KART", "NODE 7", "APEX", "Turn 4 Hairpin"]:
+        assert forbidden not in page_text, f"Forbidden string '{forbidden}' found on Coach dashboard"
+
