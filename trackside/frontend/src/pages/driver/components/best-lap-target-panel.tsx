@@ -35,7 +35,7 @@ export function BestLapTargetPanel({ latestSession }: BestLapTargetPanelProps) {
       </Panel>
 
       <Panel testId="driver-panel-target-evaluation" title="Session Target Evaluation" icon={Target}>
-        {latestSession ? (
+        {latestSession && latestSession.goal_text && latestSession.goal_text.trim() ? (
           <div className="space-y-1 font-mono">
             <div className="flex items-center justify-between">
               <span className="text-xs font-mono text-[#E7EDF3] font-bold">
@@ -65,7 +65,7 @@ export function BestLapTargetPanel({ latestSession }: BestLapTargetPanelProps) {
           </div>
         ) : (
           <div className="text-xs font-mono text-[#7C8898] py-2">
-            No session recorded yet to evaluate session targets.
+            No goal set for this session
           </div>
         )}
       </Panel>

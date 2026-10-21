@@ -107,11 +107,12 @@ class AlertSummaryView(APIView):
 
         most_recent_session = recent_sessions[0]
 
+        has_goal = bool(most_recent_session.goal_text and most_recent_session.goal_text.strip())
         latest_session_details = {
             "id": str(most_recent_session.id),
             "mode": most_recent_session.mode,
-            "goal_text": most_recent_session.goal_text or "Zero Red Alerts at Hairpin",
-            "goal_passed": most_recent_session.goal_passed,
+            "goal_text": most_recent_session.goal_text if has_goal else "",
+            "goal_passed": most_recent_session.goal_passed if has_goal else None,
             "started_at": most_recent_session.started_at,
             "track_name": most_recent_session.track.name if most_recent_session.track else "Standard Track",
             "best_lap_time": SessionSerializer(most_recent_session).data.get("best_lap"),
