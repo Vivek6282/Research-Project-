@@ -7,6 +7,8 @@
 import { RefObject } from "react";
 import { SvgPoint, NormalizedSvgData, VIEW_WIDTH, VIEW_HEIGHT } from "./geo-utils";
 import { CarMarker } from "./car-marker";
+import { CornerLayer } from "./corner-layer";
+import { CornerSegment } from "./corner-segments";
 
 interface TrackCanvasProps {
   trackPathD: string;
@@ -14,6 +16,8 @@ interface TrackCanvasProps {
   svgData: NormalizedSvgData | null;
   dotPosition: SvgPoint | null;
   stageColor: string;
+  cornerSegments?: CornerSegment[];
+  activeZoneId?: string | null;
 }
 
 export function TrackCanvas({
@@ -22,6 +26,8 @@ export function TrackCanvas({
   svgData,
   dotPosition,
   stageColor,
+  cornerSegments = [],
+  activeZoneId = null,
 }: TrackCanvasProps) {
   return (
     <div className="relative w-full bg-[#0A0E13] border border-[#232B35] rounded-[2px] overflow-hidden">
@@ -83,6 +89,9 @@ export function TrackCanvas({
           strokeLinejoin="round"
           opacity="0.45"
         />
+
+        {/* Corners: short highlighted pieces of the outline with their names */}
+        <CornerLayer segments={cornerSegments} activeZoneId={activeZoneId} activeColor={stageColor} />
 
         {/* Start/Finish marker */}
         {svgData && svgData.svgPoints.length > 0 && (

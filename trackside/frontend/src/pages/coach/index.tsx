@@ -71,6 +71,7 @@ export function CoachDashboard() {
     currentGForce,
     currentGpsLat,
     currentGpsLng,
+    currentZoneId,
     wsStatus,
     actualSpeedPath,
   } = useCoachDashboard();
@@ -169,6 +170,7 @@ export function CoachDashboard() {
                 gpsLng={currentGpsLng}
                 currentG={currentGForce}
                 threshold={currentThreshold}
+                zoneId={currentZoneId}
               />
 
               {/* BIOMETRICS 3-Card Row */}

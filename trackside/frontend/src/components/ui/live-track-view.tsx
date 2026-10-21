@@ -25,6 +25,7 @@ import {
 } from "./live-track/geo-utils";
 import { TrackFallback } from "./live-track/track-fallback";
 import { TrackCanvas } from "./live-track/track-canvas";
+import { TrackCorner, buildCornerSegments } from "./live-track/corner-segments";
 
 interface LiveTrackViewProps {
   trackId: string | null;
@@ -32,6 +33,7 @@ interface LiveTrackViewProps {
   gpsLng: number | null;
   currentG: number | null;
   threshold: number;
+  zoneId?: string | null;
 }
 
 export function LiveTrackView({
@@ -40,8 +42,11 @@ export function LiveTrackView({
   gpsLng,
   currentG,
   threshold,
+  zoneId = null,
 }: LiveTrackViewProps) {
   const [referenceLine, setReferenceLine] = useState<GpsPoint[] | null>(null);
+  const [isSchematic, setIsSchematic] = useState(false);
+  const [corners, setCorners] = useState<TrackCorner[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const pathRef = useRef<SVGPathElement>(null);
@@ -50,6 +55,8 @@ export function LiveTrackView({
   useEffect(() => {
     if (!trackId) {
       setReferenceLine(null);
+      setIsSchematic(false);
+      setCorners([]);
       return;
     }
 
@@ -58,12 +65,19 @@ export function LiveTrackView({
     setError(false);
 
     api
-      .get<{ track_id: string; reference_line: GpsPoint[] | null }>(
+      .get<{
+        track_id: string;
+        reference_line: GpsPoint[] | null;
+        is_schematic?: boolean;
+        corners?: TrackCorner[];
+      }>(
         `/api/tracks/${trackId}/reference-line/`,
       )
       .then((res) => {
         if (!cancelled) {
           setReferenceLine(res.reference_line);
+          setIsSchematic(res.is_schematic === true);
+          setCorners(res.corners ?? []);
           setLoading(false);
         }
       })
@@ -86,6 +100,7 @@ export function LiveTrackView({
       : null;
 
   const trackPathD = svgData ? buildTrackPath(svgData.svgPoints) : "";
+  const cornerSegments = svgData ? buildCornerSegments(corners, svgData) : [];
 
   // Compute driver dot position via nearest-point-on-path
   const computeDotPosition = useCallback((): SvgPoint | null => {
@@ -143,6 +158,14 @@ export function LiveTrackView({
           <span className="text-xs text-[#7C8898]">
             {referenceLine.length} survey points
           </span>
+          {isSchematic && (
+            <span
+              data-testid="schematic-tag"
+              className="text-[10px] uppercase tracking-wider text-[#E0A93F] border border-[#E0A93F]/40 px-1.5 py-0.5 rounded-[2px]"
+            >
+              Schematic map
+            </span>
+          )}
         </div>
         {/* Live stage indicator */}
         <div className="flex items-center gap-2">
@@ -166,6 +189,8 @@ export function LiveTrackView({
         svgData={svgData}
         dotPosition={dotPosition}
         stageColor={stageDetails.color}
+        cornerSegments={cornerSegments}
+        activeZoneId={zoneId}
       />
     </div>
   );
