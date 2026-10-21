@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from accounts.permissions import IsAdminOrCoach
 from tracks.importing.errors import TrackImportError
 from tracks.importing.preview import build_preview
+from tracks.importing.radius_option import read_radius_option
 from tracks.importing.upload import parse_uploaded_track_file
 from tracks.throttles import TrackImportPreviewThrottle
 
@@ -27,7 +28,7 @@ class TrackImportPreviewView(GenericAPIView):
         """Parse the uploaded file and return the preview, or a clear 4xx error."""
         try:
             parsed = parse_uploaded_track_file(request.FILES.get("file"))
-            preview = build_preview(parsed)
+            preview = build_preview(parsed, read_radius_option(request.data.get("corner_radius_m")))
         except TrackImportError as error:
             return Response({"detail": error.message}, status=error.status_code)
         return Response(preview)
