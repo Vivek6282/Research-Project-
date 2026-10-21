@@ -79,5 +79,8 @@ export function useMaps(ensureDemoCircuit = false, reloadKey = 0) {
     [load],
   );
 
-  return { view, setView, maps, isLoading, error, notice, reload: load, archiveMap, restoreMap };
+  /** Show a message above the list (used after duplicating a map). */
+  const announce = useCallback((message: string) => setNotice(message), []);
+
+  return { announce, view, setView, maps, isLoading, error, notice, reload: load, archiveMap, restoreMap };
 }

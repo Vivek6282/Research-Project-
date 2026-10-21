@@ -128,14 +128,21 @@ describe("MapsBrowser", () => {
     await waitFor(() => expect(screen.getByTestId("maps-error").textContent).toContain("Server unavailable"));
   });
 
-  it("passes Play and Edit corners handlers to the cards", async () => {
+  it("passes Play to the cards and opens the corner editor from Edit corners", async () => {
     const onPlay = vi.fn();
-    const onEdit = vi.fn();
-    render(<MapsBrowser canManage onPlay={onPlay} onEditCorners={onEdit} />);
+    mockGet.mockImplementation(async (url: string) => (url.includes("/corners/") ? new Promise(() => undefined) : RESULT));
+    render(<MapsBrowser canManage onPlay={onPlay} canEditCorners />);
     await waitFor(() => expect(screen.getByTestId("play-Kari")).toBeTruthy());
     fireEvent.click(screen.getByTestId("play-Kari"));
-    fireEvent.click(screen.getByTestId("edit-corners-Demo Circuit"));
     expect(onPlay).toHaveBeenCalledWith(expect.objectContaining({ id: "k" }));
-    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: "d" }));
+    fireEvent.click(screen.getByTestId("edit-corners-Demo Circuit"));
+    expect(screen.getByTestId("corner-editor-dialog")).toBeTruthy();
+    expect(mockGet).toHaveBeenCalledWith("/api/tracks/d/corners/");
+  });
+
+  it("hides Edit corners when the caller does not allow it", async () => {
+    render(<MapsBrowser canManage={false} />);
+    await waitFor(() => expect(screen.getByTestId("map-list")).toBeTruthy());
+    expect(screen.queryByTestId("edit-corners-Kari")).toBeNull();
   });
 });

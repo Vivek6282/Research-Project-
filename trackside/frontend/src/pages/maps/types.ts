@@ -77,3 +77,51 @@ export const SOURCE_LABELS: Record<MapTrack["source"], string> = {
   racechrono_csv: "RaceChrono CSV",
   vbo: "Racelogic VBO",
 };
+
+/** One corner marker as the server sends and receives it */
+export interface ServerMarker {
+  id: string | null;
+  label: string;
+  threshold_g: number;
+  center_index: number | null;
+  length_m: number;
+  radius_m?: number | null;
+}
+
+/** A bend the server suggests marking (its tightest point) */
+export interface CornerSuggestion {
+  center_index: number;
+  radius_m: number;
+  suggested_name: string;
+  start_index: number;
+  end_index: number;
+  already_marked: boolean;
+}
+
+/** What GET /api/tracks/<id>/corners/ returns */
+export interface EditorPayload {
+  track_id: string;
+  track_name: string;
+  editable: boolean;
+  is_schematic: boolean;
+  outline_version: string;
+  spacing_m: number;
+  outline: LatLng[];
+  radii: number[];
+  markers: ServerMarker[];
+  suggestions: CornerSuggestion[];
+  limit_range_g: LimitRange;
+  zone_length_m: { min: number; max: number; default: number };
+  no_curve_radius_m: number;
+  saved?: { created: number; updated: number; deleted: number; deactivated: number };
+}
+
+/** A marker while it is being edited; number fields are text so half-typed values work */
+export interface EditorMarker {
+  key: string;
+  id: string | null;
+  label: string;
+  limit: string;
+  length: string;
+  centerIndex: number | null;
+}

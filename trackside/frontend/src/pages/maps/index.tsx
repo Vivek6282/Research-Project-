@@ -1,7 +1,7 @@
 /**
  * Trackside — Maps page (Admin and Driver; the Coach uses the Maps & Demo tab instead).
  *
- * Admin: add, archive, restore maps and (soon) edit corners; no Play button.
+ * Admin: add, archive, restore maps and edit corners; no Play button.
  * Driver: sees the maps read-only. The server enforces all of this as well.
  */
 
@@ -33,7 +33,7 @@ export function MapsPage() {
           <h1 className="text-sm font-mono uppercase tracking-widest text-[#E7EDF3]">Maps</h1>
         </div>
         <Panel title="Track maps">
-          <MapsBrowser canManage={canManage} />
+          <MapsBrowser canManage={canManage} canEditCorners={canManage} />
         </Panel>
       </main>
     </div>

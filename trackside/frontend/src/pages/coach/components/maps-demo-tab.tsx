@@ -12,7 +12,7 @@ export function MapsDemoTab() {
   return (
     <main data-testid="coach-maps-demo-tab" className="max-w-[1400px] mx-auto px-2.5 sm:px-4 py-3 sm:py-4">
       <Panel title="Maps & Demo" icon={MapIcon}>
-        <MapsBrowser canManage />
+        <MapsBrowser canManage canEditCorners />
       </Panel>
     </main>
   );

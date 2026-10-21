@@ -10,6 +10,7 @@ import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useMaps, type MapView } from "../hooks/use-maps";
 import type { MapTrack } from "../types";
 import { AddMapWizard } from "./add-map-wizard";
+import { CornerEditorDialog } from "./corner-editor-dialog";
 import { MapCardGrid } from "./map-card-grid";
 
 const VIEW_TABS: { id: MapView; label: string }[] = [
@@ -24,8 +25,8 @@ export interface MapsBrowserProps {
   onPlay?: (map: MapTrack) => void;
   /** Why Play is switched off right now, or null */
   playDisabledReason?: string | null;
-  /** Called when its Edit corners / View corners button is pressed; leave out to hide the button */
-  onEditCorners?: (map: MapTrack) => void;
+  /** Coach and Admin: show Edit corners (the built-in and archived maps open view-only) */
+  canEditCorners?: boolean;
   /** Bump this number to make the list reload (for example after the corner editor saves) */
   reloadKey?: number;
   /** Extra content shown above the cards (for example the demo status panel) */
@@ -33,8 +34,9 @@ export interface MapsBrowserProps {
 }
 
 /** The browser itself. */
-export function MapsBrowser({ canManage, onPlay, playDisabledReason, onEditCorners, reloadKey = 0, children }: MapsBrowserProps) {
+export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorners = false, reloadKey = 0, children }: MapsBrowserProps) {
   const maps = useMaps(canManage, reloadKey);
+  const [editing, setEditing] = useState<MapTrack | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [toArchive, setToArchive] = useState<MapTrack | null>(null);
 
@@ -81,7 +83,7 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, onEditCorne
           canArchive={canManage}
           onPlay={onPlay}
           playDisabledReason={playDisabledReason}
-          onEditCorners={onEditCorners}
+          onEditCorners={canEditCorners ? setEditing : undefined}
           onArchive={setToArchive}
           onRestore={maps.restoreMap}
         />
@@ -93,6 +95,16 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, onEditCorne
           onSaved={() => {
             setShowWizard(false);
             maps.reload();
+          }}
+        />
+      )}
+      {editing && (
+        <CornerEditorDialog
+          map={editing}
+          onClose={() => setEditing(null)}
+          onChanged={(message) => {
+            maps.reload();
+            if (message) maps.announce(message);
           }}
         />
       )}
