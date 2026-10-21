@@ -8,9 +8,9 @@ import { api } from "../../../lib/api";
 import { useCoachTelemetry } from "./use-coach-telemetry";
 import { useCoachNotes } from "./use-coach-notes";
 import { useCoachTab } from "./use-coach-tab";
+import { useActiveSession } from "./use-active-session";
 import {
   DriverProfile,
-  HistoricalSession,
   RosterStatusItem,
 } from "../types";
 import {
@@ -47,14 +47,15 @@ export function useCoachDashboard() {
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [thresholds, setThresholds] = useState<Record<string, number>>({});
 
-  const [historicalSessions, setHistoricalSessions] = useState<HistoricalSession[]>([]);
-  const [sessionsError, setSessionsError] = useState<string | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
   const [rosterMap, setRosterMap] = useState<Record<string, RosterStatusItem>>({});
 
   const selectedDriver =
     drivers.find((d) => d.id === selectedDriverId) || drivers[0] || EMPTY_DRIVER;
+
+  // The session being watched: newest of the selected driver, with its own track
+  const {
+    historicalSessions, sessionsError, retryLoadSessions, activeSessionId, activeTrackId, activeTrackName,
+  } = useActiveSession(selectedDriver.id, rosterMap[selectedDriver.id], activeTab);
 
   // Compose telemetry hook
   const telemetry = useCoachTelemetry(selectedDriver, activeSessionId);
@@ -63,7 +64,6 @@ export function useCoachDashboard() {
   const notesManager = useCoachNotes(
     activeSessionId,
     activeTrackId,
-    setActiveTrackId,
     selectedDriver,
   );
 
@@ -228,48 +228,7 @@ export function useCoachDashboard() {
     loadDrivers();
   }, []);
 
-  // Fetch Historical Sessions & Active Session ID from API
-  const loadSessions = async () => {
-    try {
-      setSessionsError(null);
-      const res = await api.get<any>("/api/sessions/");
-      const sessionList = Array.isArray(res) ? res : res.results || [];
-      if (sessionList.length > 0) {
-        setActiveSessionId(sessionList[0].id);
-        const mapped: (HistoricalSession & { trackName?: string })[] = sessionList.map((s: any) => ({
-          id: s.id.length > 8 ? `SESS-${s.id.slice(0, 4).toUpperCase()}` : s.id,
-          rawId: s.id,
-          driver: s.driver_name || "—",
-          kart: s.kart || "—",
-          trackName: s.track_name || s.track?.name || "",
-          date: s.started_at ? new Date(s.started_at).toISOString().split("T")[0] : "—",
-          duration: s.duration || "—",
-          mode: s.mode ? s.mode.charAt(0).toUpperCase() + s.mode.slice(1) : "—",
-          laps: s.laps ?? "—",
-          bestLap: s.best_lap || "—",
-          maxG: s.max_g || "—",
-          alerts: s.alert_count ?? 0,
-          isDemo: Boolean(s.is_demo),
-        }));
-        setHistoricalSessions(mapped);
-      } else {
-        setHistoricalSessions([]);
-      }
-    } catch (err) {
-      console.warn("Failed loading sessions from API:", err);
-      setSessionsError("Failed to load historical sessions. Please try again.");
-      setHistoricalSessions([]);
-    }
-  };
-
-  useEffect(() => {
-    loadSessions(); // reload on every tab change so a run started meanwhile (a demo) shows up
-  }, [activeTab]);
-
-  const matchedDriverSession = (historicalSessions as any[]).find(
-    (s) => s.driver === selectedDriver.name || s.rawId === activeSessionId,
-  );
-  const selectedDriverTrack = matchedDriverSession?.trackName || "No active track";
+  const selectedDriverTrack = activeTrackName || "No active track";
 
   return {
     activeTab,
@@ -291,7 +250,7 @@ export function useCoachDashboard() {
     currentZoneObj,
     historicalSessions,
     sessionsError,
-    retryLoadSessions: loadSessions,
+    retryLoadSessions,
     activeSessionId, activeTrackId,
     rosterMap,
     ...telemetry,

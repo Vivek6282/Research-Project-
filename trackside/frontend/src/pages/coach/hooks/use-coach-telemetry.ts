@@ -21,7 +21,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
   const [actualSpeedPath, setActualSpeedPath] = useState<number[]>([]);
 
 
-  // Sync state when driver changes
+  // Clear the readings and chart when the driver or the watched session changes (never mix two sessions)
   useEffect(() => {
     setCurrentSpeed(null);
     setCurrentGForce(null);
@@ -33,7 +33,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     setCurrentSpo2(selectedDriver?.baseSpo2 ?? 0);
     setCurrentBreathing(selectedDriver?.baseBreathing ?? 0);
     setActualSpeedPath([]);
-  }, [selectedDriver]);
+  }, [selectedDriver, activeSessionId]);
 
   // WebSocket telemetry connection
   useEffect(() => {

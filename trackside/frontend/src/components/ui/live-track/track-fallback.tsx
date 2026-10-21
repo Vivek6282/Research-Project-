@@ -26,7 +26,7 @@ export function TrackFallback({ type }: TrackFallbackProps) {
         className="flex items-center justify-center h-[180px] text-xs font-mono"
       >
         {type === "no-track" && (
-          <span className="text-[#7C8898]">No active track selected.</span>
+          <span className="text-[#7C8898]">No active track</span>
         )}
 
         {type === "loading" && (
