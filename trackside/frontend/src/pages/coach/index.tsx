@@ -246,7 +246,12 @@ export function CoachDashboard() {
         </>
       ) : activeTab === "maps" ? (
         /* MAPS & DEMO TAB */
-        <MapsDemoTab />
+        <MapsDemoTab
+          onWatchLive={(driverId) => {
+            setSelectedDriverId(driverId);
+            setActiveTab("live");
+          }}
+        />
       ) : (
         /* HISTORICAL SESSIONS TAB */
         <HistoricalSessionsTab

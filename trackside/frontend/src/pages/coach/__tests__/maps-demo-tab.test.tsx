@@ -66,7 +66,7 @@ describe("MapsDemoTab", () => {
   });
 
   it("shows the maps with Add track for a coach", async () => {
-    render(<MemoryRouter><MapsDemoTab /></MemoryRouter>);
+    render(<MemoryRouter><MapsDemoTab onWatchLive={vi.fn()} /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId("map-card-Demo Circuit")).toBeTruthy());
     expect(screen.getByTestId("add-map-btn").textContent).toContain("Add track");
   });
