@@ -8,6 +8,7 @@ from django.utils import timezone
 from tracks.corner_editor import CornerEditError, editor_outline, gps_range_for, markers_for_track
 from tracks.importing.confirm import check_track_name
 from tracks.importing.errors import TrackImportError
+from tracks.limit_history import record_initial_limit
 from tracks.models import Track, Zone
 
 
@@ -43,9 +44,10 @@ def duplicate_track(source: Track, user, raw_name) -> Dict[str, object]:
         limit = min(max(marker["threshold_g"], low), high)
         if limit != marker["threshold_g"]:
             clamped.append({"label": marker["label"], "from_g": marker["threshold_g"], "to_g": limit})
-        Zone.objects.create(
+        zone = Zone.objects.create(
             track=new_track, label=marker["label"], threshold_g=limit,
             corner_type=types.get(marker["label"], Zone.CornerType.OTHER),
             gps_range=gps_range_for(marker, editor),
         )
+        record_initial_limit(zone, user)
     return {"track": new_track, "clamped": clamped, "skipped": skipped}

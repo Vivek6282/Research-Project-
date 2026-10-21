@@ -146,7 +146,7 @@ export function useCoachNotes(
       if (created) {
         currentZoneId = created.id;
       } else {
-        setNoteError("Failed to create new zone for note.");
+        setNoteError("Could not add that corner here. Add corners in Maps & Demo > Edit corners, then pick it for the note.");
         return;
       }
     }

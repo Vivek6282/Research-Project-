@@ -16,3 +16,11 @@ def set_zone_limit(zone: Zone, new_limit_g: float, user) -> bool:
     zone.threshold_g = new_limit_g
     zone.save(update_fields=["threshold_g"])
     return True
+
+
+def record_initial_limit(zone: Zone, user) -> None:
+    """Start a new zone's history with one row (old and new limit are the same) so history begins at creation."""
+    ZoneThresholdHistory.objects.create(
+        zone=zone, old_g=zone.threshold_g, new_g=zone.threshold_g,
+        changed_by=user if getattr(user, "is_authenticated", False) else None,
+    )

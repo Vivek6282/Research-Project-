@@ -17,6 +17,7 @@ from tracks.importing.errors import TrackImportError
 from tracks.importing.outline import Outline
 from tracks.importing.safe_speed import LIMIT_MAX_G, LIMIT_MIN_G
 from tracks.importing.samples import ParsedTrackFile, to_finite_float
+from tracks.limit_history import record_initial_limit
 from tracks.models import Track, Zone
 
 MAX_LABEL_LENGTH = 40
@@ -90,11 +91,12 @@ def save_imported_track(user, name: str, parsed: ParsedTrackFile, outline: Outli
     )
     for number, (corner, choice) in enumerate(zip(corners, choices), start=1):
         shape = corner_to_json(number, corner, outline)
-        Zone.objects.create(
+        zone = Zone.objects.create(
             track=track,
             label=choice["label"],
             corner_type=Zone.CornerType.OTHER,
             threshold_g=choice["threshold_g"],
             gps_range={"start": shape["start"], "end": shape["end"]},
         )
+        record_initial_limit(zone, user)
     return track

@@ -7,6 +7,7 @@ Track and Zone CRUD with role-based access:
 """
 
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -15,6 +16,7 @@ from accounts.permissions import IsAdmin, IsAdminOrCoach
 from drivers.models import DriverZoneThreshold
 from tracks.models import Track, Zone, ZoneThresholdHistory
 from tracks.demo_circuit_setup import ensure_demo_circuit
+from tracks.limit_history import record_initial_limit
 from tracks.zone_retirement import DEACTIVATED, retire_zone
 from tracks.serializers import TrackSerializer, ZoneSerializer, ZoneThresholdHistorySerializer
 
@@ -24,6 +26,15 @@ BUILTIN_LOCKED_MESSAGE = "The built-in Demo Circuit is locked: it cannot be edit
 def builtin_locked_response():
     """The 409 answer for any change to the built-in track."""
     return Response({"detail": BUILTIN_LOCKED_MESSAGE}, status=409)
+
+
+def track_lock_response(track: Track):
+    """A 409 Response when the track's corners must not change (built-in or archived), else None."""
+    if track.is_builtin:
+        return builtin_locked_response()
+    if track.is_archived:
+        return Response({"detail": "This map is archived. Restore it before changing its corners."}, status=409)
+    return None
 
 
 def track_has_history(track: Track) -> bool:
@@ -126,22 +137,40 @@ class TrackRestoreView(generics.GenericAPIView):
 
 class ZoneListCreateView(generics.ListCreateAPIView):
     """
-    GET /api/tracks/<uuid>/zones/ — list zones for a track
-    POST /api/tracks/<uuid>/zones/ — add a zone (Admin/Coach)
+    GET /api/tracks/<uuid>/zones/ — list zones for a track (any signed-in user)
+    POST /api/tracks/<uuid>/zones/ — add a zone (Admin or Coach). Refused with 409 on the built-in
+        and on archived tracks; name, limit and gps_range are checked by ZoneSerializer.
     """
 
     serializer_class = ZoneSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """Admin or Coach may add zones; any signed-in user can read them."""
+        if self.request.method == "POST":
+            return [IsAdminOrCoach()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         """Active zones of the track in the URL (removed corners are hidden from new sessions)."""
         track_id = self.kwargs.get("track_pk")
         return Zone.objects.filter(track_id=track_id, is_active=True)
 
-    def perform_create(self, serializer):
-        """Associate the zone with the track from the URL."""
-        serializer.save(track_id=self.kwargs.get("track_pk"))
+    def get_serializer_context(self):
+        """Give the serializer the track so it can check the limit against the track's range."""
+        context = super().get_serializer_context()
+        if self.request.method == "POST":
+            context["track"] = get_object_or_404(Track, pk=self.kwargs.get("track_pk"))
+        return context
 
+    def create(self, request, *args, **kwargs):
+        """Refuse locked tracks before looking at the data, then create the zone."""
+        locked = track_lock_response(get_object_or_404(Track, pk=self.kwargs.get("track_pk")))
+        return locked if locked else super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        """Save the zone on the track from the URL and start its limit history."""
+        zone = serializer.save(track_id=self.kwargs.get("track_pk"))
+        record_initial_limit(zone, self.request.user)
 
 
 class ZoneDetailView(generics.RetrieveUpdateDestroyAPIView):

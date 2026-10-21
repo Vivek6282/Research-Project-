@@ -107,7 +107,7 @@ class TestEditorSave(EditorBase):
         self.assertEqual(len(zones), 5)
         renamed = zones["Hairpin Left"]
         self.assertEqual(renamed.threshold_g, 1.1)
-        self.assertEqual(ZoneThresholdHistory.objects.get(zone=renamed).old_g, 1.2)
+        self.assertEqual(ZoneThresholdHistory.objects.get(zone=renamed, new_g=1.1).old_g, 1.2)
         self.assertEqual(zones["Mid Straight"].threshold_g, 1.4)
 
     def test_zone_segment_is_centred_with_the_requested_length(self):

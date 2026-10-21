@@ -18,7 +18,7 @@ from tracks.demo_circuit import ORIGIN_LAT, ORIGIN_LNG, schematic_points_m, simu
 from tracks.importing.corners import find_corners, radius_profile, sustained_radius
 from tracks.importing.geometry import LocalFrame, Point, distance
 from tracks.importing.outline import Outline
-from tracks.limit_history import set_zone_limit
+from tracks.limit_history import record_initial_limit, set_zone_limit
 from tracks.models import Track, Zone
 from tracks.track_profile import MAX_SNAP_DISTANCE_M, ProfileError, forward_range, load_outline
 from tracks.zone_retirement import DEACTIVATED, DELETED, retire_zone
@@ -215,8 +215,9 @@ def save_markers(track: Track, editor: EditorOutline, user, cleaned: List[dict])
             raise CornerEditError(f"'{marker['label']}': that corner no longer exists. Reload and try again.", 409)
         shape = gps_range_for(marker, editor)
         if zone is None:
-            Zone.objects.create(track=track, label=marker["label"], threshold_g=marker["threshold_g"],
-                                corner_type=Zone.CornerType.OTHER, gps_range=shape)
+            created = Zone.objects.create(track=track, label=marker["label"], threshold_g=marker["threshold_g"],
+                                          corner_type=Zone.CornerType.OTHER, gps_range=shape)
+            record_initial_limit(created, user)
             counts["created"] += 1
             continue
         kept.add(marker["id"])

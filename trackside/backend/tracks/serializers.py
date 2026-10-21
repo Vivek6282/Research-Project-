@@ -9,6 +9,7 @@ from rest_framework import serializers
 from tracks.demo_circuit import schematic_outline_json
 from tracks.limit_history import set_zone_limit
 from tracks.models import Track, Zone, ZoneThresholdHistory
+from tracks.zone_rules import gps_range_problem, label_problem
 
 
 class ZoneSerializer(serializers.ModelSerializer):
@@ -20,6 +21,32 @@ class ZoneSerializer(serializers.ModelSerializer):
         model = Zone
         fields = ["id", "track", "label", "corner_type", "threshold_g", "min_threshold_g", "gps_range", "is_active"]
         read_only_fields = ["id", "track", "min_threshold_g", "is_active"]
+
+    def validate_label(self, value):
+        """Name: required, at most 40 characters, not starting with 'Straight'."""
+        problem = label_problem(value)
+        if problem:
+            raise serializers.ValidationError(problem)
+        return value.strip()
+
+    def validate_gps_range(self, value):
+        """gps_range: start and end points inside the earth's range."""
+        problem = gps_range_problem(value)
+        if problem:
+            raise serializers.ValidationError(problem)
+        return value
+
+    def validate(self, attrs):
+        """A new zone needs a gps_range, and the limit must sit inside its track's allowed range."""
+        if self.instance is None and not attrs.get("gps_range"):
+            raise serializers.ValidationError({"gps_range": "gps_range is required when adding a corner."})
+        track = self.context.get("track") or getattr(self.instance, "track", None)
+        limit = attrs.get("threshold_g")
+        if track is not None and limit is not None and not (track.min_threshold_g <= limit <= track.max_threshold_g):
+            raise serializers.ValidationError(
+                {"threshold_g": f"The limit must be from {track.min_threshold_g} to {track.max_threshold_g} g."}
+            )
+        return attrs
 
     def update(self, instance, validated_data):
         """Save the zone; a changed g limit goes through the insert-only history."""
