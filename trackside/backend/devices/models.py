@@ -118,6 +118,13 @@ class Device(models.Model):
         help_text="Type of IoT device",
     )
 
+    name = models.CharField(
+        max_length=60,
+        blank=True,
+        default="",
+        help_text="Optional label, e.g. 'Demo kart unit' for the unit used by Coach demo runs",
+    )
+
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

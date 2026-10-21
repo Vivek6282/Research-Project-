@@ -22,10 +22,10 @@ class DeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Device
         fields = [
-            "id", "device_type", "assigned_to", "assigned_to_name",
+            "id", "device_type", "name", "assigned_to", "assigned_to_name",
             "status", "last_seen_at", "is_online", "raw_api_key",
         ]
-        read_only_fields = ["id", "last_seen_at", "is_online", "raw_api_key"]
+        read_only_fields = ["id", "name", "last_seen_at", "is_online", "raw_api_key"]
 
     def get_assigned_to_name(self, obj):
         """

@@ -119,3 +119,52 @@ class TestZoneRetirement(APITestCase):
         self.assertEqual((response.status_code, response.data["status"]), (200, "deactivated"))
         empty = Zone.objects.create(track=self.track, label="Empty", threshold_g=1.2)
         self.assertEqual(self.client.delete(f"/api/tracks/{self.track.id}/zones/{empty.id}/").status_code, 204)
+
+
+class TestDemoCircuitEndpoint(APITestCase):
+    """POST /api/tracks/demo-circuit/ makes sure the built-in map exists."""
+
+    def setUp(self):
+        """Create a coach and a driver."""
+        super().setUp()
+        make = User.objects.create_user
+        self.coach = make(email="dc_coach@trackside.local", name="C", password="CoachPassword123!", role="coach")
+        self.driver = make(email="dc_driver@trackside.local", name="D", password="DriverPassword123!", role="driver")
+
+    def test_creates_the_demo_circuit_with_three_corners_once(self):
+        """First call creates it locked with Hairpin, Sweeper and Chicane; repeat calls change nothing."""
+        self.client.force_authenticate(self.coach)
+        first = self.client.post("/api/tracks/demo-circuit/")
+        self.assertEqual(first.status_code, 200)
+        self.assertTrue(first.data["is_builtin"])
+        self.assertTrue(first.data["is_schematic"])
+        self.assertEqual(sorted(z["label"] for z in first.data["zones"]), ["Chicane", "Hairpin", "Sweeper"])
+        Zone.objects.filter(label="Hairpin").update(threshold_g=1.05)
+        self.client.post("/api/tracks/demo-circuit/")
+        self.assertEqual(Track.objects.filter(name="Demo Circuit").count(), 1)
+        self.assertEqual(Zone.objects.get(label="Hairpin").threshold_g, 1.05)
+
+    def test_drivers_cannot_call_it(self):
+        """Only Admin and Coach."""
+        self.client.force_authenticate(self.driver)
+        self.assertEqual(self.client.post("/api/tracks/demo-circuit/").status_code, 403)
+
+
+class TestDemoCircuitIsNotDuplicated(APITestCase):
+    """Calling ensure_demo_circuit again and again never makes a second Demo Circuit or duplicate corners."""
+
+    def test_repeated_calls_keep_one_track_and_three_zones(self):
+        """Ten calls: one built-in track, one Hairpin, one Sweeper, one Chicane."""
+        from tracks.demo_circuit_setup import ensure_demo_circuit
+        for _ in range(10):
+            ensure_demo_circuit()
+        self.assertEqual(Track.objects.filter(name="Demo Circuit").count(), 1)
+        self.assertEqual(Zone.objects.filter(track__name="Demo Circuit").count(), 3)
+
+    def test_an_existing_demo_circuit_is_reused_and_locked(self):
+        """A hand-made track called Demo Circuit becomes the locked built-in; no second one appears."""
+        from tracks.demo_circuit_setup import ensure_demo_circuit
+        Track.objects.create(name="Demo Circuit")
+        track = ensure_demo_circuit()
+        self.assertTrue(track.is_builtin)
+        self.assertEqual(Track.objects.filter(name="Demo Circuit").count(), 1)

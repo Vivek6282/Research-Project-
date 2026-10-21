@@ -4,7 +4,7 @@ Trackside — Demo Control Simulator Process Manager.
 Manages the lifecycle of the virtual lap simulator child process:
 - Threadsafe state behind a threading.Lock
 - Background reader thread merging stderr into stdout (utf-8, errors="replace") into deque(maxlen=200)
-- Child env: PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8
+- Child env: small allow-list plus this run's values (see child_env.py)
 - Windows: CREATE_NEW_PROCESS_GROUP
 - Clean shutdown: terminate(), wait 3s, then kill()
 - atexit registration
@@ -21,12 +21,7 @@ import collections
 from datetime import datetime, timezone
 from django.conf import settings
 
-
-LIMIT_RANGES = {
-    "Hairpin": {"min": 1.00, "default": 1.15, "max": 1.15},
-    "Sweeper": {"min": 1.00, "default": 1.55, "max": 1.55},
-    "Chicane": {"min": 1.00, "default": 1.30, "max": 1.30},
-}
+from demo_control.child_env import build_child_env
 
 
 class AlreadyRunningError(Exception):
@@ -36,11 +31,8 @@ class AlreadyRunningError(Exception):
 
 _lock = threading.Lock()
 _process = None
-_mode = None
-_laps = None
-_limits = None
-_limits_synced = None
-_limits_note = None
+_run_info = None
+_current_lap = None
 _started_at = None
 _output_lines = collections.deque(maxlen=200)
 _reader_thread = None
@@ -66,13 +58,20 @@ def is_production_environment():
     return val.strip().lower() == "production"
 
 
+LAP_LINE = re.compile(r"===== LAP (\d+)")
+
+
 def _reader_loop(proc):
-    """Background worker reading child stdout/stderr into output_lines deque."""
+    """Background worker reading child stdout/stderr into output_lines deque and tracking the lap."""
+    global _current_lap
     try:
         for raw_line in iter(proc.stdout.readline, b""):
             line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
             with _lock:
                 _output_lines.append(line)
+                lap_match = LAP_LINE.search(line)
+                if lap_match:
+                    _current_lap = int(lap_match.group(1))
     except Exception:
         pass
     finally:
@@ -82,12 +81,15 @@ def _reader_loop(proc):
             pass
 
 
-def start_simulator(mode, laps=None, limits=None, limits_synced=None, limits_note=None):
+def start_simulator(extra_args, run_values, run_info):
     """
-    Starts the virtual lap simulator child process.
+    Starts the virtual lap simulator child process with a fixed command.
+    extra_args: already-validated argument strings (for example ["--laps", "3"]).
+    run_values: this run's SESSION_ID, DEVICE_TOKEN, BACKEND_URL and DEMO_ZONES (environment only).
+    run_info: plain facts about the run for the status panel (no secrets).
     Raises AlreadyRunningError if already active.
     """
-    global _process, _mode, _laps, _limits, _limits_synced, _limits_note, _started_at, _stopped_by_user, _exit_code, _reader_thread
+    global _process, _run_info, _current_lap, _started_at, _stopped_by_user, _exit_code, _reader_thread
     with _lock:
         if _process is not None and _process.poll() is None:
             raise AlreadyRunningError("Simulator is already running.")
@@ -100,39 +102,15 @@ def start_simulator(mode, laps=None, limits=None, limits_synced=None, limits_not
             os.path.join(settings.BASE_DIR.parent, "demo", "virtual_lap_simulator.py")
         )
         demo_dir = os.path.dirname(simulator_path)
-
-        cmd = [python_bin, "-u", simulator_path]
-        if mode == "continuous":
-            cmd.append("--continuous")
-        elif mode == "laps":
-            cmd.extend(["--laps", str(laps)])
-        else:
-            raise ValueError(f"Invalid mode: {mode}")
-
-        # Build argv ONLY from whitelisted names and validated floats
-        if limits:
-            for corner in ["Hairpin", "Sweeper", "Chicane"]:
-                if corner in limits:
-                    val = float(limits[corner])
-                    cmd.extend(["--limit", f"{corner}={val:.2f}"])
-
-        child_env = os.environ.copy()
-        child_env["PYTHONUNBUFFERED"] = "1"
-        child_env["PYTHONIOENCODING"] = "utf-8"
+        cmd = [python_bin, "-u", simulator_path] + [str(arg) for arg in extra_args]
 
         creation_flags = (
             subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
         )
 
         _output_lines.clear()
-        _mode = mode
-        _laps = laps
-        _limits = {
-            corner: round(float(limits[corner]), 2) if (limits and corner in limits) else LIMIT_RANGES[corner]["default"]
-            for corner in ["Hairpin", "Sweeper", "Chicane"]
-        }
-        _limits_synced = limits_synced
-        _limits_note = limits_note
+        _run_info = dict(run_info)
+        _current_lap = None
         _started_at = datetime.now(timezone.utc).isoformat()
         _stopped_by_user = False
         _exit_code = None
@@ -143,7 +121,7 @@ def start_simulator(mode, laps=None, limits=None, limits_synced=None, limits_not
             cwd=demo_dir,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            env=child_env,
+            env=build_child_env(run_values),
             creationflags=creation_flags,
         )
 
@@ -200,6 +178,17 @@ from demo_control.parser import (
 )
 
 
+def run_state(running, exit_code, stopped, has_run):
+    """One word for the panel: idle, running, finished, stopped or failed."""
+    if not has_run:
+        return "idle"
+    if running:
+        return "running"
+    if stopped:
+        return "stopped"
+    return "finished" if exit_code == 0 else "failed"
+
+
 def get_simulator_status():
     """
     Builds the status dictionary reflecting the current simulator process state.
@@ -207,11 +196,8 @@ def get_simulator_status():
     with _lock:
         proc = _process
         lines = list(_output_lines)
-        mode = _mode
-        laps = _laps
-        limits = _limits
-        limits_synced = _limits_synced
-        limits_note = _limits_note
+        run_info = dict(_run_info) if _run_info else None
+        current_lap = _current_lap
         started_at = _started_at
         stopped = _stopped_by_user
         current_exit = _exit_code
@@ -239,33 +225,41 @@ def get_simulator_status():
     return {
         "enabled": is_demo_tools_enabled(),
         "running": running,
+        "state": run_state(running, exit_code, stopped, run_info is not None),
         "pid": proc.pid if (proc and running) else None,
-        "mode": mode,
-        "laps": laps,
+        "laps": run_info.get("laps") if run_info else None,
+        "current_lap": current_lap,
         "started_at": started_at,
         "exit_code": exit_code,
         "bridge_connected": bridge_connected,
         "port_hint": port_hint,
         "last_lines": lines[-15:],
         "error": error,
-        "limits": limits,
-        "limit_ranges": LIMIT_RANGES,
-        "limits_synced": limits_synced,
-        "limits_note": limits_note,
+        "run": run_info,
     }
+
+
+def get_run_info():
+    """A copy of the current run's facts (including ids needed for clean-up), or None."""
+    with _lock:
+        return dict(_run_info) if _run_info else None
+
+
+def mark_run_finalized():
+    """Remember that this run's session, device and token have been cleaned up."""
+    with _lock:
+        if _run_info is not None:
+            _run_info["finalized"] = True
 
 
 def reset_state_for_testing():
     """Test helper to cleanly reset all module state."""
-    global _process, _mode, _laps, _limits, _limits_synced, _limits_note, _started_at, _exit_code, _stopped_by_user
+    global _process, _run_info, _current_lap, _started_at, _exit_code, _stopped_by_user
     stop_simulator()
     with _lock:
         _process = None
-        _mode = None
-        _laps = None
-        _limits = None
-        _limits_synced = None
-        _limits_note = None
+        _run_info = None
+        _current_lap = None
         _started_at = None
         _exit_code = None
         _stopped_by_user = False

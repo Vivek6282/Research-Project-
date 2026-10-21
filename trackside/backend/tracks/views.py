@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from accounts.permissions import IsAdmin, IsAdminOrCoach
 from drivers.models import DriverZoneThreshold
 from tracks.models import Track, Zone, ZoneThresholdHistory
+from tracks.demo_circuit_setup import ensure_demo_circuit
 from tracks.zone_retirement import DEACTIVATED, retire_zone
 from tracks.serializers import TrackSerializer, ZoneSerializer, ZoneThresholdHistorySerializer
 
@@ -182,6 +183,17 @@ class ZoneLimitHistoryView(generics.ListAPIView):
         return ZoneThresholdHistory.objects.filter(
             zone_id=self.kwargs["pk"], zone__track_id=self.kwargs["track_pk"],
         ).select_related("changed_by")
+
+
+class DemoCircuitView(generics.GenericAPIView):
+    """POST /api/tracks/demo-circuit/ — make sure the built-in Demo Circuit exists, then return it (Admin/Coach)."""
+
+    permission_classes = [IsAdminOrCoach]
+    serializer_class = TrackSerializer
+
+    def post(self, request):
+        """Create the Demo Circuit and its three corners if missing (safe to call any number of times)."""
+        return Response(TrackSerializer(ensure_demo_circuit()).data)
 
 
 class TrackReferenceLineView(generics.GenericAPIView):
