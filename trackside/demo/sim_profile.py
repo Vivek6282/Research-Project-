@@ -70,8 +70,8 @@ def parse_corner(raw_corner, point_count: int) -> ProfileCorner:
     if not isinstance(raw_corner, dict):
         raise ProfileLoadError("Every corner must be an object.")
     label = raw_corner.get("label")
-    if not isinstance(label, str) or not (1 <= len(label.strip()) <= MAX_LABEL_LENGTH) or label.strip().lower() == "straight":
-        raise ProfileLoadError("Every corner needs a name of 1 to 40 characters (not 'Straight').")
+    if not isinstance(label, str) or not (1 <= len(label.strip()) <= MAX_LABEL_LENGTH) or label.strip().lower().startswith("straight"):
+        raise ProfileLoadError("Every corner needs a name of 1 to 40 characters that does not start with 'Straight'.")
     indexes = []
     for key in ("start_index", "end_index"):
         value = raw_corner.get(key)

@@ -58,6 +58,7 @@ class SimProfileTests(unittest.TestCase):
         nan = good_profile(); nan["outline"][0] = [float("nan"), 0.0]; cases.append(nan)
         outside = good_profile(); outside["corners"][0]["end_index"] = 99; cases.append(outside)
         reserved = good_profile(); reserved["corners"][0]["label"] = "Straight"; cases.append(reserved)
+        reserved2 = good_profile(); reserved2["corners"][0]["label"] = "Straightaway kink"; cases.append(reserved2)
         dup = good_profile(); dup["corners"].append(dict(dup["corners"][0], label="turn 1")); cases.append(dup)
         tiny = good_profile(); tiny["outline"] = tiny["outline"][:5]; cases.append(tiny)
         radius = good_profile(); radius["corners"][0]["tightest_radius_m"] = 0; cases.append(radius)

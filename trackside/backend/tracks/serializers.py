@@ -6,6 +6,7 @@ Zone data is nested inside Track responses for convenience.
 """
 
 from rest_framework import serializers
+from tracks.demo_circuit import schematic_outline_json
 from tracks.limit_history import set_zone_limit
 from tracks.models import Track, Zone, ZoneThresholdHistory
 
@@ -50,6 +51,16 @@ class TrackSerializer(serializers.ModelSerializer):
 
     zones = serializers.SerializerMethodField()
     min_threshold_g = serializers.ReadOnlyField()
+    schematic_outline = serializers.SerializerMethodField()
+    is_schematic = serializers.SerializerMethodField()
+
+    def get_schematic_outline(self, obj):
+        """The built-in map's drawn-shape outline for thumbnails; None for every other map."""
+        return schematic_outline_json() if obj.is_builtin and not obj.reference_line else None
+
+    def get_is_schematic(self, obj):
+        """True when the outline shown for this map is a schematic picture, not a GPS survey."""
+        return bool(obj.is_builtin and not obj.reference_line)
 
     def get_zones(self, obj):
         """Active zones only; corners removed from a track keep their history but are hidden here."""
@@ -60,8 +71,10 @@ class TrackSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "reference_line", "kart_class", "min_threshold_g",
             "surveyed_at", "created_by", "zones", "is_builtin", "is_archived", "source",
+            "schematic_outline", "is_schematic",
         ]
         read_only_fields = [
             "id", "created_by", "min_threshold_g", "is_builtin", "is_archived", "source",
+            "schematic_outline", "is_schematic",
         ]
 
