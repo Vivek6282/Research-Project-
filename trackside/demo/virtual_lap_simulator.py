@@ -224,7 +224,7 @@ def main():
     print("\nStarting local WebSocket telemetry broadcaster...")
     ws_thread = start_websocket_server(host=cli_args.ws_host, port=cli_args.ws_port)
     if ws_thread:
-        print("  [i] Open the visualizer: Coach Settings > Open Live Demo Visualizer, or frontend/public/demo/track_visualization.html")
+        print("  [i] Open the visualizer: Coach > Maps & Demo > Open live visualizer, or frontend/public/demo/track_visualization.html")
 
     serial_connection = None
     if not cli_args.dry_run:
