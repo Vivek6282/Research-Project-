@@ -54,6 +54,17 @@ class IsDriver(BasePermission):
         )
 
 
+class IsDevice(BasePermission):
+    """
+    Allows access only to an IoT device that signed in with its own device token.
+    Used on: the device's own command endpoints (a person's login is refused).
+    """
+
+    def has_permission(self, request, view):
+        """True only for the device user object that device-token authentication creates."""
+        return bool(request.user and getattr(request.user, "role", None) == "device")
+
+
 class IsAdminOrCoach(BasePermission):
     """
     Allows access to both admin and coach roles.

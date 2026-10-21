@@ -9,7 +9,7 @@ from rest_framework import generics
 from rest_framework.authentication import SessionAuthentication
 from devices.authentication import DeviceTokenAuthentication
 
-from accounts.permissions import IsAdmin, IsAdminOrCoach
+from accounts.permissions import IsAdmin, IsAdminOrCoach, IsDevice
 from devices.models import Device, DeviceCommand
 from devices.serializers import DeviceSerializer, DeviceCommandSerializer
 
@@ -78,9 +78,11 @@ class DevicePendingCommandsView(generics.ListAPIView):
     Device fetches its own pending commands. Authenticated via DeviceTokenAuthentication.
     """
     authentication_classes = [SessionAuthentication, DeviceTokenAuthentication]
+    permission_classes = [IsDevice]
     serializer_class = DeviceCommandSerializer
 
     def get_queryset(self):
+        """Pending commands of the calling device only."""
         # request.user is a DeviceUser object
         device = self.request.user.device
         return DeviceCommand.objects.filter(
@@ -95,10 +97,12 @@ class DeviceCompleteCommandView(generics.UpdateAPIView):
     Device marks a command as completed or failed and submits results.
     """
     authentication_classes = [SessionAuthentication, DeviceTokenAuthentication]
+    permission_classes = [IsDevice]
     serializer_class = DeviceCommandSerializer
     http_method_names = ['post', 'patch']
 
     def get_queryset(self):
+        """Commands of the calling device only."""
         device = self.request.user.device
         return DeviceCommand.objects.filter(device=device)
 
@@ -110,6 +114,9 @@ class DeviceCompleteCommandView(generics.UpdateAPIView):
         instance = self.get_object()
         
         status = request.data.get("status", DeviceCommand.Status.COMPLETED)
+        if status not in (DeviceCommand.Status.COMPLETED, DeviceCommand.Status.FAILED):
+            from rest_framework.response import Response
+            return Response({"status": "Use 'completed' or 'failed'."}, status=400)
         result = request.data.get("result", None)
 
         instance.status = status
