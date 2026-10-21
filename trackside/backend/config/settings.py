@@ -204,6 +204,7 @@ REST_FRAMEWORK = {
         "device_telemetry": env("DEVICE_TELEMETRY_THROTTLE_RATE", default="600/min"),
         # C2: at most 10 track-file import previews per hour per user
         "track_import": "10/hour",
+        "track_import_confirm": "10/hour",
     },
     # JSON only — no browsable API in production
     "DEFAULT_RENDERER_CLASSES": [

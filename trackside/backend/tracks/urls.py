@@ -1,7 +1,7 @@
 """Trackside — Tracks URL routes."""
 
 from django.urls import path
-from tracks.views_import import TrackImportPreviewView
+from tracks.views_import import TrackImportConfirmView, TrackImportPreviewView
 from tracks.views import (
     TrackListCreateView,
     TrackDetailView,
@@ -13,6 +13,7 @@ from tracks.views import (
 
 urlpatterns = [
     path("import/preview/", TrackImportPreviewView.as_view(), name="track-import-preview"),
+    path("import/confirm/", TrackImportConfirmView.as_view(), name="track-import-confirm"),
     path("", TrackListCreateView.as_view(), name="track-list-create"),
     path("<uuid:pk>/", TrackDetailView.as_view(), name="track-detail"),
     path("<uuid:pk>/reference-line/", TrackReferenceLineView.as_view(), name="track-reference-line"),

@@ -13,6 +13,7 @@ from typing import List, Tuple
 
 from tracks.importing.geometry import Point, distance
 from tracks.importing.outline import Outline
+from tracks.importing.safe_speed import safe_speed_kmh
 
 DEFAULT_RADIUS_THRESHOLD_M = 60.0
 MIN_RADIUS_THRESHOLD_M = 10.0
@@ -116,7 +117,7 @@ def find_corners(outline: Outline, radius_threshold_m: float = DEFAULT_RADIUS_TH
     return sorted(corners, key=lambda corner: corner.apex_index)
 
 
-def corner_to_json(number: int, corner: Corner, outline: Outline) -> dict:
+def corner_to_json(number: int, corner: Corner, outline: Outline, default_limit_g: float = 0.0) -> dict:
     """The JSON for one corner: name suggestion, start/end/apex positions and tightest radius."""
     frame, points = outline.frame, outline.points
 
@@ -136,4 +137,5 @@ def corner_to_json(number: int, corner: Corner, outline: Outline) -> dict:
         "apex_index": corner.apex_index,
         "tightest_radius_m": round(corner.tightest_radius_m, 1),
         "length_m": round(corner.length_m, 1),
+        "safe_speed_kmh_at_default": round(safe_speed_kmh(default_limit_g, corner.tightest_radius_m), 1),
     }
