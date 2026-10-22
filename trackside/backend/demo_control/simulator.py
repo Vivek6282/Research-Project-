@@ -236,7 +236,6 @@ def get_simulator_status():
         "last_lines": lines[-15:],
         "error": error,
         "limits": run_info.get("limits") if run_info else None,
-        "limits_custom": run_info.get("limits_custom") if run_info else None,
         "run": run_info,
     }
 

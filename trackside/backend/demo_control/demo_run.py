@@ -21,7 +21,7 @@ from driving_sessions.models import Session
 from driving_sessions.session_close import close_session_if_open
 from tracks.demo_circuit_setup import ensure_demo_circuit
 from tracks.models import Track
-from demo_control.run_limits import builtin_limit_args, run_limits
+from demo_control.run_limits import run_limits
 from tracks.outline_gps import write_schematic_gps_file
 from tracks.track_profile import ProfileError, write_track_profile
 
@@ -157,7 +157,7 @@ def start_demo_run(request) -> dict:
     if track.is_builtin:
         track = ensure_demo_circuit()
         gps_path = write_schematic_gps_file(profile_directory(), track.id)
-        extra_args = ["--laps", str(laps), "--gps-file", gps_path] + builtin_limit_args(track, driver) + POST_BATCH_ARGS
+        extra_args = ["--laps", str(laps), "--gps-file", gps_path] + POST_BATCH_ARGS
     else:
         try:
             profile_path = write_track_profile(track, profile_directory(), driver)
@@ -178,7 +178,7 @@ def start_demo_run(request) -> dict:
             driver=driver, track=track, mode=Session.Mode.PERFORMANCE, started_at=timezone.now(),
             kart_number="Demo", is_demo=True,
         )
-    limits, limits_custom = run_limits(track, driver)
+    limits = run_limits(track)
     run_values = {
         "SESSION_ID": str(session.id), "DEVICE_TOKEN": raw_token,
         "BACKEND_URL": f"{request.scheme}://{request.get_host()}", "DEMO_ZONES": json.dumps(zones),
@@ -186,7 +186,7 @@ def start_demo_run(request) -> dict:
     run_info = {
         "session_id": str(session.id), "device_id": str(device.id), "driver_id": str(driver.id),
         "driver_name": driver.name, "track_id": str(track.id), "track_name": track.name, "laps": laps,
-        "pace": pace, "pace_applied": not track.is_builtin, "built_in": track.is_builtin, "limits": limits, "limits_custom": limits_custom,
+        "pace": pace, "pace_applied": not track.is_builtin, "built_in": track.is_builtin, "limits": limits,
         "finalized": False,
     }
     try:

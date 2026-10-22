@@ -12,7 +12,7 @@ import os
 import tempfile
 from typing import List, Tuple
 
-from drivers.limits import driver_limits_for_zones
+from drivers.limits import limit_in_force
 from tracks.importing.corners import radius_profile, sustained_radius
 from tracks.importing.geometry import LocalFrame, Point, distance, path_length, resample_closed
 from tracks.importing.lap_picker import CLOSE_GAP_M
@@ -66,8 +66,8 @@ def forward_range(start: int, end: int, count: int) -> List[int]:
     return out
 
 
-def locate_corner(zone: Zone, frame: LocalFrame, points: List[Point], radii: List[float], limit_g=None):
-    """Place one zone on the outline; returns its profile dict, or None when it cannot be placed. limit_g replaces the zone default."""
+def locate_corner(zone: Zone, frame: LocalFrame, points: List[Point], radii: List[float]):
+    """Place one zone on the outline; returns its profile dict, or None when it cannot be placed."""
     box = zone.gps_range if isinstance(zone.gps_range, dict) else {}
     try:
         ends = [frame.to_xy(float(box[k]["lat"]), float(box[k]["lng"])) for k in ("start", "end")]
@@ -84,12 +84,12 @@ def locate_corner(zone: Zone, frame: LocalFrame, points: List[Point], radii: Lis
         "start_index": indexes[0],
         "end_index": indexes[-1],
         "tightest_radius_m": round(tightest, 2),
-        "threshold_g": zone.threshold_g if limit_g is None else limit_g,
+        "threshold_g": limit_in_force(None, zone),
     }
 
 
 def build_track_profile(track: Track, driver=None) -> dict:
-    """Make the profile dict for an active, non-built-in track. With a driver, each corner carries that driver's limit in force."""
+    """Make the profile dict for an active, non-built-in track. Each corner carries the map's limit; driver is accepted but no longer changes it."""
     if track.is_builtin:
         raise ProfileError("The built-in Demo Circuit uses the simulator's own track and has no profile.")
     if track.is_archived:
@@ -99,9 +99,8 @@ def build_track_profile(track: Track, driver=None) -> dict:
     radii = radius_profile(points, spacing)
     corners, skipped = [], []
     zones = list(track.zones.filter(is_active=True).order_by("label"))
-    own_limits = driver_limits_for_zones(driver.id, [z.id for z in zones]) if driver else {}
     for zone in zones:
-        placed = locate_corner(zone, frame, points, radii, own_limits.get(zone.id))
+        placed = locate_corner(zone, frame, points, radii)
         (corners if placed else skipped).append(placed or zone.label)
     corners.sort(key=lambda c: c["start_index"])
     return {

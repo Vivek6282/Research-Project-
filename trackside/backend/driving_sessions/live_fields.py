@@ -30,14 +30,14 @@ def live_event_cache():
 
 
 def zone_facts(reading) -> Dict:
-    """{limit, zone_label, corner_type} of the reading's zone, looked up once per (driver, zone) while a cache is open."""
+    """{limit, zone_label, corner_type} of the reading's zone, looked up once per zone while a cache is open."""
     cache = _zone_cache.get()
-    key = (reading.session.driver_id, reading.zone_id)
+    key = reading.zone_id
     if cache is not None and key in cache:
         return cache[key]
     zone = reading.zone
     facts = {
-        "limit": limit_in_force(key[0], zone),
+        "limit": limit_in_force(reading.session.driver_id, zone),
         "zone_label": zone.label,
         "corner_type": zone.corner_type,
     }
