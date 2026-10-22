@@ -5,11 +5,29 @@ UUID primary keys, role-based access (admin/coach/driver), and email-based login
 No public registration — all accounts are created by the Admin.
 """
 
+import random
+import re
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.core.validators import RegexValidator
 from django.db import models
 
 from accounts.managers import UserManager
+
+
+# A driver's short display ID: "D" and 5 digits (for example D17256). It is NOT a login identifier.
+DRIVER_CODE_PATTERN = r"^D[0-9]{5}$"
+DRIVER_CODE_RULE = "A driver ID is the letter D followed by 5 digits, for example D17256."
+CODE_TRIES = 50
+
+
+def next_driver_code() -> str:
+    """A random driver code from D10000 to D99999 that nobody has yet; a clear error after 50 tries."""
+    for _ in range(CODE_TRIES):
+        code = f"D{random.SystemRandom().randint(10000, 99999)}"
+        if not User.objects.filter(driver_code=code).exists():
+            return code
+    raise RuntimeError("Could not find an unused driver ID after 50 tries; too many drivers already have one.")
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -41,6 +59,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         editable=False,
         help_text="System-generated unique login identifier (e.g. TRK-DRV-000042)",
+    )
+
+    driver_code = models.CharField(
+        max_length=6,
+        unique=True,
+        null=True,
+        blank=True,
+        validators=[RegexValidator(DRIVER_CODE_PATTERN, DRIVER_CODE_RULE)],
+        help_text="Short display ID for drivers only (D plus 5 digits, e.g. D17256). Not a login identifier.",
     )
 
     email = models.EmailField(
@@ -98,6 +125,18 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.name} ({self.role})"
+
+    def save(self, *args, **kwargs):
+        """Drivers always have a driver code (made when missing); Admin and Coach never have one."""
+        before = self.driver_code
+        if self.role == self.Role.DRIVER:
+            self.driver_code = self.driver_code or next_driver_code()
+        else:
+            self.driver_code = None
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and self.driver_code != before:
+            kwargs["update_fields"] = list(update_fields) + ["driver_code"]
+        super().save(*args, **kwargs)
 
 
 class AuditLogEntry(models.Model):
