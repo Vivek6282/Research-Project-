@@ -39,6 +39,18 @@ If either switch is off, or the server is in production, the tab still shows the
 ### Marking the highest-g corners (Edit corners)
 On a custom map press **Edit corners**: the outline opens large with green **+** suggestions at the tightest point of each bend (where g is highest at a given speed). Click a **+** to accept it or click anywhere on the outline to add a corner, drag a number along the line, rename it (required, up to 40 characters), set its limit (1.0 to 1.5 g) and its zone length (10 to 100 m, default 30 m centred on the point). The list shows each corner's radius and the safe corner speed at the current limit: `sqrt(limit x 9.81 x radius)`. Every saved corner becomes an alert zone that the alert rule and the glove use. A corner that already has telemetry or alerts is hidden instead of deleted, and limit changes are kept in an insert-only history. The Demo Circuit is view-only; use **Duplicate as custom map** to get an editable copy.
 
+### Watching a demo in the Coach module
+
+1. Coach, **Maps & Demo** tab, **Play demo** on a map, choose the driver and laps, **Start demo**.
+2. The page switches to the live tab by itself with that run's driver selected (the **Watch live** button on the Maps tab does the same later). Nothing else switches drivers automatically.
+3. In the **Live Track View** card you see:
+   * **Readout row** under the header: **LAP**, **CORNER** (name and type, or "Straight"), **G** with the limit in force ("limit 1.15 g", or "No limit" on a straight) and **SPEED**.
+   * The **map** with the moving dot and the highlighted corner (unchanged).
+   * **LATERAL-G WAVEFORM (3 s)**: the last 3 seconds of lateral g, coloured by the current stage, with a dashed red line at the limit and a dashed amber line at 82% of it.
+   * **ALERTS** log: the amber and red alerts that arrive live, newest first. **Clear** only empties this list on your screen; nothing is deleted on the server.
+4. The limit shown is the **driver's limit in force for the corner the kart is in** (the driver's newest own limit, else the zone default), worked out by the server with the same rule as the alerts and the glove. A straight has no limit and stays nominal.
+5. Before any data arrives the panels say "Waiting for live data", "No alerts yet" or "-"; no numbers are invented.
+
 ---
 
 ## 1. Requirements
