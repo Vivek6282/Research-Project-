@@ -13,7 +13,7 @@ from channels.layers import get_channel_layer
 
 from driving_sessions.models import Session, Telemetry, Alert
 from tracks.models import Zone
-from drivers.models import DriverZoneThreshold
+from drivers.limits import driver_limits_for_zones
 
 User = get_user_model()
 
@@ -80,17 +80,8 @@ def process_telemetry_alerts(session: Session, new_readings: List[Telemetry]) ->
         for z in Zone.objects.filter(id__in=zone_ids):
             zones_map[z.id] = z
 
-    thresholds_map: Dict[str, float] = {}
-    if zone_ids and session.driver_id:
-        # Ordering by updated_at ascending ensures the latest row overwrites in dict
-        custom_thresholds = (
-            DriverZoneThreshold.objects.filter(
-                driver_id=session.driver_id,
-                zone_id__in=zone_ids,
-            ).order_by("updated_at")
-        )
-        for dzt in custom_thresholds:
-            thresholds_map[dzt.zone_id] = dzt.custom_threshold_g
+    # The driver's own newest limits (the shared rule in drivers/limits.py)
+    thresholds_map: Dict[str, float] = driver_limits_for_zones(session.driver_id, zone_ids)
 
     def get_effective_threshold(zone_id) -> Optional[float]:
         if not zone_id:
