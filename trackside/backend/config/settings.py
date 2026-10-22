@@ -215,6 +215,18 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 50,
 }
 
+# Rate limits identify a client by its address. Behind the reverse proxy every request arrives
+# from the proxy, so DRF must read the real client address from X-Forwarded-For. TRUSTED_PROXY_COUNT
+# is how many proxies sit in front (1 = Caddy). The proxy must APPEND the real client address and
+# must REPLACE (not trust) any X-Forwarded-For the client sent, or the limit can be dodged.
+# 0 leaves DRF reading the connection address, as in development.
+TRUSTED_PROXY_COUNT = env.int("TRUSTED_PROXY_COUNT", default=1 if DJANGO_ENV == "production" else 0)
+if TRUSTED_PROXY_COUNT < 0:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured("TRUSTED_PROXY_COUNT must be 0 or more.")
+if TRUSTED_PROXY_COUNT >= 1:
+    REST_FRAMEWORK["NUM_PROXIES"] = TRUSTED_PROXY_COUNT
+
 # In development, allow the browsable API for convenience
 if DEBUG:
     REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"].append(
