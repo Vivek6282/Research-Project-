@@ -5,7 +5,8 @@ Routes all API traffic under /api/ and delegates to feature-specific URL modules
 Admin panel is not exposed — all admin operations go through the API.
 """
 
-from django.urls import path, include
+from django.conf import settings
+from django.urls import path, include, re_path
 
 from config.health import health
 
@@ -23,3 +24,8 @@ urlpatterns = [
     path("api/demo/", include("demo_control.urls")),
 ]
 
+# Single-address hosting: the backend also serves the built website (everything except /api and /ws)
+if settings.FRONTEND_DIST:
+    from config.spa import spa
+
+    urlpatterns.append(re_path(r"^(?!api/|ws/)(?P<path>.*)$", spa))

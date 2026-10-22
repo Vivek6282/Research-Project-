@@ -41,6 +41,15 @@ if DJANGO_ENV == "production":
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "testserver"])
 
+# Render sets this to the service's public host name (for example trackside.onrender.com):
+# it is allowed and trusted automatically, so nothing has to be typed in by hand.
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="")
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# Folder with the built frontend. When set, the backend serves the website itself (single-address hosting).
+FRONTEND_DIST = env("FRONTEND_DIST", default="")
+
 # ---------------------------------------------------------------------------
 # INSTALLED APPS — feature-organized modules
 # ---------------------------------------------------------------------------
@@ -79,6 +88,8 @@ CHANNEL_LAYERS = {
 # MIDDLEWARE
 # ---------------------------------------------------------------------------
 MIDDLEWARE = [
+    # Answers /api/health/ first (see config/health.py)
+    "config.health.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
     # CORS must come before CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
@@ -299,6 +310,8 @@ def without_duplicates(items):
 
 # CORS_ALLOWED_ORIGINS is the name to use; the older singular CORS_ALLOWED_ORIGIN is still accepted
 env_cors_origins = clean_origin_list("CORS_ALLOWED_ORIGINS") + clean_origin_list("CORS_ALLOWED_ORIGIN")
+if RENDER_EXTERNAL_HOSTNAME:
+    env_cors_origins.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
 env_csrf_origins = clean_origin_list("CSRF_TRUSTED_ORIGINS")
 
 if DJANGO_ENV == "production":
