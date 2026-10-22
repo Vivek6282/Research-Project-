@@ -38,3 +38,9 @@ Every driver has a short display ID, the letter `D` and 5 digits (for example `D
   ```
 
 * `python manage.py set_driver_identity (--email X | --username X | --name "Current Name") [--new-name "Marco Ferrati"] [--code D17256]` sets the name and/or driver ID of exactly one driver, prints before and after, and writes an audit entry. It touches nothing else.
+
+## Where limits come from
+
+* A corner's g-force limit is `zone.threshold_g`, set on the map (Maps, then **Edit corners**, 1.0 to 1.5 g). It applies to everyone who drives that map. Alerts (`Alert.threshold_applied`), live events, roster status, the simulator profile and the Play demo status all read it through `drivers/limits.py` (`limit_in_force`).
+* The built-in Demo Circuit is locked; duplicate it as a custom map to change its limits.
+* **Per-driver limits are retired.** Old `DriverZoneThreshold` rows are kept as history, unused (no data was deleted or migrated). `POST /api/drivers/thresholds/` answers `410 Gone`; the list endpoints stay read-only. The Admin delete screen still counts those rows, and they are removed with the driver.

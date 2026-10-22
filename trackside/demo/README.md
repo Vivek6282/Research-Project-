@@ -48,7 +48,7 @@ On a custom map press **Edit corners**: the outline opens large with green **+**
    * The **map** with the moving dot and the highlighted corner (unchanged).
    * **LATERAL-G WAVEFORM (3 s)**: the last 3 seconds of lateral g, coloured by the current stage, with a dashed red line at the limit and a dashed amber line at 82% of it.
    * **ALERTS** log: the amber and red alerts that arrive live, newest first. **Clear** only empties this list on your screen; nothing is deleted on the server.
-4. The limit shown is the **driver's limit in force for the corner the kart is in** (the driver's newest own limit, else the zone default), worked out by the server with the same rule as the alerts and the glove. A straight has no limit and stays nominal.
+4. The limit shown is the **corner's limit set on the map** (Maps, Edit corners) for the corner the kart is in, worked out by the server with the same rule as the alerts and the glove. A straight has no limit and stays nominal.
 5. Before any data arrives the panels say "Waiting for live data", "No alerts yet" or "-"; no numbers are invented.
 
 ---
@@ -228,9 +228,17 @@ Chicane limit 1.30 g (default)
 A custom map uses **each corner's own limit**, set in the corner editor (Coach > Maps & Demo > Edit corners, 1.0 to 1.5 g). `--limit` is only for the built-in Demo Circuit and cannot be combined with `--track-file`.
 
 ### Alert Discrepancy Warning (Manual CLI Execution)
-Backend alert ingestion always evaluates telemetry against the zone's calibrated limit or the driver's active `DriverZoneThreshold` stored in the database.
+Backend alert ingestion always evaluates telemetry against the zone's own limit (`zone.threshold_g`, set on the map). Old per-driver limits are no longer used.
 
 If you launch the simulator from a terminal with a value **above** a zone default (for example `--limit Hairpin=1.40`), the simulator and physical glove will use `1.40 g`, but backend alerts will trigger at the calibrated `1.15 g`. This causes the backend alerts on the dashboard to differ from the glove's LED signals. To keep the glove, visualizer, and backend dashboards in complete synchronization, keep `--limit` values within the allowed ranges.
+
+
+### Where limits come from
+
+* A corner's g-force limit is set **on the map**: Maps, then **Edit corners** (1.0 to 1.5 g). It is stored as the corner's own limit and applies to **everyone** who drives that map.
+* The alerts, the live Coach screen, the simulator (and so the glove and the visualizer) and the Play demo status ("Map limits: Hairpin 1.05 / Sweeper 1.30 / Chicane 1.10") all use that same limit.
+* The built-in **Demo Circuit is locked**: to change its limits, **Duplicate as custom map** and edit the copy. The built-in run uses the simulator's own track and fixed defaults, so the Play demo passes no `--limit` for it.
+* **Per-driver limits are retired.** Old per-driver rows stay in the database as history and are ignored; creating a new one (`POST /api/drivers/thresholds/`) answers `410 Gone`.
 
 ---
 
@@ -272,7 +280,7 @@ This is separate from the simulator's own visualizer socket above.
 
 The last four keys exist only in this live message (they are not stored and not in the REST output):
 
-* `threshold` - the limit in force: the driver's newest own limit for that corner, else the zone default. `null` on a straight.
+* `threshold` - the limit in force: the corner's own limit set on the map. `null` on a straight.
 * `stage` - `nominal`, `monitoring` (amber) or `intervene` (red), from the same rule as the alerts (`alerting.stage_for`). A straight is `nominal`.
 * `zone_label`, `corner_type` - the corner's name and type, `null` on a straight.
 
