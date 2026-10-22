@@ -26,7 +26,8 @@ export function MapsDemoTab({ onWatchLive }: MapsDemoTabProps) {
   /** Ask the server to start the run the coach set up in the dialog. */
   async function handleStart(choice: PlayChoice) {
     if (!playing) return false;
-    return demo.start({ track_id: playing.id, driver_id: choice.driverId, laps: choice.laps, pace: choice.pace });
+    // When the run has started, go to the live tab with the run's driver selected (the Watch live button stays)
+    return demo.start({ track_id: playing.id, driver_id: choice.driverId, laps: choice.laps, pace: choice.pace }, onWatchLive);
   }
 
   return (

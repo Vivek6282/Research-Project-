@@ -88,11 +88,12 @@ export function useDemoRun(enabled: boolean) {
 
   /** Start a run; returns true on success, otherwise keeps the server's message in actionError. */
   const start = useCallback(
-    async (body: DemoStartBody) => {
+    async (body: DemoStartBody, onStarted?: (driverId: string) => void) => {
       setActionError(null);
       try {
-        await api.post("/api/demo/simulator/start/", body);
+        const started = await api.post<{ driver_id?: string }>("/api/demo/simulator/start/", body);
         await refresh();
+        onStarted?.(started?.driver_id || body.driver_id);
         return true;
       } catch (e) {
         setActionError(e instanceof Error ? e.message : "Could not start the demo.");
