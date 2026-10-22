@@ -193,7 +193,7 @@ describe("Maps & Demo tab with demo controls", () => {
     await waitFor(() => expect(screen.getByText("Ana Driver")).toBeTruthy());
     fireEvent.change(screen.getByTestId("play-driver-select"), { target: { value: "d1" } });
     fireEvent.click(screen.getByTestId("play-start-btn"));
-    await waitFor(() => expect(mockPost).toHaveBeenCalledWith("/api/demo/simulator/start/", { track_id: "t1", driver_id: "d1", laps: 3, pace: "safe" }));
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith("/api/demo/simulator/start/", { track_id: "t1", driver_id: "d1", laps: 3, pace: "mixed" }));
   });
 
   it("hides every Play and Stop control but keeps maps and the corner editor when the switch is off", async () => {
