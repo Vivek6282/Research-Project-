@@ -7,7 +7,11 @@ Admin panel is not exposed — all admin operations go through the API.
 
 from django.urls import path, include
 
+from config.health import health
+
 urlpatterns = [
+    # Health check (public, no database details)
+    path("api/health/", health, name="health"),
     # Authentication & user management
     path("api/auth/", include("accounts.urls")),
     # Feature modules
