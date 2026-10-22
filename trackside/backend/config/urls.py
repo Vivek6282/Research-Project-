@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/devices/", include("devices.urls")),
     path("api/preferences/", include("preferences.urls")),
     path("api/demo/", include("demo_control.urls")),
+    path("api/laptop-link/", include("demo_control.laptop_urls")),
 ]
 
 # Single-address hosting: the backend also serves the built website (everything except /api and /ws)
