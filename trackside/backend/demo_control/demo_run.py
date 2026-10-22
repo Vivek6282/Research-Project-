@@ -21,6 +21,7 @@ from driving_sessions.models import Session
 from driving_sessions.session_close import close_session_if_open
 from tracks.demo_circuit_setup import ensure_demo_circuit
 from tracks.models import Track
+from demo_control.run_limits import builtin_limit_args
 from tracks.outline_gps import write_schematic_gps_file
 from tracks.track_profile import ProfileError, write_track_profile
 
@@ -152,10 +153,10 @@ def start_demo_run(request) -> dict:
     if track.is_builtin:
         track = ensure_demo_circuit()
         gps_path = write_schematic_gps_file(profile_directory(), track.id)
-        extra_args = ["--laps", str(laps), "--gps-file", gps_path]
+        extra_args = ["--laps", str(laps), "--gps-file", gps_path] + builtin_limit_args(track, driver)
     else:
         try:
-            profile_path = write_track_profile(track, profile_directory())
+            profile_path = write_track_profile(track, profile_directory(), driver)
         except ProfileError as error:
             raise DemoRunError(str(error))
         extra_args = ["--laps", str(laps), "--track-file", profile_path, "--pace", pace]

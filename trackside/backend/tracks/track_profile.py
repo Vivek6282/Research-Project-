@@ -12,6 +12,7 @@ import os
 import tempfile
 from typing import List, Tuple
 
+from drivers.limits import driver_limits_for_zones
 from tracks.importing.corners import radius_profile, sustained_radius
 from tracks.importing.geometry import LocalFrame, Point, distance, path_length, resample_closed
 from tracks.importing.lap_picker import CLOSE_GAP_M
@@ -65,8 +66,8 @@ def forward_range(start: int, end: int, count: int) -> List[int]:
     return out
 
 
-def locate_corner(zone: Zone, frame: LocalFrame, points: List[Point], radii: List[float]):
-    """Place one zone on the outline; returns its profile dict, or None when it cannot be placed."""
+def locate_corner(zone: Zone, frame: LocalFrame, points: List[Point], radii: List[float], limit_g=None):
+    """Place one zone on the outline; returns its profile dict, or None when it cannot be placed. limit_g replaces the zone default."""
     box = zone.gps_range if isinstance(zone.gps_range, dict) else {}
     try:
         ends = [frame.to_xy(float(box[k]["lat"]), float(box[k]["lng"])) for k in ("start", "end")]
@@ -83,12 +84,12 @@ def locate_corner(zone: Zone, frame: LocalFrame, points: List[Point], radii: Lis
         "start_index": indexes[0],
         "end_index": indexes[-1],
         "tightest_radius_m": round(tightest, 2),
-        "threshold_g": zone.threshold_g,
+        "threshold_g": zone.threshold_g if limit_g is None else limit_g,
     }
 
 
-def build_track_profile(track: Track) -> dict:
-    """Make the profile dict for an active, non-built-in track."""
+def build_track_profile(track: Track, driver=None) -> dict:
+    """Make the profile dict for an active, non-built-in track. With a driver, each corner carries that driver's limit in force."""
     if track.is_builtin:
         raise ProfileError("The built-in Demo Circuit uses the simulator's own track and has no profile.")
     if track.is_archived:
@@ -97,8 +98,10 @@ def build_track_profile(track: Track) -> dict:
     spacing = loop_length / len(points)
     radii = radius_profile(points, spacing)
     corners, skipped = [], []
-    for zone in track.zones.filter(is_active=True).order_by("label"):
-        placed = locate_corner(zone, frame, points, radii)
+    zones = list(track.zones.filter(is_active=True).order_by("label"))
+    own_limits = driver_limits_for_zones(driver.id, [z.id for z in zones]) if driver else {}
+    for zone in zones:
+        placed = locate_corner(zone, frame, points, radii, own_limits.get(zone.id))
         (corners if placed else skipped).append(placed or zone.label)
     corners.sort(key=lambda c: c["start_index"])
     return {
@@ -115,9 +118,9 @@ def build_track_profile(track: Track) -> dict:
     }
 
 
-def write_track_profile(track: Track, directory: str) -> str:
+def write_track_profile(track: Track, directory: str, driver=None) -> str:
     """Write <directory>/<track uuid>.json (a fixed name, never user supplied) and return its path."""
-    profile = build_track_profile(track)
+    profile = build_track_profile(track, driver)
     os.makedirs(directory, exist_ok=True)
     final_path = os.path.join(directory, f"{track.id}.json")
     handle, temp_path = tempfile.mkstemp(dir=directory, suffix=".tmp")
