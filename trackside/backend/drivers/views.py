@@ -1,35 +1,37 @@
 """
 Trackside — Driver threshold views.
 
-Insert-only threshold management with race-condition protection.
-Coaches set per-driver per-zone thresholds that are always ≤ the zone limit.
+Read-only history of the old per-driver limits. Limits are now set per corner on the map
+(zone.threshold_g); creating a per-driver limit answers 410 Gone.
 """
 
-from django.db import transaction
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from accounts.permissions import IsAdminOrCoach
 from drivers.models import DriverZoneThreshold
 from drivers.serializers import DriverZoneThresholdSerializer
 
 
+# Per-driver limits are retired: the map is the only place that sets g-force limits
+LIMITS_RETIRED_MESSAGE = (
+    "Limits are set per corner on the map: Maps, then Edit corners. Per-driver limits are no longer used."
+)
+
+
 class ThresholdListCreateView(generics.ListCreateAPIView):
     """
-    GET /api/drivers/thresholds/ — list thresholds (scoped by role)
-    POST /api/drivers/thresholds/ — set a new threshold (Coach only)
+    GET /api/drivers/thresholds/ — list the old per-driver limits (history only, scoped by role)
+    POST /api/drivers/thresholds/ — retired: answers 410 Gone (set limits on the map instead)
 
-    POST creates a new threshold row (insert-only, never updates).
-    The latest row per driver+zone pair is the active threshold.
-
-    Requirement #7: uses transaction.atomic() + select_for_update()
-    to prevent race conditions when reading zone limits and creating
-    threshold records simultaneously.
+    Old per-driver rows stay in the table as history and are ignored when limits are applied.
     """
 
     serializer_class = DriverZoneThresholdSerializer
 
     def get_permissions(self):
+        """Admin/Coach reach the POST (to be told it is retired); anyone signed in can read the history."""
         if self.request.method == "POST":
             return [IsAdminOrCoach()]
         return [IsAuthenticated()]
@@ -49,13 +51,9 @@ class ThresholdListCreateView(generics.ListCreateAPIView):
             return queryset.filter(driver=user)
         return queryset.all()
 
-    def perform_create(self, serializer):
-        """
-        Record the coach who set this threshold.
-        Wrapped in atomic() for race-condition safety (req #7).
-        """
-        with transaction.atomic():
-            serializer.save(set_by=self.request.user)
+    def create(self, request, *args, **kwargs):
+        """Creating a per-driver limit is retired: 410 Gone, nothing is stored."""
+        return Response({"detail": LIMITS_RETIRED_MESSAGE}, status=status.HTTP_410_GONE)
 
 
 class ThresholdsByDriverView(generics.ListAPIView):
