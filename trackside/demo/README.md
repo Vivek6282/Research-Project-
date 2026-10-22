@@ -181,7 +181,7 @@ To store a demo run:
 | `--delay <seconds>` | `0.2` | Interval between telemetry readings (e.g. `0.1` for faster pace) |
 | `--limit <NAME=VALUE>` | `[]` | Custom corner limit for the built-in track, repeatable (e.g. `--limit Hairpin=1.00`) |
 | `--track-file <path>` | none | Run a custom map from a profile file made by `python manage.py export_track <track_id> --out <path>`. Without it the built-in Demo Circuit runs exactly as before |
-| `--pace safe\|edge\|over` | `safe` | With `--track-file`: 0.85 / 0.98 / 1.08 of each corner's safe speed (green / amber / red) |
+| `--pace safe\|edge\|over\|mixed` | `safe` | With `--track-file`: 0.85 / 0.98 / 1.08 of each corner's safe speed (green / amber / red); `mixed` gives each lap a few amber and red corners among green ones |
 | `--seed <N>` | random | With `--track-file`: makes a run repeatable (laps still differ from each other by about 3% of g) |
 | `--cruise-kmh <N>` | `80` | With `--track-file`: straight-line speed (20 to 200) |
 | `--post-batch <N>` | `10` | Most readings sent in one backend POST (1 to 10). `1` posts every reading on its own as soon as it is ready. A bad value exits with code 2. Terminal runs keep the default |

@@ -47,7 +47,7 @@ from sim_websocket_server import (
 from sim_serial_bridge import connect_serial_bridge, list_ports_and_exit, send_to_bridge
 from sim_gps import gps_for_reading, load_gps_or_exit
 from sim_profile import ProfileLoadError, load_profile
-from sim_physics import DEFAULT_CRUISE_KMH, PACES, ProfileSimulator
+from sim_physics import DEFAULT_CRUISE_KMH, MIXED, PACES, ProfileSimulator
 from sim_profile_run import build_run_start_extras, run_profile_lap
 
 
@@ -152,7 +152,7 @@ def main():
     cli_parser.add_argument("--track-file", type=str, default=None, help="Track profile JSON from 'manage.py export_track' (default: built-in Demo Circuit)")
     cli_parser.add_argument("--post-batch", type=post_batch_arg, default=10, help="Most readings per backend POST, 1 to 10 (default 10; 1 sends every reading on its own)")
     cli_parser.add_argument("--gps-file", type=str, default=None, help="GPS points of the built-in Demo Circuit outline (written by the backend); each reading carries one")
-    cli_parser.add_argument("--pace", choices=sorted(PACES), default=None, help="Corner pace for --track-file runs: safe (green), edge (amber), over (red). Default safe")
+    cli_parser.add_argument("--pace", choices=sorted(PACES) + [MIXED], default=None, help="Corner pace for --track-file runs: safe (green), edge (amber), over (red), mixed (all three). Default safe")
     cli_parser.add_argument("--seed", type=int, default=None, help="Random seed so a --track-file run repeats exactly")
     cli_parser.add_argument("--cruise-kmh", type=float, default=None, help=f"Straight-line speed for --track-file runs (default {DEFAULT_CRUISE_KMH:.0f})")
     cli_args = cli_parser.parse_args()

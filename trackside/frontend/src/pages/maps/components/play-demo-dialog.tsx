@@ -24,6 +24,7 @@ interface PlayDemoDialogProps {
 }
 
 const PACES = [
+  { id: "mixed", label: "Mixed: green, amber and red (realistic)" },
   { id: "safe", label: "Safe: stays green" },
   { id: "edge", label: "Edge: amber at every corner" },
   { id: "over", label: "Over: red alerts at every corner" },
@@ -35,7 +36,7 @@ export function PlayDemoDialog({ map, onClose, onStart, serverError }: PlayDemoD
   const { drivers, error: driversError, isLoading } = useActiveDrivers();
   const [driverId, setDriverId] = useState("");
   const [laps, setLaps] = useState("3");
-  const [pace, setPace] = useState("safe");
+  const [pace, setPace] = useState("mixed");
   const [busy, setBusy] = useState(false);
   const lapsNumber = Number(laps);
   const lapsOk = Number.isInteger(lapsNumber) && lapsNumber >= 1 && lapsNumber <= 20;

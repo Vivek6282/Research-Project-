@@ -62,6 +62,11 @@ class PaceTests(unittest.TestCase):
         self.assertEqual(len(peaks), 4 * 8)
         self.assertEqual({stage for _, stage in peaks.values()}, {"INTERVENE"})
 
+    def test_mixed_pace_shows_every_colour(self):
+        """Mixed: over five laps there are green, amber and red readings."""
+        stages = {p["stage"] for p in lap_packets("mixed", seed=4, laps=5)}
+        self.assertEqual(stages, {"NOMINAL", "MONITORING", "INTERVENE"})
+
     def test_unknown_pace_is_refused(self):
         """Only safe, edge and over are allowed."""
         with self.assertRaises(ValueError):

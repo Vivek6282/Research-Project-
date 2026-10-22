@@ -21,6 +21,9 @@ DEFAULT_CRUISE_KMH = 80.0
 # Pace = fraction of each corner's safe speed. At the tightest point g = pace^2 x limit,
 # so safe stays green (0.72), edge is amber (0.96) and over is red (1.17).
 PACES: Dict[str, float] = {"safe": 0.85, "edge": 0.98, "over": 1.08}
+MIXED = "mixed"   # a realistic lap: most corners green, some amber, a few red
+# (amber corners, red corners) per lap; repeats every few laps so a short run still shows every colour
+MIXED_LAP_PATTERN = [(0, 0), (1, 0), (1, 1), (0, 0), (2, 1)]
 # Lap-to-lap variation: each corner's lateral g is scaled by 1 +/- 3% (speed by about 1.5%),
 # so laps differ but "edge" can never tip into red by chance
 VARIATION = 0.03
@@ -106,14 +109,15 @@ def smooth_speeds(targets: List[float], spacing_m: float) -> List[float]:
 
 
 def speed_profile(profile: TrackProfile, curvature: List[float], member: List[Optional[int]],
-                  corner_radii: List[float], pace: float, cruise_ms: float, g_scales: List[float]) -> List[float]:
-    """Speed (m/s) at every outline point for one lap, given the pace and each corner's g scale."""
+                  corner_radii: List[float], pace, cruise_ms: float, g_scales: List[float]) -> List[float]:
+    """Speed (m/s) at every outline point for one lap; pace is one number or one number per corner."""
     targets = []
     for i, kappa in enumerate(curvature):
         number = member[i]
         if number is not None:
             corner = profile.corners[number]
-            speed = pace * math.sqrt(g_scales[number]) * safe_speed_ms(corner.threshold_g, corner_radii[number])
+            corner_pace = pace[number] if isinstance(pace, list) else pace
+            speed = corner_pace * math.sqrt(g_scales[number]) * safe_speed_ms(corner.threshold_g, corner_radii[number])
         elif kappa > 1e-9:
             speed = min(cruise_ms, math.sqrt(UNMARKED_BEND_MAX_G * GRAVITY / kappa))
         else:
@@ -128,10 +132,11 @@ class ProfileSimulator:
     def __init__(self, profile: TrackProfile, pace_name: str = "safe",
                  cruise_kmh: float = DEFAULT_CRUISE_KMH, seed: Optional[int] = None):
         """Prepare curvature, corner membership and the random source (a seed makes runs repeatable)."""
-        if pace_name not in PACES:
-            raise ValueError(f"pace must be one of {sorted(PACES)}")
+        if pace_name not in PACES and pace_name != MIXED:
+            raise ValueError(f"pace must be one of {sorted(PACES) + [MIXED]}")
         self.profile = profile
-        self.pace = PACES[pace_name]
+        self.pace_name = pace_name
+        self.pace = PACES.get(pace_name, PACES["safe"])
         self.cruise_ms = cruise_kmh / 3.6
         self.rng = random.Random(seed)
         self.curvature = curvature_profile(profile.outline, profile.spacing_m)
@@ -145,11 +150,22 @@ class ProfileSimulator:
         gps = self.profile.gps
         return gps[self.current_index] if gps else None
 
+    def lap_paces(self, lap_number: int):
+        """The pace for this lap: one number, or for the mixed pace one number per corner."""
+        if self.pace_name != MIXED:
+            return self.pace
+        amber, red = MIXED_LAP_PATTERN[(lap_number - 1) % len(MIXED_LAP_PATTERN)]
+        paces = [PACES["safe"]] * len(self.profile.corners)
+        chosen = self.rng.sample(range(len(paces)), min(len(paces), amber + red))
+        for k, corner_number in enumerate(chosen):
+            paces[corner_number] = PACES["over"] if k < red else PACES["edge"]
+        return paces
+
     def lap_packets(self, lap_number: int):
         """Yield one telemetry packet every 0.2 s of simulated time for a full lap."""
         scales = [1.0 + self.rng.uniform(-VARIATION, VARIATION) for _ in self.profile.corners]
         speeds = speed_profile(self.profile, self.curvature, self.member, self.corner_radii,
-                               self.pace, self.cruise_ms, scales)
+                               self.lap_paces(lap_number), self.cruise_ms, scales)
         distance_m = 0.0
         while distance_m < self.total_m:
             i = min(int(distance_m / self.profile.spacing_m), len(speeds) - 1)

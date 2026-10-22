@@ -27,7 +27,7 @@ from tracks.outline_gps import write_schematic_gps_file
 from tracks.track_profile import ProfileError, write_track_profile
 
 DEMO_DEVICE_NAME = "Demo kart unit"
-PACES = ("safe", "edge", "over")
+PACES = ("safe", "edge", "over", "mixed")
 MIN_LAPS, MAX_LAPS = 1, 20
 
 
@@ -77,7 +77,7 @@ def parse_start_request(data) -> dict:
         raise DemoRunError(f"laps must be a whole number from {MIN_LAPS} to {MAX_LAPS}.")
     pace = data.get("pace", "safe")
     if not isinstance(pace, str) or pace not in PACES:
-        raise DemoRunError("pace must be safe, edge or over.")
+        raise DemoRunError("pace must be safe, edge, over or mixed.")
     return {"track": track, "driver": driver, "laps": laps, "pace": pace}
 
 
