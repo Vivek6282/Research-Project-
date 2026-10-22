@@ -27,6 +27,17 @@ from devices.models import Device
 User = get_user_model()
 
 
+def describe_profile(user) -> dict:
+    """The profile values an edit can change, for the audit trail."""
+    return {"name": user.name, "email": user.email, "role": user.role, "driver_code": user.driver_code}
+
+
+def changes_text(before: dict, after: dict) -> str:
+    """' (name: 'A' -> 'B'; driver_code: 'D1' -> 'D2')' for every value that changed, or '' when none did."""
+    changed = [f"{key}: {before[key]!r} -> {after[key]!r}" for key in before if before[key] != after[key]]
+    return f" ({'; '.join(changed)})" if changed else ""
+
+
 class UserListCreateView(generics.ListCreateAPIView):
     """
     GET /api/auth/users/ — list all user accounts (Admin only).
@@ -119,6 +130,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         Output: None.
         """
         was_previously_active = serializer.instance.is_active
+        before = describe_profile(serializer.instance)
         updated_user = serializer.save()
         acting_user = self.request.user if self.request.user and self.request.user.is_authenticated else None
 
@@ -131,7 +143,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
                 audit_details = f"Reactivated account for {updated_user.name}"
         else:
             audit_action = AuditLogEntry.Action.UPDATE_USER
-            audit_details = f"Updated profile information for {updated_user.name}"
+            audit_details = f"Updated profile information for {updated_user.name}{changes_text(before, describe_profile(updated_user))}"
 
         AuditLogEntry.objects.create(
             actor=acting_user,

@@ -28,6 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "username",
+            "driver_code",
             "email",
             "name",
             "role",
@@ -87,8 +88,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "name", "role", "password", "is_active"]
-        read_only_fields = ["id", "username"]
+        fields = ["id", "username", "driver_code", "email", "name", "role", "password", "is_active"]
+        read_only_fields = ["id", "username", "driver_code"]
 
     def validate_role(self, value):
         """
@@ -167,8 +168,10 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "name", "role", "is_active", "password"]
+        fields = ["id", "username", "driver_code", "email", "name", "role", "is_active", "password"]
         read_only_fields = ["id", "username"]
+        extra_kwargs = {"driver_code": {"required": False, "allow_null": True, "allow_blank": True,
+                                         "error_messages": {"unique": "That driver ID is already used by another driver."}}}
 
     def validate_role(self, value):
         """Prevent role escalation to admin via the API."""
@@ -194,6 +197,12 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
         if role == "coach" and email is not None and not email:
             raise serializers.ValidationError({"email": "Email address is required for Coach accounts."})
+
+        # Only drivers have a driver ID; an empty value asks for a fresh one
+        if attrs.get("driver_code") and role != "driver":
+            raise serializers.ValidationError({"driver_code": "Only drivers have a driver ID."})
+        if "driver_code" in attrs and not attrs["driver_code"]:
+            attrs["driver_code"] = None
 
         if role == "driver" and email == "":
             attrs["email"] = None

@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from driving_sessions.access import sessions_visible_to
+from driving_sessions.live_state import is_live_now
 from driving_sessions.models import Alert, Telemetry
 from driving_sessions.serializers import SessionSerializer
 from tracks.models import Zone
@@ -168,8 +169,6 @@ class RosterStatusView(APIView):
         else:
             authorized_drivers = []
 
-        live_window_seconds = getattr(settings, "DRIVER_LIVE_WINDOW_SECONDS", 30)
-
         roster_entries = []
         for driver in authorized_drivers:
             latest_session = visible_sessions.filter(driver=driver).order_by("-started_at").first()
@@ -200,11 +199,7 @@ class RosterStatusView(APIView):
                 else:
                     trajectory_stage = "nominal"
 
-                is_live = False
-                if latest_session.ended_at is None and latest_telemetry.recorded_at:
-                    time_diff = (timezone.now() - latest_telemetry.recorded_at).total_seconds()
-                    if -5.0 <= time_diff <= live_window_seconds:
-                        is_live = True
+                is_live = is_live_now(latest_session, latest_telemetry.recorded_at)
             else:
                 measured_current_g = None
                 active_zone_name = None
@@ -216,6 +211,7 @@ class RosterStatusView(APIView):
                 {
                     "driver_id": str(driver.id),
                     "driver_name": driver.name,
+                    "driver_code": driver.driver_code,
                     "is_active": driver.is_active,
                     "current_g": measured_current_g,
                     "active_zone": active_zone_name,

@@ -19,6 +19,7 @@ class SessionSerializer(serializers.ModelSerializer):
     """Read/write serializer for driving sessions with computed statistics."""
 
     driver_name = serializers.SerializerMethodField()
+    driver_code = serializers.SerializerMethodField()
     track_name = serializers.SerializerMethodField()
     alert_count = serializers.SerializerMethodField()
     default_suggested_threshold = serializers.ReadOnlyField()
@@ -31,19 +32,22 @@ class SessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Session
         fields = [
-            "id", "driver", "driver_name", "track", "track_name",
+            "id", "driver", "driver_name", "driver_code", "track", "track_name",
             "mode", "goal_text", "goal_passed", "kart_number",
             "started_at", "ended_at", "alert_count", "default_suggested_threshold",
             "duration", "kart", "laps", "best_lap", "max_g", "is_demo",
         ]
         read_only_fields = [
-            "id", "driver_name", "track_name", "alert_count",
+            "id", "driver_name", "driver_code", "track_name", "alert_count",
             "default_suggested_threshold", "duration", "kart",
             "laps", "best_lap", "max_g", "is_demo",
         ]
 
     def get_driver_name(self, obj):
         return obj.driver.name if obj.driver else None
+
+    def get_driver_code(self, obj):
+        return obj.driver.driver_code if obj.driver else None
 
     def get_track_name(self, obj):
         return obj.track.name if obj.track else None
