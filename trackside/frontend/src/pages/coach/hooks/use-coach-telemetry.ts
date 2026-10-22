@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import { DriverProfile } from "../types";
 import { useLiveReadings } from "./use-live-readings";
+import { READING_EVENT } from "../../../lib/bridge-serial";
 
 export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId: string | null) {
   const [currentSpeed, setCurrentSpeed] = useState<number | null>(null);
@@ -64,6 +65,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
             if (message.type === "telemetry_reading" && message.data) {
               const { speed_kmh, lateral_g, gps_lat, gps_lng, zone, lap_number } = message.data;
               applyReading(message.data);
+              window.dispatchEvent(new CustomEvent(READING_EVENT, { detail: message.data })); // the bridge forwards the stage to the glove
               if (typeof lap_number === "number") setCurrentLap(lap_number);
               setCurrentZoneId(typeof zone === "string" ? zone : null);
               if (typeof speed_kmh === "number") {

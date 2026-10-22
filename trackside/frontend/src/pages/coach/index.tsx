@@ -15,6 +15,8 @@
 import { TopBar } from "../../components/shell/top-bar";
 import { LiveTrackView } from "../../components/ui/live-track-view";
 import { LiveReadoutsBar } from "./components/live-readouts-bar";
+import { BridgeChip } from "./components/bridge-chip";
+import { BridgeProvider } from "../../lib/use-bridge";
 import { LiveTrackExtras } from "./components/live-track-extras";
 import { liveStage } from "../../components/ui/live-stage";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
@@ -31,7 +33,16 @@ import { MapsDemoTab } from "./components/maps-demo-tab";
 /**
  * Renders the pit-wall coach console with live telemetry, timing tower, and historical archives.
  */
+/** The coach page, with the bridge connection shared by all its tabs. */
 export function CoachDashboard() {
+  return (
+    <BridgeProvider>
+      <CoachDashboardView />
+    </BridgeProvider>
+  );
+}
+
+function CoachDashboardView() {
   const {
     activeTab, setActiveTab,
     drivers, driversError, retryLoadDrivers, selectedDriverId, setSelectedDriverId, selectedDriver, selectedDriverTrack,
@@ -90,6 +101,7 @@ export function CoachDashboard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-mono">
+            <BridgeChip />
             {wsStatus === "connected" ? (
               <span className="flex items-center gap-1.5 text-[10px] text-[#33D17E] bg-[#33D17E]/10 border border-[#33D17E]/30 px-2 py-0.5 rounded-[2px] font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#33D17E] animate-pulse" />
