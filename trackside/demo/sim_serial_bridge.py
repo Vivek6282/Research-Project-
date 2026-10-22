@@ -12,7 +12,7 @@ try:
 except ImportError:
     HAS_SERIAL = False
 
-from sim_port_finder import find_bridge_port, is_auto
+from sim_port_finder import find_bridge_port, is_auto, probe_all_ports
 
 
 def send_to_bridge(serial_connection, lateral_g_force, warning_stage=None):
@@ -81,3 +81,23 @@ def connect_serial_bridge(port_name, baud_rate):
         print(f"  [i] {configured} is the {verdict_of(result.found, configured)}; "
               f"the bridge was found on {result.port}. Using {result.port}.")
     return open_bridge(result.port, baud_rate)
+
+
+def list_ports_and_exit(baud_rate):
+    """Print a table of every serial port (name, description, VID:PID, serial number, verdict), then exit with code 0."""
+    if not HAS_SERIAL:
+        print("  [!] 'pyserial' not installed. Run: pip install pyserial")
+        raise SystemExit(0)
+    rows = probe_all_ports(baud_rate)
+    if not rows:
+        print("No serial ports found.")
+        raise SystemExit(0)
+    headers = ("PORT", "DESCRIPTION", "VID:PID", "SERIAL NUMBER", "VERDICT")
+    cells = [(r["port"], r["description"] or "-", r["vid_pid"] or "-", r["serial_number"] or "-", r["verdict"]) for r in rows]
+    widths = [max(len(str(line[i])) for line in [headers] + cells) for i in range(len(headers))]
+    for line in [headers] + cells:
+        print("  ".join(str(value).ljust(widths[i]) for i, value in enumerate(line)).rstrip())
+    print()
+    for r in rows:
+        print(f"{r['port']}: {r['verdict']} - {r['detail']}")
+    raise SystemExit(0)

@@ -44,10 +44,7 @@ from sim_websocket_server import (
     set_active_zones,
     start_websocket_server,
 )
-from sim_serial_bridge import (
-    connect_serial_bridge,
-    send_to_bridge,
-)
+from sim_serial_bridge import connect_serial_bridge, list_ports_and_exit, send_to_bridge
 from sim_gps import gps_for_reading, load_gps_or_exit
 from sim_profile import ProfileLoadError, load_profile
 from sim_physics import DEFAULT_CRUISE_KMH, PACES, ProfileSimulator
@@ -144,6 +141,7 @@ def main():
     cli_parser = argparse.ArgumentParser(description="Trackside Virtual Lap Simulator with Live WebSocket Telemetry")
     cli_parser.add_argument("--create-session", action="store_true", help="Automatically create a new session before running")
     cli_parser.add_argument("--admin-token", type=str, help="Admin or Coach JWT Token for creating sessions")
+    cli_parser.add_argument("--list-ports", action="store_true", help="Print every serial port with what it is (bridge, glove, ...) and exit")
     cli_parser.add_argument("--dry-run", action="store_true", help="Skip connecting to Serial Port entirely")
     cli_parser.add_argument("--laps", type=int, default=NUM_LAPS, help=f"Number of laps to run (default: {NUM_LAPS}, 0 for continuous)")
     cli_parser.add_argument("--continuous", action="store_true", help="Run laps continuously until stopped with Ctrl+C")
@@ -158,6 +156,8 @@ def main():
     cli_parser.add_argument("--seed", type=int, default=None, help="Random seed so a --track-file run repeats exactly")
     cli_parser.add_argument("--cruise-kmh", type=float, default=None, help=f"Straight-line speed for --track-file runs (default {DEFAULT_CRUISE_KMH:.0f})")
     cli_args = cli_parser.parse_args()
+    if cli_args.list_ports:
+        list_ports_and_exit(SERIAL_BAUD)  # no simulation, no network, no backend
 
     if not cli_args.track_file and any(v is not None for v in (cli_args.pace, cli_args.seed, cli_args.cruise_kmh)):
         cli_parser.error("--pace, --seed and --cruise-kmh only work together with --track-file.")
