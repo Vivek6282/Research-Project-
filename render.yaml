@@ -28,6 +28,10 @@ services:
       # Render adds the service's own *.onrender.com host automatically; localhost is kept for health checks
       - key: ALLOWED_HOSTS
         value: localhost,127.0.0.1
+      # One finished sample (DEMO) session so the hosted site has something to show. Remove or set to
+      # "false" to stop adding it (delete the "Sample Driver" in the Admin screen to remove it).
+      - key: SEED_SAMPLE_DATA
+        value: "true"
       # The first admin (see RENDER.md). Remove ADMIN_PASSWORD after your first login.
       - key: ADMIN_EMAIL
         sync: false

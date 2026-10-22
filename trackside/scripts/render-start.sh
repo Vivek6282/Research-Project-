@@ -11,4 +11,11 @@ if [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
     python manage.py seed_admin
 fi
 
+# Sample data: when SEED_SAMPLE_DATA=true, add one finished sample (DEMO) session so the hosted site has
+# something to show. Safe on every start (it does nothing when the sample already exists); a failure never
+# stops the server.
+if [ "${SEED_SAMPLE_DATA:-}" = "true" ]; then
+    python manage.py seed_sample_data || echo "seed_sample_data failed (continuing without sample data)."
+fi
+
 exec daphne -b 0.0.0.0 -p "${PORT:-10000}" config.asgi:application

@@ -27,6 +27,16 @@ This is the easy, free way to show the dashboards. The server setup in `DEPLOYME
    * the login page opens and a deep link like `/coach` reloads without an error
    * in the Admin screen, create a Coach and a Driver
 
+## Sample data (so the dashboards are not empty)
+
+The hosted site has no live data on its own: a session only exists when a device or a demo posts readings. With `SEED_SAMPLE_DATA=true` in the service's **Environment** (the Blueprint sets it), the first start adds one finished **sample session**, clearly labelled **DEMO RUN**:
+
+* a driver called **Sample Driver** (it has no login; nobody can sign in as it)
+* the built-in **Demo Circuit**, 5 laps (240 readings) and the 9 alerts they cause (amber and red)
+* it fills the Coach **Historical** tab, the Timing Tower, the track view and **Corner Deltas**; the live feed still shows offline because nothing is running right now
+
+It never runs twice. To remove it: open the Admin screen, **Delete** the "Sample Driver" (its session goes with it), and set `SEED_SAMPLE_DATA` to `false` in Environment so it is not added again. If you did not use the Blueprint, add `SEED_SAMPLE_DATA` = `true` in Environment by hand and redeploy.
+
 ## If something goes wrong
 
 * **Build fails:** open the service's **Logs** tab and send me the last 30 lines. Never paste a password or a `SECRET_KEY`.
