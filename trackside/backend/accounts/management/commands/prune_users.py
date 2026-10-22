@@ -17,6 +17,7 @@ Examples:
     python manage.py prune_users                       # dry run, unused users
     python manage.py prune_users --name-contains test  # dry run, names with "test"
     python manage.py prune_users --keep a@x.com --apply
+    python manage.py prune_users --role driver --include-with-data --keep-name "Marco Ferrati" --keep-code D17257
 """
 
 from datetime import datetime
@@ -24,6 +25,7 @@ from datetime import datetime
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
 from accounts.models import AuditLogEntry
@@ -45,14 +47,20 @@ class Command(BaseCommand):
         parser.add_argument("--created-before", help="Only users created before this date (YYYY-MM-DD).")
         parser.add_argument("--keep", action="append", default=[],
                             help="Email or username to protect from deletion (repeatable).")
+        parser.add_argument("--keep-name", action="append", default=[],
+                            help="Full name of a user to protect (repeatable; ignores case and surrounding spaces). "
+                                 "Must match exactly one user.")
+        parser.add_argument("--keep-code", action="append", default=[],
+                            help="Driver ID (e.g. D17256) of a user to protect (repeatable). Must match exactly one user.")
         parser.add_argument("--include-with-data", action="store_true",
                             help="Also delete users that have sessions/notes/devices (their sessions go too).")
         parser.add_argument("--apply", action="store_true", help="Really delete. Without this it is a dry run.")
         parser.add_argument("--yes", action="store_true", help="Skip the confirmation question when applying.")
 
     def handle(self, *args, **options):
-        candidates = self.find_candidates(options)
-        self.print_report(candidates)
+        protected = self.find_protected_users(options)
+        candidates = [user for user in self.find_candidates(options) if user.pk not in {p.pk for p in protected}]
+        self.print_report(protected, candidates)
 
         if not candidates:
             self.stdout.write("Nothing to delete.")
@@ -67,6 +75,24 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Deleted {len(candidates)} users."))
 
     # ---------- choosing who to delete ----------
+
+    def find_protected_users(self, options):
+        """The users named by --keep-name and --keep-code; stops with an error when any one matches zero or several users."""
+        protected = []
+        for text in options["keep_name"]:
+            matches = list(User.objects.annotate(clean_name=Lower(Trim("name"))).filter(clean_name=text.strip().lower()))
+            protected.append(self.exactly_one(matches, f"--keep-name '{text}'"))
+        for text in options["keep_code"]:
+            matches = list(User.objects.filter(driver_code__iexact=text.strip()))
+            protected.append(self.exactly_one(matches, f"--keep-code '{text}'"))
+        return protected
+
+    @staticmethod
+    def exactly_one(matches, label):
+        """The one matching user, or a clear error (nothing is deleted) when there are none or several."""
+        if len(matches) != 1:
+            raise CommandError(f"{label} matched {len(matches)} users; it must match exactly one. Nothing was deleted.")
+        return matches[0]
 
     def find_candidates(self, options):
         """Apply every filter and return the users that would be deleted."""
@@ -125,12 +151,17 @@ class Command(BaseCommand):
 
     # ---------- reporting and deleting ----------
 
-    def print_report(self, candidates):
-        """Show the people that matched, with what would be lost with each."""
-        self.stdout.write(f"{len(candidates)} user(s) matched:")
+    def print_report(self, protected, candidates):
+        """Show KEEPING (the protected users) first, then DELETING with what would be lost with each user."""
+        self.stdout.write(f"KEEPING ({len(protected)}):")
+        for user in protected:
+            self.stdout.write(f"  {user.role:<7} {user.name} [{user.driver_code or '-'}] <{user.email or user.username}>")
+        self.stdout.write(f"DELETING ({len(candidates)}):")
         for user in candidates:
             attached = self.describe_data(user) or "no data"
-            self.stdout.write(f"  {user.role:<7} {user.name} <{user.email or user.username}> active={user.is_active} ({attached})")
+            self.stdout.write(
+                f"  {user.role:<7} {user.name} [{user.driver_code or '-'}] <{user.email or user.username}> "
+                f"active={user.is_active} ({attached})")
 
     @transaction.atomic
     def delete_users(self, candidates):
