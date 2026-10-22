@@ -33,57 +33,16 @@ import { MapsDemoTab } from "./components/maps-demo-tab";
  */
 export function CoachDashboard() {
   const {
-    activeTab,
-    setActiveTab,
-    drivers,
-    driversError,
-    retryLoadDrivers,
-    selectedDriverId,
-    setSelectedDriverId,
-    selectedDriver,
-    selectedDriverTrack,
-    thresholds,
-    setThresholds,
-    currentThreshold,
-    sliderMin,
-    sliderMax,
-    currentZoneObj,
-    historicalSessions,
-    sessionsError,
-    retryLoadSessions,
-    activeTrackId,
-    zones,
-    selectedZoneId,
-    setSelectedZoneId,
-    isCreatingZone,
-    setIsCreatingZone,
-    newZoneName,
-    setNewZoneName,
-    newCornerType,
-    setNewCornerType,
-    isSavingZone,
-    handleZoneSelectChange,
-    handleCreateZone,
-    notes,
-    noteError,
-    newNoteText,
-    setNewNoteText,
-    handleAddNote,
-    rosterMap,
-    currentSpeed,
-    currentGForce,
-    currentGpsLat,
-    currentGpsLng,
-    currentZoneId,
-    currentLap,
-    currentLimit,
-    currentZoneLabel,
-    currentCornerType,
-    isStraight,
-    gWindow,
-    activeSessionId,
-    wsStatus,
-    actualSpeedPath,
+    activeTab, setActiveTab,
+    drivers, driversError, retryLoadDrivers, selectedDriverId, setSelectedDriverId, selectedDriver, selectedDriverTrack,
+    thresholds, setThresholds, currentThreshold, sliderMin, sliderMax, currentZoneObj,
+    historicalSessions, sessionsError, retryLoadSessions, activeTrackId, activeSessionId, rosterMap,
+    zones, selectedZoneId, setSelectedZoneId, isCreatingZone, setIsCreatingZone, newZoneName, setNewZoneName,
+    newCornerType, setNewCornerType, isSavingZone, handleZoneSelectChange, handleCreateZone,
+    notes, noteError, newNoteText, setNewNoteText, handleAddNote,
+    currentSpeed, currentGForce, currentGpsLat, currentGpsLng, currentZoneId, currentLap,
+    currentLimit, currentZoneLabel, currentCornerType, isStraight, gWindow, alertLog, clearAlerts,
+    wsStatus, actualSpeedPath,
   } = useCoachDashboard();
 
   return (
@@ -198,6 +157,8 @@ export function CoachDashboard() {
                 <LiveTrackExtras
                   gWindow={gWindow}
                   limit={currentLimit}
+                  alertLog={alertLog}
+                  onClearAlerts={clearAlerts}
                   stageColor={liveStage(currentGForce, currentLimit ?? currentThreshold, isStraight).color}
                 />
               </LiveTrackView>
