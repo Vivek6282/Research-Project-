@@ -11,6 +11,17 @@ from rest_framework import serializers
 User = get_user_model()
 
 
+def check_email_is_free(value, current_user=None):
+    """Reject an email another account already uses (ignoring case) with a clear message instead of a server error."""
+    if value:
+        taken = User.objects.filter(email__iexact=value.strip())
+        if current_user is not None:
+            taken = taken.exclude(pk=current_user.pk)
+        if taken.exists():
+            raise serializers.ValidationError("An account with this email already exists.")
+    return value
+
+
 class UserSerializer(serializers.ModelSerializer):
     """
     Read-only serializer for user data returned in API responses.
@@ -90,6 +101,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id", "username", "driver_code", "email", "name", "role", "password", "is_active"]
         read_only_fields = ["id", "username", "driver_code"]
+
+    def validate_email(self, value):
+        """The email must not belong to another account."""
+        return check_email_is_free(value)
 
     def validate_role(self, value):
         """
@@ -172,6 +187,10 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "username"]
         extra_kwargs = {"driver_code": {"required": False, "allow_null": True, "allow_blank": True,
                                          "error_messages": {"unique": "That driver ID is already used by another driver."}}}
+
+    def validate_email(self, value):
+        """The email must not belong to another account."""
+        return check_email_is_free(value, self.instance)
 
     def validate_role(self, value):
         """Prevent role escalation to admin via the API."""
