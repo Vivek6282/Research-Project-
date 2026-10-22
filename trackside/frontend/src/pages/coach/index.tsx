@@ -14,6 +14,7 @@
 
 import { TopBar } from "../../components/shell/top-bar";
 import { LiveTrackView } from "../../components/ui/live-track-view";
+import { LiveReadoutsBar } from "./components/live-readouts-bar";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { useCoachDashboard } from "./hooks/use-coach-dashboard";
 import { LiveTrajectoryPanel } from "./components/live-trajectory-panel";
@@ -73,6 +74,10 @@ export function CoachDashboard() {
     currentGpsLng,
     currentZoneId,
     currentLap,
+    currentLimit,
+    currentZoneLabel,
+    currentCornerType,
+    isStraight,
     activeSessionId,
     wsStatus,
     actualSpeedPath,
@@ -160,7 +165,8 @@ export function CoachDashboard() {
               <LiveTrajectoryPanel
                 selectedDriver={selectedDriver}
                 currentGForce={currentGForce}
-                currentThreshold={currentThreshold}
+                currentThreshold={currentLimit ?? currentThreshold}
+                isStraight={isStraight}
                 currentSpeed={currentSpeed}
                 actualSpeedPath={actualSpeedPath}
               />
@@ -171,8 +177,20 @@ export function CoachDashboard() {
                 gpsLat={currentGpsLat}
                 gpsLng={currentGpsLng}
                 currentG={currentGForce}
-                threshold={currentThreshold}
+                threshold={currentLimit ?? currentThreshold}
                 zoneId={currentZoneId}
+                isStraight={isStraight}
+                readouts={
+                  <LiveReadoutsBar
+                    currentLap={currentLap}
+                    zoneLabel={currentZoneLabel}
+                    cornerType={currentCornerType}
+                    isStraight={isStraight}
+                    currentG={currentGForce}
+                    currentLimit={currentLimit}
+                    currentSpeed={currentSpeed}
+                  />
+                }
               />
 
               {/* BIOMETRICS 3-Card Row */}

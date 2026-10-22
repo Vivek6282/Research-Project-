@@ -12,9 +12,9 @@
  * placeholder state is shown instead of a broken/empty map.
  */
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, ReactNode } from "react";
 import { api } from "../../lib/api";
-import { getTrajectoryStage } from "./signal-strip";
+import { liveStage } from "./live-stage";
 import {
   GpsPoint,
   gpsToSvgPoints,
@@ -34,6 +34,9 @@ interface LiveTrackViewProps {
   currentG: number | null;
   threshold: number;
   zoneId?: string | null;
+  isStraight?: boolean;
+  readouts?: ReactNode;
+  children?: ReactNode;
 }
 
 export function LiveTrackView({
@@ -43,6 +46,9 @@ export function LiveTrackView({
   currentG,
   threshold,
   zoneId = null,
+  isStraight = false,
+  readouts,
+  children,
 }: LiveTrackViewProps) {
   const [referenceLine, setReferenceLine] = useState<GpsPoint[] | null>(null);
   const [isSchematic, setIsSchematic] = useState(false);
@@ -129,7 +135,7 @@ export function LiveTrackView({
   }, [svgData, gpsLat, gpsLng]);
 
   // Get trajectory stage for dot coloring
-  const stageDetails = getTrajectoryStage(currentG ?? 0, threshold);
+  const stageDetails = liveStage(currentG ?? 0, threshold, isStraight);
 
   /* ─── Fallbacks ─── */
   if (!trackId) {
@@ -188,6 +194,8 @@ export function LiveTrackView({
         </div>
       </div>
 
+      {readouts}
+
       {/* SVG Track Map */}
       <TrackCanvas
         trackPathD={trackPathD}
@@ -198,6 +206,7 @@ export function LiveTrackView({
         cornerSegments={cornerSegments}
         activeZoneId={zoneId}
       />
+      {children}
     </div>
   );
 }

@@ -10,6 +10,7 @@ interface LiveTrajectoryPanelProps {
   selectedDriver: DriverProfile;
   currentGForce: number | null;
   currentThreshold: number | null;
+  isStraight?: boolean;
   currentSpeed: number | null;
   actualSpeedPath: number[];
 }
@@ -21,6 +22,7 @@ export function LiveTrajectoryPanel({
   selectedDriver,
   currentGForce,
   currentThreshold,
+  isStraight = false,
   currentSpeed,
   actualSpeedPath,
 }: LiveTrajectoryPanelProps) {
@@ -52,7 +54,8 @@ export function LiveTrajectoryPanel({
         {/* Live Signal Indicator & Stage Label */}
         <SignalStrip
           testId="coach-signal-strip"
-          currentG={currentGForce !== null ? currentGForce : undefined}
+          currentG={currentGForce !== null && !isStraight ? currentGForce : undefined}
+          stage={isStraight && currentGForce !== null ? "nominal" : undefined}
           threshold={currentThreshold ?? undefined}
           size="md"
           showLabel={true}
