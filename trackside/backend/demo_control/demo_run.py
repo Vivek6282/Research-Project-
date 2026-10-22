@@ -15,6 +15,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from demo_control import simulator
+from demo_control.simulator import is_hosted_demo_enabled, is_production_environment
 from devices.models import Device
 from devices.serializers import DeviceSerializer
 from driving_sessions.models import Session
@@ -164,6 +165,8 @@ def start_demo_run(request) -> dict:
         except ProfileError as error:
             raise DemoRunError(str(error))
         extra_args = ["--laps", str(laps), "--track-file", profile_path, "--pace", pace] + POST_BATCH_ARGS
+    if is_production_environment() and is_hosted_demo_enabled():
+        extra_args.append("--dry-run")  # a hosted server has no bridge: the Coach's browser forwards the stages to it
     zones = zone_map_for(track)
     if not zones:
         raise DemoRunError("This map has no corners yet. Open 'Edit corners' and add some first.")

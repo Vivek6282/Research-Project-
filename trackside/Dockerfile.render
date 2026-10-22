@@ -3,15 +3,16 @@
 # (The multi-container server setup uses Dockerfile + docker-compose.yml instead.)
 
 # ---------------------------------------------------------------------------
-# Stage 1: build the frontend (the demo controls are never part of a hosted build)
+# Stage 1: build the frontend (with the demo controls: this hosted site runs the Play demo itself)
 # ---------------------------------------------------------------------------
 FROM node:22-alpine AS frontend
 
 WORKDIR /build/frontend
+ARG VITE_ENABLE_DEMO_TOOLS=true
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN VITE_ENABLE_DEMO_TOOLS=false npm run build
+RUN VITE_ENABLE_DEMO_TOOLS=${VITE_ENABLE_DEMO_TOOLS} npm run build
 
 # ---------------------------------------------------------------------------
 # Stage 2: backend that also serves the built website
@@ -31,6 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
+# The Play demo runs the virtual lap simulator on this server (HOSTED_DEMO_ENABLED=true); it lives in /demo
+COPY demo/ /demo/
+RUN pip install --no-cache-dir -r /demo/requirements.txt
+
 COPY backend/ /app/
 COPY --from=frontend /build/frontend/dist /app/frontend_dist
 COPY scripts/backend-entrypoint.sh scripts/render-start.sh /usr/local/bin/
@@ -39,7 +44,7 @@ RUN chmod 0755 /usr/local/bin/backend-entrypoint.sh /usr/local/bin/render-start.
 # The backend serves the website from this folder
 ENV FRONTEND_DIST=/app/frontend_dist
 
-RUN useradd --system --no-create-home --uid 10001 trackside && chown -R trackside:trackside /app
+RUN useradd --system --no-create-home --uid 10001 trackside && chown -R trackside:trackside /app /demo
 USER trackside
 
 # Checks the settings, waits for the database, migrates, then starts the server (Render sets PORT)

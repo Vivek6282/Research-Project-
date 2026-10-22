@@ -7,9 +7,11 @@ prepares (session, device, token, profile, command line, environment) and cleans
 
 import json
 import os
+from unittest.mock import patch
 
 from accounts.models import AuditLogEntry
 from demo_control.demo_run import DEMO_DEVICE_NAME
+from demo_control.simulator import reset_state_for_testing
 from demo_control.tests.demo_run_base import START, DemoRunBase
 from devices.models import Device
 from driving_sessions.models import Session
@@ -99,6 +101,21 @@ class TestStartBuiltin(DemoRunBase):
         self.assertEqual(set(json.loads(kwargs["env"]["DEMO_ZONES"])), {"Hairpin", "Sweeper", "Chicane"})
         self.assertFalse(response.data["pace_applied"])
         self.assertFalse(os.path.exists(os.path.join(self.profile_dir, f"{demo.id}.json")))
+
+
+class TestHostedRun(DemoRunBase):
+    """On a hosted server the run has no serial port (the browser forwards the stages to the bridge)."""
+
+    def test_hosted_production_run_adds_dry_run_and_a_local_run_does_not(self):
+        """HOSTED_DEMO_ENABLED + production: argv ends with --dry-run; a normal local run has no --dry-run."""
+        demo = ensure_demo_circuit()
+        body = {"track_id": str(demo.id), "driver_id": str(self.ana.id), "laps": 1}
+        with patch.dict(os.environ, {"HOSTED_DEMO_ENABLED": "true", "DJANGO_ENV": "production"}):
+            self.assertEqual(self.client.post(START, body, format="json").status_code, 200)
+        self.assertIn("--dry-run", self.popen_mock.call_args[0][0])
+        reset_state_for_testing()  # the fake process never ends by itself
+        self.assertEqual(self.client.post(START, body, format="json").status_code, 200)
+        self.assertNotIn("--dry-run", self.popen_mock.call_args[0][0])
 
 
 class TestValidation(DemoRunBase):

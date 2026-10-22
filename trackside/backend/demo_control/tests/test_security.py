@@ -56,6 +56,19 @@ class DemoControlSecurityTests(APITestCase):
         with patch.dict(os.environ, {"DEMO_TOOLS_ENABLED": "true", "DJANGO_ENV": "production"}):
             self.assertEqual(self.all_three(), (403, 403, 403))
 
+    def test_hosted_switch_lets_a_coach_use_the_demo_in_production_only_when_set(self):
+        """HOSTED_DEMO_ENABLED=true allows the coach in production (and no one else); without it production stays refused."""
+        hosted = {"HOSTED_DEMO_ENABLED": "true", "DJANGO_ENV": "production"}
+        self.client.force_authenticate(self.coach)
+        with patch.dict(os.environ, hosted):
+            self.assertEqual(self.client.get(STATUS).status_code, 200)
+        with patch.dict(os.environ, {"DEMO_TOOLS_ENABLED": "true", "DJANGO_ENV": "production", "HOSTED_DEMO_ENABLED": "false"}):
+            self.assertEqual(self.client.get(STATUS).status_code, 403)
+        for user in (self.admin, self.driver):
+            self.client.force_authenticate(user)
+            with patch.dict(os.environ, hosted):
+                self.assertEqual(self.client.get(STATUS).status_code, 403)
+
     def test_rule_3_anonymous_request_rejected(self):
         """Anonymous callers get 401 or 403."""
         with patch.dict(os.environ, DEV):

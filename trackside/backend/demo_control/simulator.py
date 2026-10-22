@@ -46,10 +46,15 @@ def is_simulator_running():
         return _process is not None and _process.poll() is None
 
 
+def is_hosted_demo_enabled():
+    """Returns True if HOSTED_DEMO_ENABLED is explicitly true: lets a hosted (production) server run the Play demo."""
+    return os.getenv("HOSTED_DEMO_ENABLED", "false").strip().lower() in ("true", "1", "yes")
+
+
 def is_demo_tools_enabled():
-    """Returns True if DEMO_TOOLS_ENABLED environment variable is explicitly set to true."""
+    """Returns True if DEMO_TOOLS_ENABLED (or the hosted switch HOSTED_DEMO_ENABLED) is explicitly set to true."""
     val = os.getenv("DEMO_TOOLS_ENABLED", "false")
-    return val.strip().lower() in ("true", "1", "yes")
+    return val.strip().lower() in ("true", "1", "yes") or is_hosted_demo_enabled()
 
 
 def is_production_environment():

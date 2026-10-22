@@ -8,7 +8,7 @@ Endpoints:
 
 Enforces security rules:
 1. 404 when DEMO_TOOLS_ENABLED is not 'true'.
-2. 403 when DJANGO_ENV is 'production'.
+2. 403 when DJANGO_ENV is 'production' (unless HOSTED_DEMO_ENABLED=true: a hosted server then runs the demo itself).
 3. 403 for non-coach roles, 401 for unauthenticated.
 4. Fixed command execution (no shell); laps must be an integer 1..20, pace one of three words.
 5. 409 if already running, stop is idempotent.
@@ -26,7 +26,7 @@ from rest_framework.views import APIView
 
 from accounts.models import AuditLogEntry
 from demo_control.demo_run import DemoRunError, current_status, start_demo_run, stop_demo_run
-from demo_control.simulator import is_demo_tools_enabled, is_production_environment
+from demo_control.simulator import is_demo_tools_enabled, is_hosted_demo_enabled, is_production_environment
 
 
 class BaseDemoControlView(APIView):
@@ -43,8 +43,8 @@ class BaseDemoControlView(APIView):
         if not is_demo_tools_enabled():
             raise Http404("Demo tools are disabled on this server.")
 
-        # Rule 2: Refuse (403) when DJANGO_ENV=production.
-        if is_production_environment():
+        # Rule 2: Refuse (403) when DJANGO_ENV=production, unless the hosted switch HOSTED_DEMO_ENABLED is on.
+        if is_production_environment() and not is_hosted_demo_enabled():
             raise PermissionDenied("Demo tools are disabled in production environment.")
 
         # Standard authentication

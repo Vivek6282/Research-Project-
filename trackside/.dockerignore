@@ -16,5 +16,8 @@ backend/demo_profiles
 backups
 e2e
 firmware
-demo
+demo/.env
+demo/.last_bridge_port
+demo/tests
+demo/.pytest_cache
 scratch

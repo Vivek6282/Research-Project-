@@ -28,6 +28,10 @@ services:
       # Render adds the service's own *.onrender.com host automatically; localhost is kept for health checks
       - key: ALLOWED_HOSTS
         value: localhost,127.0.0.1
+      # Lets this hosted server run the Play demo itself (Coach only). The Coach's browser forwards the
+      # stages to the bridge (Connect bridge). Set to "false" to switch the hosted demo off.
+      - key: HOSTED_DEMO_ENABLED
+        value: "true"
       # One finished sample (DEMO) session so the hosted site has something to show. Remove or set to
       # "false" to stop adding it (delete the "Sample Driver" in the Admin screen to remove it).
       - key: SEED_SAMPLE_DATA
