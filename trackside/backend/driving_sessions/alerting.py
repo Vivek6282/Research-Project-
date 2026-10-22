@@ -13,7 +13,7 @@ from channels.layers import get_channel_layer
 
 from driving_sessions.models import Session, Telemetry, Alert
 from tracks.models import Zone
-from drivers.limits import driver_limits_for_zones
+from drivers.limits import limit_in_force
 
 User = get_user_model()
 
@@ -41,8 +41,8 @@ def process_telemetry_alerts(session: Session, new_readings: List[Telemetry]) ->
 
     Alert rules:
     - Stage evaluation: stage_for(g, threshold) (82% rule).
-    - Threshold: driver's newest DriverZoneThreshold for that zone (newest wins),
-      otherwise zone.threshold_g.
+    - Threshold: the zone's own limit, zone.threshold_g (set on the map; per-driver limits
+      are no longer used). Alert.threshold_applied is that limit at the time.
     - No zone (straight): no alert, and the alerting state resets.
     - ONE alert per crossing: create an Alert when the stage rises compared with
       the previous reading of the same session. amber -> red creates a new red alert.
@@ -80,16 +80,13 @@ def process_telemetry_alerts(session: Session, new_readings: List[Telemetry]) ->
         for z in Zone.objects.filter(id__in=zone_ids):
             zones_map[z.id] = z
 
-    # The driver's own newest limits (the shared rule in drivers/limits.py)
-    thresholds_map: Dict[str, float] = driver_limits_for_zones(session.driver_id, zone_ids)
+    # Each zone's limit in force (the corner's own limit; see drivers/limits.py)
+    thresholds_map: Dict[str, float] = {zid: limit_in_force(session.driver_id, z) for zid, z in zones_map.items()}
 
     def get_effective_threshold(zone_id) -> Optional[float]:
         if not zone_id:
             return None
-        if zone_id in thresholds_map:
-            return thresholds_map[zone_id]
-        zone = zones_map.get(zone_id)
-        return zone.threshold_g if zone else None
+        return thresholds_map.get(zone_id)
 
     # 4. Determine initial prev_stage and prev_zone_id from latest_stored reading
     prev_zone_id: Optional[str] = None

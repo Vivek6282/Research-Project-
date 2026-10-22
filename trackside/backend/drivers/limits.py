@@ -1,8 +1,9 @@
 """
-Trackside — The limit in force for a driver in a zone.
+Trackside — The limit in force in a zone.
 
-One rule used by alerting and by the demo run: the driver's newest
-DriverZoneThreshold (newest updated_at wins), otherwise the zone's own default.
+The map is the only place that sets g-force limits: a corner's limit is zone.threshold_g
+(edited on the Maps screen) and applies to everyone who drives it. Old per-driver rows
+(DriverZoneThreshold) are kept as history and ignored.
 """
 
 from typing import Dict, Iterable, Optional
@@ -20,6 +21,5 @@ def driver_limits_for_zones(driver_id, zone_ids: Iterable) -> Dict:
 
 
 def limit_in_force(driver_id, zone) -> Optional[float]:
-    """The limit in force for this driver and zone: the driver's newest own limit, else zone.threshold_g."""
-    own = driver_limits_for_zones(driver_id, [zone.id])
-    return own.get(zone.id, zone.threshold_g)
+    """The limit in force in this zone: the corner's own limit, zone.threshold_g. driver_id is ignored (kept so callers do not break)."""
+    return zone.threshold_g
