@@ -16,6 +16,8 @@ interface UserMobileCardsProps {
   setEditName: (v: string) => void;
   editEmail: string;
   setEditEmail: (v: string) => void;
+  editCode: string;
+  setEditCode: (v: string) => void;
   editError: string;
   startEdit: (u: UserRecord) => void;
   handleSaveEdit: () => void;
@@ -32,6 +34,8 @@ export function UserMobileCards({
   setEditName,
   editEmail,
   setEditEmail,
+  editCode,
+  setEditCode,
   editError,
   startEdit,
   handleSaveEdit,
@@ -68,6 +72,19 @@ export function UserMobileCards({
                   className="w-full px-3 py-2 rounded text-xs bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
                 />
               </div>
+              {u.role === "driver" && (
+                <div>
+                  <label className="text-[10px] text-[#7C8898] block mb-1">DRIVER ID</label>
+                  <input
+                    data-testid="admin-edit-code-input"
+                    value={editCode}
+                    onChange={(e) => setEditCode(e.target.value)}
+                    placeholder="D17256"
+                    maxLength={6}
+                    className="w-full px-3 py-2 rounded text-xs bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
+                  />
+                </div>
+              )}
               <div>
                 <label className="text-[10px] text-[#7C8898] block mb-1">EMAIL ADDRESS</label>
                 <input

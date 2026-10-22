@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../../../lib/api";
+import { useUserEditing } from "./use-user-editing";
 import {
   UserRecord,
   DeviceRecord,
@@ -36,12 +37,6 @@ export function useAdminDashboard() {
   const [errorMsg, setErrorMsg] = useState("");
   const [copied, setCopied] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
-
-  // Editing state
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editError, setEditError] = useState("");
 
   // Confirmation modal
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState>({
@@ -77,6 +72,8 @@ export function useAdminDashboard() {
       console.warn("[useAdminDashboard] diagnostics fetch error:", err);
     }
   }, []);
+
+  const editing = useUserEditing(users, setUsers, fetchAuditAndDiagnostics);
 
   const refreshDevices = useCallback(async () => {
     try {
@@ -195,46 +192,6 @@ export function useAdminDashboard() {
     }
   };
 
-  const startEdit = (u: UserRecord) => {
-    setEditingUserId(u.id);
-    setEditName(u.name);
-    setEditEmail(u.email || "");
-    setEditError("");
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingUserId) return;
-    setEditError("");
-
-    if (!editName.trim()) {
-      setEditError("Name cannot be empty.");
-      return;
-    }
-
-    const currentUser = users.find((u) => u.id === editingUserId);
-    if (currentUser?.role === "coach" && !editEmail.trim()) {
-      setEditError("Email address is required for Coach accounts.");
-      return;
-    }
-
-    try {
-      const updated = await api.patch<any>(`/api/auth/users/${editingUserId}/`, {
-        name: editName.trim(),
-        email: editEmail.trim() || undefined,
-      });
-
-      setUsers((prev) =>
-        prev.map((item) =>
-          item.id === editingUserId ? { ...item, name: updated.name, email: updated.email } : item
-        )
-      );
-      setEditingUserId(null);
-      fetchAuditAndDiagnostics();
-    } catch (err: any) {
-      setEditError(err.message || "Failed to update user.");
-    }
-  };
-
   const copyCredentials = () => {
     if (!successData) return;
     const text = `Username ID: ${successData.username}\nPassword: ${successData.password}`;
@@ -264,15 +221,7 @@ export function useAdminDashboard() {
     successData,
     handleCreateAccount,
     copyCredentials,
-    editingUserId,
-    setEditingUserId,
-    editName,
-    setEditName,
-    editEmail,
-    setEditEmail,
-    editError,
-    startEdit,
-    handleSaveEdit,
+    ...editing,
     confirmModal,
     setConfirmModal,
     handleToggleDeactivate,

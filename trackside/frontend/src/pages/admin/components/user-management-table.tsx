@@ -19,6 +19,8 @@ interface UserManagementTableProps {
   setEditName: (v: string) => void;
   editEmail: string;
   setEditEmail: (v: string) => void;
+  editCode: string;
+  setEditCode: (v: string) => void;
   editError: string;
   startEdit: (u: UserRecord) => void;
   handleSaveEdit: () => void;
@@ -36,6 +38,8 @@ export function UserManagementTable({
   setEditName,
   editEmail,
   setEditEmail,
+  editCode,
+  setEditCode,
   editError,
   startEdit,
   handleSaveEdit,
@@ -67,6 +71,8 @@ export function UserManagementTable({
         setEditName={setEditName}
         editEmail={editEmail}
         setEditEmail={setEditEmail}
+        editCode={editCode}
+        setEditCode={setEditCode}
         editError={editError}
         startEdit={startEdit}
         handleSaveEdit={handleSaveEdit}
@@ -84,6 +90,8 @@ export function UserManagementTable({
         setEditName={setEditName}
         editEmail={editEmail}
         setEditEmail={setEditEmail}
+        editCode={editCode}
+        setEditCode={setEditCode}
         editError={editError}
         startEdit={startEdit}
         handleSaveEdit={handleSaveEdit}

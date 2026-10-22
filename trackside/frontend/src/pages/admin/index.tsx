@@ -48,6 +48,8 @@ export function AdminDashboard() {
     setEditName,
     editEmail,
     setEditEmail,
+    editCode,
+    setEditCode,
     editError,
     startEdit,
     handleSaveEdit,
@@ -147,6 +149,8 @@ export function AdminDashboard() {
               setEditName={setEditName}
               editEmail={editEmail}
               setEditEmail={setEditEmail}
+              editCode={editCode}
+              setEditCode={setEditCode}
               editError={editError}
               startEdit={startEdit}
               handleSaveEdit={handleSaveEdit}

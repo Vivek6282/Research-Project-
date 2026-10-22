@@ -16,6 +16,8 @@ interface UserDesktopTableProps {
   setEditName: (v: string) => void;
   editEmail: string;
   setEditEmail: (v: string) => void;
+  editCode: string;
+  setEditCode: (v: string) => void;
   editError: string;
   startEdit: (u: UserRecord) => void;
   handleSaveEdit: () => void;
@@ -32,6 +34,8 @@ export function UserDesktopTable({
   setEditName,
   editEmail,
   setEditEmail,
+  editCode,
+  setEditCode,
   editError,
   startEdit,
   handleSaveEdit,
@@ -75,7 +79,20 @@ export function UserDesktopTable({
                       className="w-full px-2 py-1 rounded text-xs font-mono bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
                     />
                   </td>
-                  <td className="py-2.5 px-1 text-[#F2A93B] font-bold">{u.driver_code || "-"}</td>
+                  <td className="py-2.5 px-1">
+                    {u.role === "driver" ? (
+                      <input
+                        data-testid="admin-edit-code-input"
+                        value={editCode}
+                        onChange={(e) => setEditCode(e.target.value)}
+                        placeholder="D17256"
+                        maxLength={6}
+                        className="w-full px-2 py-1 rounded text-xs font-mono bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
+                      />
+                    ) : (
+                      <span className="text-[#F2A93B] font-bold">-</span>
+                    )}
+                  </td>
                   <td className="py-2.5 px-1 text-[#3FA6E0] font-bold">{u.username || "—"}</td>
                   <td className="py-2.5 px-1" colSpan={2}>
                     <input
