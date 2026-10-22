@@ -58,3 +58,6 @@ htmlcov/
 
 # Simulator: last verified bridge port (a hint only)
 demo/.last_bridge_port
+
+# Database backups (never commit)
+backups/

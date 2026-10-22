@@ -1,45 +1,101 @@
-version: "3.8"
+# Trackside production stack: Caddy (HTTPS + frontend) -> backend (Daphne) -> db (PostgreSQL) + redis.
+# Only Caddy publishes ports (80 and 443). Everything is configured from ONE file: .env (copy .env.production.example).
+# Start with:  docker compose up -d --build
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: trackside_db
-    restart: always
-    env_file:
-      - .env.docker
+  caddy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+      args:
+        VITE_ENABLE_DEMO_TOOLS: "false"
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-trackside}
-      POSTGRES_USER: ${POSTGRES_USER:-trackside_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    container_name: trackside_redis
-    restart: always
+      - caddy_data:/data      # certificates survive restarts
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging: *default-logging
 
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: trackside_backend
-    restart: always
-    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
-    env_file:
-      - .env.docker
+      target: backend
+    restart: unless-stopped
+    expose:
+      - "8000"                # reachable only inside the compose network
     environment:
-      - DJANGO_ENV=production
-      - DEBUG=False
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
-      - DATABASE_URL=postgres://${POSTGRES_USER:-trackside_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-trackside}
-      - REDIS_URL=redis://redis:6379/0
-    ports:
-      - "8000:8000"
+      DJANGO_ENV: ${DJANGO_ENV:-production}
+      DEBUG: ${DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?Set ALLOWED_HOSTS in .env}
+      DATABASE_URL: postgres://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379/0
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Set CORS_ALLOWED_ORIGINS in .env}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+      TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-1}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # python, not curl (the image has no curl); the header makes the call look like it came through the proxy
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen(urllib.request.Request('http://localhost:8000/api/health/', headers={'X-Forwarded-Proto': 'https'}), timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging: *default-logging
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:
