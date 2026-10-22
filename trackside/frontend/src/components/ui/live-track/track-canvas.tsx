@@ -5,16 +5,17 @@
  */
 
 import { RefObject } from "react";
-import { SvgPoint, NormalizedSvgData, VIEW_WIDTH, VIEW_HEIGHT } from "./geo-utils";
-import { CarMarker } from "./car-marker";
+import { NormalizedSvgData, VIEW_WIDTH, VIEW_HEIGHT } from "./geo-utils";
+import { AnimatedCarMarker } from "./animated-car-marker";
+import { ProgressSample } from "./use-smooth-marker";
 import { CornerLayer } from "./corner-layer";
 import { CornerSegment } from "./corner-segments";
 
 interface TrackCanvasProps {
   trackPathD: string;
-  pathRef: RefObject<SVGPathElement>;
+  pathRef: RefObject<SVGPathElement | null>;
   svgData: NormalizedSvgData | null;
-  dotPosition: SvgPoint | null;
+  carSample: ProgressSample | null;
   stageColor: string;
   cornerSegments?: CornerSegment[];
   activeZoneId?: string | null;
@@ -24,7 +25,7 @@ export function TrackCanvas({
   trackPathD,
   pathRef,
   svgData,
-  dotPosition,
+  carSample,
   stageColor,
   cornerSegments = [],
   activeZoneId = null,
@@ -117,8 +118,8 @@ export function TrackCanvas({
           </>
         )}
 
-        {/* Driver dot — positioned at nearest point on path */}
-        {dotPosition && <CarMarker position={dotPosition} stageColor={stageColor} />}
+        {/* Driver dot — glides along the path toward the latest GPS reading */}
+        <AnimatedCarMarker pathRef={pathRef} sample={carSample} stageColor={stageColor} />
       </svg>
     </div>
   );

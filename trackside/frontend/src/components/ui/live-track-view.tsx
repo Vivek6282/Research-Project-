@@ -12,17 +12,17 @@
  * placeholder state is shown instead of a broken/empty map.
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { api } from "../../lib/api";
 import { getTrajectoryStage } from "./signal-strip";
 import {
   GpsPoint,
-  SvgPoint,
   gpsToSvgPoints,
   buildTrackPath,
   gpsPointToSvg,
-  findNearestPointOnPath,
 } from "./live-track/geo-utils";
+import { findNearestProgressOnPath } from "./live-track/path-progress";
+import { ProgressSample } from "./live-track/use-smooth-marker";
 import { TrackFallback } from "./live-track/track-fallback";
 import { TrackCanvas } from "./live-track/track-canvas";
 import { TrackCorner, buildCornerSegments } from "./live-track/corner-segments";
@@ -49,10 +49,12 @@ export function LiveTrackView({
   const [corners, setCorners] = useState<TrackCorner[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [carSample, setCarSample] = useState<ProgressSample | null>(null);
   const pathRef = useRef<SVGPathElement>(null);
 
   // Fetch reference line when trackId changes
   useEffect(() => {
+    setCarSample(null);
     if (!trackId) {
       setReferenceLine(null);
       setIsSchematic(false);
@@ -93,19 +95,25 @@ export function LiveTrackView({
     };
   }, [trackId]);
 
-  // Compute SVG data from reference line
-  const svgData =
-    referenceLine && referenceLine.length >= 2
-      ? gpsToSvgPoints(referenceLine)
-      : null;
+  // Compute SVG data from reference line (only when the survey itself changes)
+  const svgData = useMemo(
+    () =>
+      referenceLine && referenceLine.length >= 2
+        ? gpsToSvgPoints(referenceLine)
+        : null,
+    [referenceLine],
+  );
 
   const trackPathD = svgData ? buildTrackPath(svgData.svgPoints) : "";
   const cornerSegments = svgData ? buildCornerSegments(corners, svgData) : [];
 
-  // Compute driver dot position via nearest-point-on-path
-  const computeDotPosition = useCallback((): SvgPoint | null => {
+  // Each new GPS reading becomes a destination (how far round the lap the
+  // nearest track point is). The marker then glides there smoothly instead of
+  // jumping, see use-smooth-marker.ts.
+  useEffect(() => {
     if (!svgData || gpsLat == null || gpsLng == null || !pathRef.current) {
-      return null;
+      setCarSample(null);
+      return;
     }
 
     const driverSvg = gpsPointToSvg(
@@ -116,11 +124,9 @@ export function LiveTrackView({
       svgData.minLng,
       svgData.maxLng,
     );
-
-    return findNearestPointOnPath(pathRef.current, driverSvg.x, driverSvg.y);
+    const progress = findNearestProgressOnPath(pathRef.current, driverSvg.x, driverSvg.y);
+    setCarSample(progress === null ? null : { progress });
   }, [svgData, gpsLat, gpsLng]);
-
-  const dotPosition = computeDotPosition();
 
   // Get trajectory stage for dot coloring
   const stageDetails = getTrajectoryStage(currentG ?? 0, threshold);
@@ -185,9 +191,9 @@ export function LiveTrackView({
       {/* SVG Track Map */}
       <TrackCanvas
         trackPathD={trackPathD}
-        pathRef={pathRef as any}
+        pathRef={pathRef}
         svgData={svgData}
-        dotPosition={dotPosition}
+        carSample={carSample}
         stageColor={stageDetails.color}
         cornerSegments={cornerSegments}
         activeZoneId={zoneId}

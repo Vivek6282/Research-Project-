@@ -56,7 +56,7 @@ export function CarMarker({ position, stageColor }: CarMarkerProps) {
         strokeWidth="1.5"
         style={{
           filter: `drop-shadow(0 0 6px ${stageColor})`,
-          transition: "cx 200ms ease, cy 200ms ease, fill 150ms ease",
+          transition: "fill 150ms ease",
         }}
       />
     </>
