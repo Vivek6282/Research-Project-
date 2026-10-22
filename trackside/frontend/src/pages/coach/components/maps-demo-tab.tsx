@@ -11,6 +11,7 @@ import { PlayDemoDialog, type PlayChoice } from "../../maps/components/play-demo
 import type { MapTrack } from "../../maps/types";
 import { demoSwitchIsOn, useDemoRun } from "../hooks/use-demo-run";
 import { DemoStatusPanel } from "./demo-status-panel";
+import { LaptopLinkPanel } from "./laptop-link-panel";
 
 interface MapsDemoTabProps {
   /** Switch to the Live Pit-Wall Console with this driver selected */
@@ -46,6 +47,7 @@ export function MapsDemoTab({ onWatchLive }: MapsDemoTabProps) {
             onStop={demo.stop}
             onWatchLive={onWatchLive}
           />
+          <LaptopLinkPanel onWatchLive={onWatchLive} />
         </MapsBrowser>
       </Panel>
       {playing && (
