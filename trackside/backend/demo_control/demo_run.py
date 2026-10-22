@@ -152,6 +152,9 @@ def start_demo_run(request) -> dict:
     release_orphans(request)
     if simulator.is_simulator_running():
         raise DemoRunError("A demo is already running. Stop it first.", 409)
+    from demo_control.laptop_link import end_link  # imported here: laptop_link itself uses this module
+
+    end_link(request)  # a laptop link left open must not block the run (it holds the driver's device)
     chosen = parse_start_request(request.data)
     track, driver, laps, pace = chosen["track"], chosen["driver"], chosen["laps"], chosen["pace"]
 

@@ -118,6 +118,18 @@ class TestHostedRun(DemoRunBase):
         self.assertNotIn("--dry-run", self.popen_mock.call_args[0][0])
 
 
+class TestOpenLaptopLink(DemoRunBase):
+    """A laptop link left open is ended by starting a demo run."""
+
+    def test_play_demo_ends_an_open_laptop_link_for_the_same_driver(self):
+        """Ana holds the laptop-link device; starting a Play demo for Ana still works and the link session is closed."""
+        link = self.client.post("/api/laptop-link/start/", {"driver_id": str(self.ana.id)}, format="json").json()
+        demo = ensure_demo_circuit()
+        response = self.client.post(START, {"track_id": str(demo.id), "driver_id": str(self.ana.id), "laps": 1}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIsNotNone(Session.objects.get(pk=link["session_id"]).ended_at)
+
+
 class TestValidation(DemoRunBase):
     """Every bad request is a clear 400 and starts nothing."""
 
