@@ -4,6 +4,7 @@ Manages asynchronous, non-blocking telemetry batching and posting to the Django 
 Includes retry mechanics, queue boundary handling, and clean flush on exit.
 """
 
+import argparse
 import queue
 import threading
 import time
@@ -22,6 +23,7 @@ STATS_LOCK = threading.Lock()
 LAST_WARNING_TIME = 0.0
 WARNING_LOCK = threading.Lock()
 
+MAX_BATCH_SIZE = 10  # most readings sent in one POST (--post-batch)
 BACKEND_WORKER_THREAD = None
 SHUTDOWN_EVENT = threading.Event()
 ACTIVE_SESSION_ID = None
@@ -77,6 +79,19 @@ def build_telemetry_payload(g_value, speed_kmh, turn_name, lap_number, demo_zone
         "lap_number": int(lap_number),
         "zone": resolved_zone_uuid,
     }
+
+
+def post_batch_arg(text):
+    """argparse type for --post-batch: a whole number from 1 to 10, otherwise a clear error (exit code 2)."""
+    if not text.strip().isdigit() or not 1 <= int(text) <= 10:
+        raise argparse.ArgumentTypeError(f"'{text}' is not allowed; use a whole number from 1 to 10.")
+    return int(text)
+
+
+def set_post_batch_size(size):
+    """Set the most readings sent in one POST (1 posts each reading on its own)."""
+    global MAX_BATCH_SIZE
+    MAX_BATCH_SIZE = size
 
 
 def enqueue_telemetry(reading_payload):
@@ -141,7 +156,7 @@ def _post_batch(batch_readings, session_id, device_token, backend_url):
 
 def _backend_worker(session_id, device_token, backend_url):
     """
-    Dedicated worker thread draining telemetry queue into batches of up to 10 or 1s intervals.
+    Dedicated worker thread draining telemetry queue into batches of up to MAX_BATCH_SIZE readings or 1s intervals.
     Input: session_id (str), device_token (str), backend_url (str).
     Output: None.
     """
@@ -151,7 +166,7 @@ def _backend_worker(session_id, device_token, backend_url):
         current_batch = []
         batch_start_timestamp = time.time()
 
-        while len(current_batch) < 10:
+        while len(current_batch) < MAX_BATCH_SIZE:
             remaining_window = 1.0 - (time.time() - batch_start_timestamp)
             if remaining_window <= 0 and not SHUTDOWN_EVENT.is_set():
                 break

@@ -33,6 +33,8 @@ from sim_track import (
 )
 from sim_backend_poster import (
     flush_backend_telemetry,
+    post_batch_arg,
+    set_post_batch_size,
     send_to_backend,
     start_backend_worker,
 )
@@ -150,6 +152,7 @@ def main():
     cli_parser.add_argument("--ws-host", type=str, default=WS_HOST, help=f"Host for local WebSocket telemetry broadcaster (default: {WS_HOST})")
     cli_parser.add_argument("--limit", action="append", default=[], help="Custom corner limit, e.g. --limit Hairpin=1.00 (repeatable)")
     cli_parser.add_argument("--track-file", type=str, default=None, help="Track profile JSON from 'manage.py export_track' (default: built-in Demo Circuit)")
+    cli_parser.add_argument("--post-batch", type=post_batch_arg, default=10, help="Most readings per backend POST, 1 to 10 (default 10; 1 sends every reading on its own)")
     cli_parser.add_argument("--gps-file", type=str, default=None, help="GPS points of the built-in Demo Circuit outline (written by the backend); each reading carries one")
     cli_parser.add_argument("--pace", choices=sorted(PACES), default=None, help="Corner pace for --track-file runs: safe (green), edge (amber), over (red). Default safe")
     cli_parser.add_argument("--seed", type=int, default=None, help="Random seed so a --track-file run repeats exactly")
@@ -225,6 +228,7 @@ def main():
             print(f"{corner_name} limit {active_threshold:.2f} g ({source_label})")
 
     if active_session_id and DEVICE_TOKEN:
+        set_post_batch_size(cli_args.post_batch)
         start_backend_worker(active_session_id, DEVICE_TOKEN, BACKEND_URL)
 
     print("\nStarting local WebSocket telemetry broadcaster...")
