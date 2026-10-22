@@ -1,0 +1,20 @@
+# Keep secrets, local databases and build output out of the images
+.git
+**/__pycache__
+**/*.pyc
+**/node_modules
+frontend/dist
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+backend/.env
+backend/db.sqlite3
+backend/demo_profiles
+**/*.sqlite3
+.env
+.env.*
+backups
+e2e
+firmware
+demo
+scratch
