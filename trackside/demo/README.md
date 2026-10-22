@@ -51,6 +51,21 @@ On a custom map press **Edit corners**: the outline opens large with green **+**
 4. The limit shown is the **corner's limit set on the map** (Maps, Edit corners) for the corner the kart is in, worked out by the server with the same rule as the alerts and the glove. A straight has no limit and stays nominal.
 5. Before any data arrives the panels say "Waiting for live data", "No alerts yet" or "-"; no numbers are invented.
 
+
+### Glove demo with a hosted site ("Connect laptop")
+
+The glove only talks to the bridge on a laptop, so with a hosted site the laptop's simulator does both jobs: it drives the glove and posts the same readings to the hosted server. The hosted Coach screen then shows the run live.
+
+1. **Wake the site** (a free Render service sleeps when idle): open it a minute early and log in as Coach.
+2. **Coach > Maps & Demo > Connect laptop:** choose the driver and press **Start link**. The panel shows four lines (`BACKEND_URL`, `SESSION_ID`, `DEVICE_TOKEN`, `DEMO_ZONES`); the token is hidden until you press **Show token** and is shown only now.
+3. **On the laptop:** open `trackside\demo\.env` and replace those four lines with the ones from the panel (press **Copy lines**). Keep `SERIAL_PORT=auto`.
+4. **Plug in the bridge**, switch the glove on, close the Arduino Serial Monitor, and check `py virtual_lap_simulator.py --list-ports` shows `bridge`.
+5. **Run** in `trackside\demo`: `py virtual_lap_simulator.py --post-batch 1 --laps 5`. The glove's LED follows the stages.
+6. **On the site:** the panel says "Receiving readings from the laptop"; press **Watch live** to see the dot, readouts, waveform and alerts. The run is marked DEMO RUN.
+7. When the simulator finishes it closes the session. **End link** also closes it and cancels the token. A new **Start link** always replaces the old one.
+
+Notes: only a Coach or Admin can start a link; the token only works as that device (posting readings and finishing sessions for that driver) and stops working when the link ends. The server never runs the simulator. Do a full rehearsal the day before.
+
 ---
 
 ## 1. Requirements

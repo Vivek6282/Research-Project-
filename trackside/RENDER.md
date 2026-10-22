@@ -37,6 +37,10 @@ The hosted site has no live data on its own: a session only exists when a device
 
 It never runs twice. To remove it: open the Admin screen, **Delete** the "Sample Driver" (its session goes with it), and set `SEED_SAMPLE_DATA` to `false` in Environment so it is not added again. If you did not use the Blueprint, add `SEED_SAMPLE_DATA` = `true` in Environment by hand and redeploy.
 
+## Glove demo with this site
+
+To show the glove working while this hosted site shows the run live, use **Coach > Maps & Demo > Connect laptop**. The steps are in `demo/README.md` ("Glove demo with a hosted site").
+
 ## If something goes wrong
 
 * **Build fails:** open the service's **Logs** tab and send me the last 30 lines. Never paste a password or a `SECRET_KEY`.

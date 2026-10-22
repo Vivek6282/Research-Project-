@@ -1,7 +1,8 @@
 /**
  * Trackside Coach Dashboard — Active Session Hook.
  * Finds the session the coach is watching: the newest session of the SELECTED driver
- * (an in-progress one first), and gives its id and its own track. Reloads the session
+ * (an in-progress one first, but only while the driver is live: an old session that was never
+ * closed must not hide a newer finished run), and gives its id and its own track. Reloads the session
  * list when the tab changes and when the driver's session_state or live flag changes
  * in the roster (for example a new demo run started).
  */
@@ -10,11 +11,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../../lib/api";
 import { HistoricalSession, RosterStatusItem } from "../types";
 
-/** The newest session of one driver, preferring one that has not ended; null when there is none. */
-export function pickActiveSession(sessionList: any[], driverId: string): any | null {
+/**
+ * The newest session of one driver. When preferInProgress is true (the driver is live) a session that has
+ * not ended wins; otherwise the newest session wins, so a stale unfinished one cannot hide a newer run.
+ */
+export function pickActiveSession(sessionList: any[], driverId: string, preferInProgress = true): any | null {
   const mine = sessionList.filter((s) => driverId && s.driver === driverId);
   const newestFirst = (a: any, b: any) => String(b.started_at || "").localeCompare(String(a.started_at || ""));
-  const inProgress = mine.filter((s) => !s.ended_at).sort(newestFirst);
+  const inProgress = preferInProgress ? mine.filter((s) => !s.ended_at).sort(newestFirst) : [];
   return inProgress[0] || [...mine].sort(newestFirst)[0] || null;
 }
 
@@ -79,7 +83,8 @@ export function useActiveSession(selectedDriverId: string, rosterItem: RosterSta
     loadSessions();
   }, [rosterSignature, loadSessions]);
 
-  const active = useMemo(() => pickActiveSession(sessionList, selectedDriverId), [sessionList, selectedDriverId]);
+  const isLive = rosterItem?.live === true;
+  const active = useMemo(() => pickActiveSession(sessionList, selectedDriverId, isLive), [sessionList, selectedDriverId, isLive]);
 
   return {
     historicalSessions,

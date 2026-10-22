@@ -32,6 +32,15 @@ describe("pickActiveSession", () => {
     expect(pickActiveSession(list, "")).toBeNull();
   });
 
+  it("ignores an old unfinished session when the driver is not live, so a newer finished run is shown", () => {
+    const list = [
+      session("stale-open", "d1", "2026-10-20T08:00:00Z", "apex"),
+      session("newer-finished", "d1", "2026-10-21T08:00:00Z", "demo", "2026-10-21T08:30:00Z"),
+    ];
+    expect(pickActiveSession(list, "d1", true)?.id).toBe("stale-open");
+    expect(pickActiveSession(list, "d1", false)?.id).toBe("newer-finished");
+  });
+
   it("reads the track id from an id or an object, null when absent", () => {
     expect(trackIdOf({ track: "t1" })).toBe("t1");
     expect(trackIdOf({ track: { id: "t2" } })).toBe("t2");
