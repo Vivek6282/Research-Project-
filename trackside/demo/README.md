@@ -15,7 +15,7 @@ Everything about maps and demonstrations lives in the Coach screen, not in Setti
 **One-time setup (development machine only, never production):**
 1. In `trackside/backend/.env` set `DEMO_TOOLS_ENABLED=true` and keep `DJANGO_ENV=development`. Restart the backend.
 2. In `trackside/frontend/.env` set `VITE_ENABLE_DEMO_TOOLS=true` (see `.env.example`). Restart `npm run dev`.
-3. Put your bridge's port in `trackside/demo/.env` as `SERIAL_PORT=COM5` (copy `.env.example`). Close the Arduino Serial Monitor first: only one program can use a COM port.
+3. Leave `SERIAL_PORT=auto` in `trackside/demo/.env` (copy `.env.example`): the simulator finds the bridge board whatever COM number Windows gave it (see "COM ports keep changing" below). Close the Arduino Serial Monitor first: only one program can use a COM port.
 4. Install the demo requirements: `pip install -r trackside/demo/requirements.txt` (use the Python that runs the backend, or set `DEMO_PYTHON`).
 
 **Each demo:**
@@ -156,14 +156,36 @@ To store a demo run:
 | `--seed <N>` | random | With `--track-file`: makes a run repeatable (laps still differ from each other by about 3% of g) |
 | `--cruise-kmh <N>` | `80` | With `--track-file`: straight-line speed (20 to 200) |
 | `--post-batch <N>` | `10` | Most readings sent in one backend POST (1 to 10). `1` posts every reading on its own as soon as it is ready. A bad value exits with code 2. Terminal runs keep the default |
+| `--list-ports` | off | Print every serial port with its description, VID:PID, serial number and what it is (bridge, glove, ...), then exit. Nothing else runs (no simulation, no network, no backend) |
 | `--ws-host <host>` | `127.0.0.1` | Local WebSocket host address |
 | `--ws-port <port>` | `8765` | Local WebSocket broadcaster port |
-| `--dry-run` | `False` | Skip opening Serial port explicitly |
+| `--dry-run` | `False` | Skip opening Serial port explicitly (no port is searched or opened) |
 | `--create-session` | `False` | Auto-create a performance session in backend |
 | `--admin-token <token>` | `None` | JWT auth token for session auto-creation |
 
 
 > **Why the Play demo uses `--post-batch 1`:** with the default the backend worker sends up to 10 readings at once (or after 1 second), so the Coach live screen receives them in bursts about once a second and the dot jumps. The Coach "Play demo" button always passes `--post-batch 1` so each reading reaches the Coach screen as it happens (about 5 per second). Runs started from a terminal without the flag behave as before.
+
+
+### COM ports keep changing
+
+Windows gives the boards different COM numbers when cables move, so a fixed `SERIAL_PORT=COM5` often points at the wrong board. The glove ignores USB, so when the port is the glove it just stays on its dim blue LED.
+
+**`SERIAL_PORT=auto`** (the default; also an empty value) makes the simulator look for the bridge itself. It opens each candidate port, resets the board the standard ESP32 way and reads its startup banner (`TRACKSIDE BRIDGE` or `TRACKSIDE GLOVE`). It never writes anything to a port and stops at the first bridge (at most 20 seconds in total, 4.5 seconds per port). If you name a port (for example `SERIAL_PORT=COM5`) that port is checked first; if it is the glove, busy or silent, the other ports are searched and the run prints `[i] COM5 is the glove; the bridge was found on COM7. Using COM7.` If no bridge is found the run continues without the glove and lists what each port answered.
+
+**See what is plugged in:** `py virtual_lap_simulator.py --list-ports` prints a table of every serial port (name, description, VID:PID, serial number, verdict) and exits.
+
+| Verdict | Meaning |
+|---|---|
+| `bridge` | This is the Bridge ESP32. It will be used. |
+| `glove` | This is a glove board, not the bridge. |
+| `unknown` | The port opened but no Trackside banner came (wrong board, old firmware, or a port that is not a board). |
+| `busy` | Another program has the port, or access was refused. **Close the Arduino Serial Monitor** (and any other serial tool) and try again. |
+| `error` | The port could not be opened or did not answer in time (the detail says why). |
+
+**The cache file:** the last good port is remembered in `trackside/demo/.last_bridge_port` (git-ignored) and tried early next time. It is only a hint: the banner is always checked again. Delete the file any time. `TRACKSIDE_PORT_CANDIDATES=COM3,COM7` (comma-separated) replaces the port discovery for unusual systems.
+
+**Pin a COM number in Windows (optional):** Device Manager, Ports (COM & LPT), right-click the board, Properties, Port Settings, Advanced, then choose a COM port number that is free. Put the same number in `SERIAL_PORT` if you want to force it.
 
 ---
 
