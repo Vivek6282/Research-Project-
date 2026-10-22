@@ -17,6 +17,7 @@ import { useAdminDashboard } from "./hooks/use-admin-dashboard";
 import { DeviceDiagnosticPanel } from "./components/device-diagnostic-panel";
 import { UserCreateForm } from "./components/user-create-form";
 import { UserManagementTable } from "./components/user-management-table";
+import { UserDeleteDialog } from "./components/user-delete-dialog";
 import { AuditAndDiagnostics } from "./components/audit-and-diagnostics";
 
 export function AdminDashboard() {
@@ -57,6 +58,12 @@ export function AdminDashboard() {
     setConfirmModal,
     handleToggleDeactivate,
     executeToggleDeactivate,
+    userToDelete,
+    deleteNotice,
+    openDelete,
+    closeDelete,
+    handleDeleted,
+    deactivateInstead,
     auditLogs,
     audit30DayCount,
     diagnostics,
@@ -137,6 +144,12 @@ export function AdminDashboard() {
               copyCredentials={copyCredentials}
             />
 
+            {deleteNotice && (
+              <div data-testid="admin-delete-notice" className="mb-4 p-3 rounded text-xs font-mono bg-[#33D17E]/10 border border-[#33D17E]/40 text-[#33D17E]">
+                {deleteNotice}
+              </div>
+            )}
+
             {/* Users Roster: Mobile Card View (< md) & Desktop Table View (>= md) */}
             <UserManagementTable
               users={users}
@@ -155,6 +168,7 @@ export function AdminDashboard() {
               startEdit={startEdit}
               handleSaveEdit={handleSaveEdit}
               handleToggleDeactivate={handleToggleDeactivate}
+              onDelete={openDelete}
             />
           </Panel>
 
@@ -166,6 +180,16 @@ export function AdminDashboard() {
           />
         </main>
       </div>
+
+      {/* Permanent delete dialog */}
+      {userToDelete && (
+        <UserDeleteDialog
+          user={userToDelete}
+          onClose={closeDelete}
+          onDeleted={handleDeleted}
+          onDeactivateInstead={deactivateInstead}
+        />
+      )}
 
       {/* Deactivate/Reactivate Confirm Dialog Modal */}
       <ConfirmDialog

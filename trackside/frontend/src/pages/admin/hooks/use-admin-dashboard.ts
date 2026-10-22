@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../../../lib/api";
 import { useUserEditing } from "./use-user-editing";
+import { useUserDelete } from "./use-user-delete";
 import {
   UserRecord,
   DeviceRecord,
@@ -134,6 +135,7 @@ export function useAdminDashboard() {
 
       setSuccessData({
         username: newUser.username,
+        driver_code: newUser.driver_code,
         password: password,
         name: newUser.name,
         role: newUser.role,
@@ -165,6 +167,8 @@ export function useAdminDashboard() {
       isCurrentlyActive,
     });
   };
+
+  const deletion = useUserDelete(setUsers, fetchAuditAndDiagnostics, handleToggleDeactivate);
 
   const executeToggleDeactivate = async () => {
     if (!confirmModal.userToToggle) return;
@@ -222,6 +226,7 @@ export function useAdminDashboard() {
     handleCreateAccount,
     copyCredentials,
     ...editing,
+    ...deletion,
     confirmModal,
     setConfirmModal,
     handleToggleDeactivate,

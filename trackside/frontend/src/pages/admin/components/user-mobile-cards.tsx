@@ -22,6 +22,7 @@ interface UserMobileCardsProps {
   startEdit: (u: UserRecord) => void;
   handleSaveEdit: () => void;
   handleToggleDeactivate: (u: UserRecord) => void;
+  onDelete: (u: UserRecord) => void;
 }
 
 export function UserMobileCards({
@@ -40,6 +41,7 @@ export function UserMobileCards({
   startEdit,
   handleSaveEdit,
   handleToggleDeactivate,
+  onDelete,
 }: UserMobileCardsProps) {
   return (
     <div data-testid="admin-user-cards-container" className="block md:hidden space-y-3 font-mono">
@@ -190,6 +192,24 @@ export function UserMobileCards({
                 }}
               >
                 {isActive ? "Deactivate" : "Reactivate"}
+              </button>
+              <button
+                data-testid="admin-delete-btn"
+                disabled={!!fetchError || !!isSelf || u.role === "admin"}
+                onClick={() => onDelete(u)}
+                className={`flex-1 py-2 min-h-[40px] rounded text-xs font-bold transition-colors font-mono ${
+                  fetchError || isSelf || u.role === "admin" ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                }`}
+                style={{ color: "#E5473C", border: "1px solid #E5473C" }}
+                title={
+                  isSelf
+                    ? "You cannot delete your own account"
+                    : u.role === "admin"
+                    ? "Admin accounts cannot be deleted"
+                    : "Delete user permanently"
+                }
+              >
+                Delete
               </button>
             </div>
           </div>

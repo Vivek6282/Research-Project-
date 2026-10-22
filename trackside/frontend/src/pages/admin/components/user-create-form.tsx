@@ -141,6 +141,14 @@ export function UserCreateForm({
                 {successData.username}
               </span>
             </div>
+            {successData.driver_code && (
+              <div>
+                <span className="text-[#7C8898] block text-[10px]">DRIVER ID (shown on screens):</span>
+                <span data-testid="admin-create-success-code" className="text-[#F2A93B] font-extrabold text-sm">
+                  {successData.driver_code}
+                </span>
+              </div>
+            )}
             <div>
               <span className="text-[#7C8898] block text-[10px]">ACCESS PASSWORD:</span>
               <span className="text-[#E7EDF3] font-bold text-sm">

@@ -25,6 +25,7 @@ interface UserManagementTableProps {
   startEdit: (u: UserRecord) => void;
   handleSaveEdit: () => void;
   handleToggleDeactivate: (u: UserRecord) => void;
+  onDelete: (u: UserRecord) => void;
 }
 
 export function UserManagementTable({
@@ -44,6 +45,7 @@ export function UserManagementTable({
   startEdit,
   handleSaveEdit,
   handleToggleDeactivate,
+  onDelete,
 }: UserManagementTableProps) {
   return (
     <div>
@@ -77,6 +79,7 @@ export function UserManagementTable({
         startEdit={startEdit}
         handleSaveEdit={handleSaveEdit}
         handleToggleDeactivate={handleToggleDeactivate}
+        onDelete={onDelete}
       />
 
       {/* Desktop Tabular View (>= md) */}
@@ -96,6 +99,7 @@ export function UserManagementTable({
         startEdit={startEdit}
         handleSaveEdit={handleSaveEdit}
         handleToggleDeactivate={handleToggleDeactivate}
+        onDelete={onDelete}
       />
     </div>
   );

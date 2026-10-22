@@ -22,6 +22,7 @@ interface UserDesktopTableProps {
   startEdit: (u: UserRecord) => void;
   handleSaveEdit: () => void;
   handleToggleDeactivate: (u: UserRecord) => void;
+  onDelete: (u: UserRecord) => void;
 }
 
 export function UserDesktopTable({
@@ -40,6 +41,7 @@ export function UserDesktopTable({
   startEdit,
   handleSaveEdit,
   handleToggleDeactivate,
+  onDelete,
 }: UserDesktopTableProps) {
   return (
     <div className="hidden md:block overflow-x-auto">
@@ -201,6 +203,24 @@ export function UserDesktopTable({
                     }
                   >
                     {isActive ? "Deactivate" : "Reactivate"}
+                  </button>
+                  <button
+                    data-testid="admin-delete-btn"
+                    disabled={!!fetchError || !!isSelf || u.role === "admin"}
+                    onClick={() => onDelete(u)}
+                    className={`text-[10px] px-2.5 py-1.5 rounded transition-colors font-mono ${
+                      fetchError || isSelf || u.role === "admin" ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-[#E5473C]/10"
+                    }`}
+                    style={{ color: "#E5473C", border: "1px solid #E5473C" }}
+                    title={
+                      isSelf
+                        ? "You cannot delete your own account"
+                        : u.role === "admin"
+                        ? "Admin accounts cannot be deleted"
+                        : "Delete user permanently"
+                    }
+                  >
+                    Delete
                   </button>
                 </td>
               </tr>
