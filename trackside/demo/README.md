@@ -143,11 +143,15 @@ To store a demo run:
 | `--pace safe\|edge\|over` | `safe` | With `--track-file`: 0.85 / 0.98 / 1.08 of each corner's safe speed (green / amber / red) |
 | `--seed <N>` | random | With `--track-file`: makes a run repeatable (laps still differ from each other by about 3% of g) |
 | `--cruise-kmh <N>` | `80` | With `--track-file`: straight-line speed (20 to 200) |
+| `--post-batch <N>` | `10` | Most readings sent in one backend POST (1 to 10). `1` posts every reading on its own as soon as it is ready. A bad value exits with code 2. Terminal runs keep the default |
 | `--ws-host <host>` | `127.0.0.1` | Local WebSocket host address |
 | `--ws-port <port>` | `8765` | Local WebSocket broadcaster port |
 | `--dry-run` | `False` | Skip opening Serial port explicitly |
 | `--create-session` | `False` | Auto-create a performance session in backend |
 | `--admin-token <token>` | `None` | JWT auth token for session auto-creation |
+
+
+> **Why the Play demo uses `--post-batch 1`:** with the default the backend worker sends up to 10 readings at once (or after 1 second), so the Coach live screen receives them in bursts about once a second and the dot jumps. The Coach "Play demo" button always passes `--post-batch 1` so each reading reaches the Coach screen as it happens (about 5 per second). Runs started from a terminal without the flag behave as before.
 
 ---
 
