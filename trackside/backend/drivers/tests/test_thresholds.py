@@ -90,7 +90,8 @@ class TestDriverZoneThresholdValidation(APITestCase):
         )
         threshold.clean()  # Should not raise
 
-    def test_api_rejects_threshold_below_floor(self):
+    def test_api_creating_a_per_driver_limit_is_gone_and_listing_still_works(self):
+        """Per-driver limits are retired: POST answers 410 with the map message and stores nothing; GET still lists history."""
         self.client.force_authenticate(user=self.coach)
         payload = {
             "driver": str(self.driver.id),
@@ -98,5 +99,10 @@ class TestDriverZoneThresholdValidation(APITestCase):
             "custom_threshold_g": 0.50,
         }
         response = self.client.post("/api/drivers/thresholds/", payload)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("below the plausible floor", str(response.json()))
+        self.assertEqual(response.status_code, status.HTTP_410_GONE)
+        self.assertEqual(
+            response.json()["detail"],
+            "Limits are set per corner on the map: Maps, then Edit corners. Per-driver limits are no longer used.",
+        )
+        self.assertEqual(DriverZoneThreshold.objects.count(), 0)
+        self.assertEqual(self.client.get("/api/drivers/thresholds/").status_code, status.HTTP_200_OK)

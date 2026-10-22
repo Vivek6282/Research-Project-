@@ -258,17 +258,16 @@ class TestTelemetryAlerts(APITestCase):
         self.assertEqual(alerts_all[3].severity, Alert.Severity.AMBER)
         self.assertEqual(alerts_all[3].g_value, 1.02)
 
-    def test_threshold_applied_uses_newest_custom_threshold_else_zone_default(self):
-        """threshold_applied is driver's newest DriverZoneThreshold, ignoring older rows; zone default used if none."""
+    def test_threshold_applied_is_the_zone_limit_and_per_driver_rows_are_ignored(self):
+        """threshold_applied is the zone's own limit (set on the map); old per-driver rows are present but ignored."""
         self.client.force_authenticate(user=self.driver)
 
-        # Create older custom threshold 1.10
+        # Old per-driver rows (history): an older 1.10 and a newer 1.02, both ignored now
         t1 = DriverZoneThreshold.objects.create(
             driver=self.driver,
             zone=self.zone_hairpin,
             custom_threshold_g=1.10,
         )
-        # Create newer custom threshold 1.02
         t2 = DriverZoneThreshold.objects.create(
             driver=self.driver,
             zone=self.zone_hairpin,
@@ -277,7 +276,7 @@ class TestTelemetryAlerts(APITestCase):
 
         reading = {
             "recorded_at": (self.now + timedelta(seconds=1)).isoformat(),
-            "lateral_g": 1.05,  # >= 1.02 -> RED alert under newest custom threshold
+            "lateral_g": 1.05,  # >= 0.82 x 1.15 but < 1.15 -> AMBER under the zone's limit (RED under the ignored 1.02)
             "speed_kmh": 60.0,
             "gps_lat": 12.9716,
             "gps_lng": 77.5946,
@@ -292,10 +291,10 @@ class TestTelemetryAlerts(APITestCase):
 
         alert = Alert.objects.filter(session=self.session).first()
         self.assertIsNotNone(alert)
-        self.assertEqual(alert.severity, Alert.Severity.RED)
-        self.assertEqual(alert.threshold_applied, 1.02)
+        self.assertEqual(alert.severity, Alert.Severity.AMBER)
+        self.assertEqual(alert.threshold_applied, 1.15)
 
-        # Test on chicane (no custom threshold) -> uses zone.threshold_g (1.30)
+        # Test on chicane (no per-driver row) -> also the zone's limit (1.30)
         reading_chicane = {
             "recorded_at": (self.now + timedelta(seconds=2)).isoformat(),
             "lateral_g": 1.35,
