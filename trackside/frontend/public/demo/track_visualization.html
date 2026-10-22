@@ -39,88 +39,10 @@
       <span class="truth-badge mono">ESP-NOW SYNC</span>
     </div>
 
-    <!-- Demo Control Panel -->
-    <div id="demo-control-panel" class="panel" style="margin-bottom: 24px;">
-      <div class="panel-header">
-        <span class="panel-title mono">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-          DEMO CONTROL
-        </span>
-        <span id="demo-control-badge" class="brand-badge mono" style="color: var(--accent-blue);">SIMULATOR PROCESS</span>
-      </div>
-      <div id="demo-controls-body" style="display: flex; flex-direction: column; gap: 14px;">
-        <div id="demo-control-inputs" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
-          <div id="demo-laps-group" style="display: flex; align-items: center; gap: 8px;">
-            <label for="input-laps" class="mono" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">LAPS:</label>
-            <input type="number" id="input-laps" class="endpoint-input mono" min="1" max="20" value="3" style="width: 70px; text-align: center;" />
-          </div>
-          <label id="demo-continuous-label" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text); cursor: pointer;" class="mono">
-            <input type="checkbox" id="chk-continuous" style="cursor: pointer; accent-color: var(--accent-blue);" />
-            <span>Run continuously</span>
-          </label>
-          <div id="demo-action-buttons" style="display: flex; gap: 10px;">
-            <button id="btn-start-demo" class="btn-connect mono" style="background: var(--stage-nominal); color: #0A0E13; font-weight: 700;">START DEMO</button>
-            <button id="btn-stop-demo" class="btn-connect mono" style="background: var(--stage-intervene); color: #FFFFFF; font-weight: 700;" disabled>STOP</button>
-          </div>
-        </div>
-
-        <!-- Corner Limits (g) Section -->
-        <div id="corner-limits-section" style="display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: var(--panel-elevated); border: 1px solid var(--line); border-radius: 6px;" class="mono">
-          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
-            <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">Corner limits (g)</span>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <select id="select-preset" class="endpoint-input mono" style="width: 130px; font-size: 11px; padding: 2px 6px;">
-                <option value="">Preset: Custom</option>
-                <option value="defaults">Reset to Defaults</option>
-                <option value="cautious">Cautious (-15%)</option>
-              </select>
-              <button id="btn-reset-limits" class="btn-clear mono" style="font-size: 11px;">Reset</button>
-            </div>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <div style="display: flex; justify-content: space-between; font-size: 11px;">
-                <label for="input-limit-hairpin" style="color: var(--text); font-weight: 600;">Hairpin</label>
-                <span id="range-limit-hairpin" style="color: var(--text-muted); font-size: 10px;">1.00 – 1.40 g</span>
-              </div>
-              <input type="number" id="input-limit-hairpin" step="0.05" class="endpoint-input mono" style="width: 100%;" />
-              <span id="err-limit-hairpin" style="color: var(--stage-intervene); font-size: 10px; display: none;"></span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <div style="display: flex; justify-content: space-between; font-size: 11px;">
-                <label for="input-limit-sweeper" style="color: var(--text); font-weight: 600;">Sweeper</label>
-                <span id="range-limit-sweeper" style="color: var(--text-muted); font-size: 10px;">0.80 – 1.20 g</span>
-              </div>
-              <input type="number" id="input-limit-sweeper" step="0.05" class="endpoint-input mono" style="width: 100%;" />
-              <span id="err-limit-sweeper" style="color: var(--stage-intervene); font-size: 10px; display: none;"></span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <div style="display: flex; justify-content: space-between; font-size: 11px;">
-                <label for="input-limit-chicane" style="color: var(--text); font-weight: 600;">Chicane</label>
-                <span id="range-limit-chicane" style="color: var(--text-muted); font-size: 10px;">1.00 – 1.50 g</span>
-              </div>
-              <input type="number" id="input-limit-chicane" step="0.05" class="endpoint-input mono" style="width: 100%;" />
-              <span id="err-limit-chicane" style="color: var(--stage-intervene); font-size: 10px; display: none;"></span>
-            </div>
-          </div>
-          <div id="limits-in-force-container" style="display: none; flex-direction: column; gap: 2px; font-size: 11px; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--line);">
-            <span id="limits-in-force-text" style="color: var(--text);"></span>
-            <span id="limits-synced-note" style="font-size: 10px; display: none;"></span>
-          </div>
-        </div>
-
-        <div id="demo-status-row" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span class="mono" style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">STATUS:</span>
-            <span id="demo-status-text" class="mono" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Connecting to server...</span>
-          </div>
-        </div>
-        <details id="demo-output-details" style="font-size: 11px;" class="mono">
-          <summary style="cursor: pointer; color: var(--text-muted); outline: none;">Recent simulator output</summary>
-          <pre id="demo-output-lines" style="margin-top: 6px; padding: 8px; background: #06090D; border: 1px solid var(--line); border-radius: 4px; color: var(--text-muted); font-size: 10px; line-height: 1.4; white-space: pre-wrap; max-height: 120px; overflow-y: auto;">(No process output yet)</pre>
-        </details>
-      </div>
-    </div>
+    <!-- Demo runs are started from the Coach screen: Maps & Demo > Play demo -->
+    <p class="mono" style="font-size: 12px; color: var(--text-muted); margin: 0 0 24px 0;">
+      This page only watches a run. Start one in the Coach screen: <strong>Maps &amp; Demo &rarr; Play demo</strong>.
+    </p>
 
     <!-- Main Dashboard Grid -->
     <div class="dashboard-layout">
@@ -141,20 +63,21 @@
                 <stop offset="100%" stop-color="#161D26" stop-opacity="0.1" />
               </linearGradient>
             </defs>
-            <path d="M 120 330 C 60 250, 80 120, 200 100 C 350 80, 520 70, 600 140 C 670 200, 620 310, 500 330 C 420 340, 390 280, 310 280 C 230 280, 180 380, 120 330 Z" fill="url(#track-gradient)" stroke="#161D26" stroke-width="28" stroke-linejoin="round" stroke-linecap="round" />
+            <path id="track-bed" d="M 120 330 C 60 250, 80 120, 200 100 C 350 80, 520 70, 600 140 C 670 200, 620 310, 500 330 C 420 340, 390 280, 310 280 C 230 280, 180 380, 120 330 Z" fill="url(#track-gradient)" stroke="#161D26" stroke-width="28" stroke-linejoin="round" stroke-linecap="round" />
             <path id="track-path" d="M 120 330 C 60 250, 80 120, 200 100 C 350 80, 520 70, 600 140 C 670 200, 620 310, 500 330 C 420 340, 390 280, 310 280 C 230 280, 180 380, 120 330 Z" fill="none" stroke="#3FA6E0" stroke-width="3" stroke-dasharray="6 4" stroke-opacity="0.8" />
-            <line x1="105" y1="315" x2="135" y2="345" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />
-            <text x="90" y="360" fill="#7C8898" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700">S/F</text>
+            <line id="start-finish-line" x1="105" y1="315" x2="135" y2="345" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />
+            <text id="start-finish-label" x="90" y="360" fill="#7C8898" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700">S/F</text>
+            <g id="corner-labels"></g>
             <circle id="kart-pulse" cx="120" cy="330" r="10" fill="#33D17E" opacity="0.4"></circle>
             <circle id="kart-dot" cx="120" cy="330" r="7" fill="#33D17E" stroke="#FFFFFF" stroke-width="2"></circle>
           </svg>
         </div>
-        <div class="corner-chips-bar mono">
-          <span id="zone-pill-hairpin" class="zone-pill">HAIRPIN (1.15g)</span>
+        <div id="corner-chips-bar" class="corner-chips-bar mono">
+          <span id="zone-pill-hairpin" class="zone-pill">HAIRPIN</span>
           <span id="zone-pill-straight1" class="zone-pill">MAIN STRAIGHT</span>
-          <span id="zone-pill-sweeper" class="zone-pill">SWEEPER (1.00g)</span>
+          <span id="zone-pill-sweeper" class="zone-pill">SWEEPER</span>
           <span id="zone-pill-straight2" class="zone-pill">BACK STRAIGHT</span>
-          <span id="zone-pill-chicane" class="zone-pill">CHICANE (1.10g)</span>
+          <span id="zone-pill-chicane" class="zone-pill">CHICANE</span>
         </div>
       </div>
 
@@ -256,8 +179,9 @@
 
   <script src="track_visualization_chart.js"></script>
   <script src="track_visualization_alerts.js"></script>
+  <script src="track_visualization_map_geometry.js"></script>
+  <script src="track_visualization_map.js"></script>
   <script src="track_visualization_stream.js"></script>
-  <script src="track_visualization_limits.js"></script>
-  <script src="track_visualization_demo_control.js"></script>
+  <script src="track_visualization_boot.js"></script>
 </body>
 </html>

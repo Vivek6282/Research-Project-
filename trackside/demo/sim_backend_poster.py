@@ -43,11 +43,11 @@ def log_rate_limited_warning(message_text):
             LAST_WARNING_TIME = current_time
 
 
-def build_telemetry_payload(g_value, speed_kmh, turn_name, lap_number, demo_zones=None, recorded_at=None):
+def build_telemetry_payload(g_value, speed_kmh, turn_name, lap_number, demo_zones=None, recorded_at=None, gps=None):
     """
     Pure constructor building single telemetry reading dictionary for backend ingestion.
     Input: g_value (float), speed_kmh (float), turn_name (str), lap_number (int),
-           demo_zones (dict or None), recorded_at (str or None).
+           demo_zones (dict or None), recorded_at (str or None), gps ((lat, lng) or None for 0, 0).
     Output: Dictionary formatted for /api/sessions/<id>/telemetry/.
     """
     if recorded_at is None:
@@ -71,8 +71,8 @@ def build_telemetry_payload(g_value, speed_kmh, turn_name, lap_number, demo_zone
     return {
         "lateral_g": float(g_value),
         "speed_kmh": float(speed_kmh),
-        "gps_lat": 0.0,
-        "gps_lng": 0.0,
+        "gps_lat": float(gps[0]) if gps else 0.0,
+        "gps_lng": float(gps[1]) if gps else 0.0,
         "recorded_at": recorded_at,
         "lap_number": int(lap_number),
         "zone": resolved_zone_uuid,
@@ -264,10 +264,10 @@ def flush_backend_telemetry(timeout_seconds=5.0, session_id=None, device_token=N
     )
 
 
-def send_to_backend(session_id, g_value, zone_label, stage, speed_kmh, lap_number=1):
+def send_to_backend(session_id, g_value, zone_label, stage, speed_kmh, lap_number=1, gps=None):
     """
     Enqueues reading for asynchronous dispatch to Django backend.
-    Input: session_id (str), g_value (float), zone_label (str), stage (str), speed_kmh (float), lap_number (int).
+    Input: session_id (str), g_value (float), zone_label (str), stage (str), speed_kmh (float), lap_number (int), gps ((lat, lng) or None).
     Output: None.
     """
     if not session_id or not DEVICE_TOKEN:
@@ -278,5 +278,6 @@ def send_to_backend(session_id, g_value, zone_label, stage, speed_kmh, lap_numbe
         turn_name=zone_label,
         lap_number=lap_number,
         demo_zones=DEMO_ZONES,
+        gps=gps,
     )
     enqueue_telemetry(reading_payload)

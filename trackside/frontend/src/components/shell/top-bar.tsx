@@ -8,7 +8,8 @@
  * - User profile info & Sign out action
  */
 
-import { LogOut, Settings } from "lucide-react";
+import { Link } from "react-router-dom";
+import { LogOut, Map as MapIcon, Settings } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 import { usePreferences } from "../../context/PreferencesContext";
 import { SettingsModal } from "../ui/settings-modal";
@@ -72,6 +73,17 @@ export function TopBar() {
               </span>
               <span className="font-semibold truncate text-[11px] sm:text-xs">{user.name || user.email}</span>
             </div>
+
+            {/* Maps link (icon only on small screens so the bar never overflows) */}
+            <Link
+              to={user.role === "coach" ? "/coach?tab=maps" : "/maps"}
+              data-testid="topbar-maps-link"
+              title="Maps"
+              className="flex items-center gap-1 text-[11px] font-mono px-2 py-1.5 min-h-[32px] sm:min-h-[36px] rounded text-[#7C8898] hover:text-[#3FA6E0] border border-[#232B35] bg-[#161D26]"
+            >
+              <MapIcon size={14} />
+              <span className="hidden sm:inline">Maps</span>
+            </Link>
 
             {/* Settings Gear Button */}
             <button

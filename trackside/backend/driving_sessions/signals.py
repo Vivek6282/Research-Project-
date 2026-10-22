@@ -5,6 +5,9 @@ Broadcasts newly created telemetry, alert, and biometric records to connected
 WebSocket clients via Django Channels group layer.
 """
 
+import json
+
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from asgiref.sync import async_to_sync
@@ -18,13 +21,18 @@ from driving_sessions.serializers import (
 )
 
 
+def plain_json(data):
+    """Turn serializer output (UUIDs, dates) into plain JSON values so any channel layer can carry it."""
+    return json.loads(json.dumps(data, cls=DjangoJSONEncoder))
+
+
 @receiver(post_save, sender=Telemetry)
 def broadcast_telemetry(sender, instance, created, **kwargs):
     """Broadcast new telemetry reading to session WebSocket group."""
     if created and instance.session_id:
         channel_layer = get_channel_layer()
         if channel_layer:
-            data = TelemetrySerializer(instance).data
+            data = plain_json(TelemetrySerializer(instance).data)
             async_to_sync(channel_layer.group_send)(
                 f"session_{instance.session_id}",
                 {
@@ -40,7 +48,7 @@ def broadcast_alert(sender, instance, created, **kwargs):
     if created and instance.session_id:
         channel_layer = get_channel_layer()
         if channel_layer:
-            data = AlertSerializer(instance).data
+            data = plain_json(AlertSerializer(instance).data)
             async_to_sync(channel_layer.group_send)(
                 f"session_{instance.session_id}",
                 {
@@ -56,7 +64,7 @@ def broadcast_biometric(sender, instance, created, **kwargs):
     if created and instance.session_id:
         channel_layer = get_channel_layer()
         if channel_layer:
-            data = BiometricReadingSerializer(instance).data
+            data = plain_json(BiometricReadingSerializer(instance).data)
             async_to_sync(channel_layer.group_send)(
                 f"session_{instance.session_id}",
                 {

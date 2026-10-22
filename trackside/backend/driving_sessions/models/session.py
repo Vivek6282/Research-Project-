@@ -75,6 +75,11 @@ class Session(models.Model):
         help_text="Kart identifier (e.g. '#12')",
     )
 
+    is_demo = models.BooleanField(
+        default=False,
+        help_text="True for runs started from the Coach Maps & Demo tab (simulated, not real driving)",
+    )
+
     @property
     def default_suggested_threshold(self) -> float:
         """

@@ -8,6 +8,39 @@ This demo utility simulates realistic karting laps, corner by corner, generating
 
 ---
 
+## 0. Recommended: play a demo from the Coach "Maps & Demo" tab
+
+Everything about maps and demonstrations lives in the Coach screen, not in Settings.
+
+**One-time setup (development machine only, never production):**
+1. In `trackside/backend/.env` set `DEMO_TOOLS_ENABLED=true` and keep `DJANGO_ENV=development`. Restart the backend.
+2. In `trackside/frontend/.env` set `VITE_ENABLE_DEMO_TOOLS=true` (see `.env.example`). Restart `npm run dev`.
+3. Put your bridge's port in `trackside/demo/.env` as `SERIAL_PORT=COM5` (copy `.env.example`). Close the Arduino Serial Monitor first: only one program can use a COM port.
+4. Install the demo requirements: `pip install -r trackside/demo/requirements.txt` (use the Python that runs the backend, or set `DEMO_PYTHON`).
+
+**Each demo:**
+1. Sign in as a **Coach**, open **MAPS & DEMO**.
+2. The **Demo Circuit** (the simulator's built-in map, badges *Built-in* and *Simulator map*) is the first card; every custom map follows. **Add track** imports a new one from a RaceChrono CSV or VBO file.
+3. Press **Play demo** on a card, choose an **active driver**, the **laps** (1 to 20) and the **pace**:
+   * **safe**: every corner stays green, **edge**: amber at every corner, **over**: red alerts at every corner.
+   * Pace applies to custom maps only; the Demo Circuit keeps its own fixed demo pattern.
+4. The panel shows *Running, lap x of y*, whether the glove bridge is connected, and the buttons **Stop**, **Watch live** (jumps to the Live Pit-Wall Console with that driver selected) and **Open live visualizer**.
+5. The glove reacts exactly as before: the simulator still sends `g,STAGE` lines to the bridge on `SERIAL_PORT`, now using the chosen map's corners.
+
+**What the server does for you when you press Start** (so there is nothing to copy by hand any more):
+* creates a new session for the driver on that map, marked **Demo run** (shown in the Coach and Driver history so it is never mistaken for real driving);
+* uses one dedicated device, **"Demo kart unit"**, assigned to the chosen driver only for the run (refused, with the unit named, if that driver already holds a different kart unit). When the demo ends or is stopped the device is unassigned and its token is thrown away;
+* gives the run a fresh API token. The token, session id, backend URL and corner list reach the simulator **only as environment variables** (never on the command line), and they win over anything in `demo/.env`;
+* writes the custom map's profile file to `trackside/backend/demo_profiles/<map id>.json` and starts the simulator with a fixed command, no shell;
+* allows **one demo at a time** (a second Start is refused) and closes the session when the run ends.
+
+If either switch is off, or the server is in production, the tab still shows the maps and the corner editor but hides every Play, Stop and visualizer control.
+
+### Marking the highest-g corners (Edit corners)
+On a custom map press **Edit corners**: the outline opens large with green **+** suggestions at the tightest point of each bend (where g is highest at a given speed). Click a **+** to accept it or click anywhere on the outline to add a corner, drag a number along the line, rename it (required, up to 40 characters), set its limit (1.0 to 1.5 g) and its zone length (10 to 100 m, default 30 m centred on the point). The list shows each corner's radius and the safe corner speed at the current limit: `sqrt(limit x 9.81 x radius)`. Every saved corner becomes an alert zone that the alert rule and the glove use. A corner that already has telemetry or alerts is hidden instead of deleted, and limit changes are kept in an insert-only history. The Demo Circuit is view-only; use **Duplicate as custom map** to get an editable copy.
+
+---
+
 ## 1. Requirements
 
 Install required dependencies:
@@ -68,7 +101,9 @@ python virtual_lap_simulator.py --continuous
 
 ---
 
-## 4. Storing a demo run
+## 4. Storing a demo run (manual, from a terminal)
+
+The Coach "Maps & Demo" tab does all of this for you (section 0). This manual route is for running the simulator by hand from a terminal.
 
 The physical glove and companion browser visualizer work seamlessly with or without the backend connected. When the backend is configured, the simulator asynchronously batches and records telemetry into the database without slowing down the simulation or the physical glove, allowing live session results, zone breakdowns, and alert logs to appear in the Coach and Driver dashboards.
 
@@ -103,7 +138,11 @@ To store a demo run:
 | `--continuous` | `False` | Run laps continuously until stopped with `Ctrl+C` |
 | `--laps <N>` | `5` | Set total number of laps (set `0` for continuous) |
 | `--delay <seconds>` | `0.2` | Interval between telemetry readings (e.g. `0.1` for faster pace) |
-| `--limit <NAME=VALUE>` | `[]` | Custom corner limit, repeatable (e.g. `--limit Hairpin=1.00`) |
+| `--limit <NAME=VALUE>` | `[]` | Custom corner limit for the built-in track, repeatable (e.g. `--limit Hairpin=1.00`) |
+| `--track-file <path>` | none | Run a custom map from a profile file made by `python manage.py export_track <track_id> --out <path>`. Without it the built-in Demo Circuit runs exactly as before |
+| `--pace safe\|edge\|over` | `safe` | With `--track-file`: 0.85 / 0.98 / 1.08 of each corner's safe speed (green / amber / red) |
+| `--seed <N>` | random | With `--track-file`: makes a run repeatable (laps still differ from each other by about 3% of g) |
+| `--cruise-kmh <N>` | `80` | With `--track-file`: straight-line speed (20 to 200) |
 | `--ws-host <host>` | `127.0.0.1` | Local WebSocket host address |
 | `--ws-port <port>` | `8765` | Local WebSocket broadcaster port |
 | `--dry-run` | `False` | Skip opening Serial port explicitly |
@@ -147,17 +186,13 @@ Sweeper limit 1.55 g (backend zone)
 Chicane limit 1.30 g (default)
 ```
 
-### Backend Synchronization (`SESSION_ID`)
-When started from the Demo Control panel on `/demo/track_visualization.html`, custom limits are automatically synchronized with the backend:
-* The backend reads `SESSION_ID` from `trackside/demo/.env` via `dotenv_values` (without polluting the process environment).
-* If `SESSION_ID` resolves to a valid session, the backend checks the driver's current active threshold for each zone. If the requested limit differs from the active threshold, a new row is inserted into `DriverZoneThreshold` (`driver=session.driver, zone=zone, custom_threshold_g=limit, set_by=coach`) wrapped in `transaction.atomic()` with `full_clean()` validation.
-* Because the table is insert-only, existing rows are never modified, and no insert occurs if limits have not changed.
-* If `SESSION_ID` is missing or the session cannot be found, sync is skipped and reported in the status note.
+### Limits on custom maps
+A custom map uses **each corner's own limit**, set in the corner editor (Coach > Maps & Demo > Edit corners, 1.0 to 1.5 g). `--limit` is only for the built-in Demo Circuit and cannot be combined with `--track-file`.
 
 ### Alert Discrepancy Warning (Manual CLI Execution)
 Backend alert ingestion always evaluates telemetry against the zone's calibrated limit or the driver's active `DriverZoneThreshold` stored in the database.
 
-If you launch the simulator from a terminal with a value **above** a zone default (for example `--limit Hairpin=1.40`), the simulator and physical glove will use `1.40 g`, but backend alerts will trigger at the calibrated `1.15 g`. This causes the backend alerts on the dashboard to differ from the glove's LED signals. To keep the glove, visualizer, and backend dashboards in complete synchronization, always configure limits through the Demo Control panel or keep values within allowed ranges.
+If you launch the simulator from a terminal with a value **above** a zone default (for example `--limit Hairpin=1.40`), the simulator and physical glove will use `1.40 g`, but backend alerts will trigger at the calibrated `1.15 g`. This causes the backend alerts on the dashboard to differ from the glove's LED signals. To keep the glove, visualizer, and backend dashboards in complete synchronization, keep `--limit` values within the allowed ranges.
 
 ---
 
@@ -185,6 +220,7 @@ Each reading broadcast by `virtual_lap_simulator.py` uses this standardized JSON
 Before telemetry begins and upon run conclusion, the simulator broadcasts non-reading lifecycle events over WebSocket:
 * **`run_start`**: `{"type": "run_start", "mode": "laps" | "continuous", "total_laps": N or null}`
   * Prompts the visualizer to clear past alerts, reset the lap counter, and display the target lap count (or no denominator in continuous mode).
+  * A `--track-file` run adds `"track_name"`, `"outline"` (at most 2,000 `[x, y]` points in metres) and `"corners"` (`{label, start_index, end_index, label_index}`), and the visualizer draws that map with its corner labels. Late joiners get the same message replayed. Without an outline the visualizer draws the default track.
 * **`run_end`**: `{"type": "run_end"}`
   * Notifies the visualizer that the run is complete, pinning track progress to 100% and updating session status to finished.
 
@@ -206,7 +242,7 @@ By default, the simulator allows connections with `Origin: null` (`WS_ALLOW_NULL
 However, a sandboxed web page in an attacker's browser can also send `null` as its origin. While the demo simulator runs on your laptop, such a page could potentially connect to `ws://127.0.0.1:8765` and read the simulated telemetry stream.
 
 **To harden the setup**:
-Set `WS_ALLOW_NULL_ORIGIN=false` in `demo/.env`. Then, do not open the visualizer directly from the disk; instead, open the visualizer from the Coach's Demo Tools button in the web frontend (served securely from `http://localhost:5173`).
+Set `WS_ALLOW_NULL_ORIGIN=false` in `demo/.env`. Then, do not open the visualizer directly from the disk; instead, open the visualizer from Coach > Maps & Demo > **Open live visualizer** in the web frontend (served securely from `http://localhost:5173`).
 
 ---
 
@@ -217,7 +253,10 @@ The visualizer alert deduplication logic is tested using Node.js:
 * **Command**: `node --test tests/demo/test_alerts.test.mjs` (run from `trackside/frontend/`)
 * **Minimum Node.js Version**: `Node.js >= 18.0.0` (uses built-in `node:test` and `node:assert`)
 
-### Simulator WebSocket Server Tests (Python)
-The simulator WebSocket replay and origin security suites are tested using Python `unittest`:
-* **Command**: `python -m unittest discover demo/tests` (run from `trackside/`)
-* **Requirements**: Python environment with `websockets` installed
+### Visualizer Map Geometry Tests (Node.js)
+* **Command**: `node --test tests/demo/test_map_geometry.test.mjs` (run from `trackside/frontend/`)
+
+### Simulator Tests (Python)
+The WebSocket replay and origin suites, the track profile loader, the physics (pace, seed, smoothness, `g,STAGE` line format) and the `.env` priority rule are tested using Python `unittest`/`pytest`:
+* **Command**: `python -m pytest tests` (run from `trackside/demo/`)
+* **Requirements**: Python environment with `websockets`, `requests`, `python-dotenv` and `pytest` installed

@@ -28,6 +28,18 @@ RUN_START_LOCK = threading.Lock()
 WS_SERVER = None
 SERVER_READY = threading.Event()
 ACTUAL_PORT = None
+# For a custom-track run: the corner names and point count to announce instead of the built-in track's
+ACTIVE_ZONES = None
+
+
+def set_active_zones(zone_names, track_length):
+    """
+    Announce a custom track's corner names and outline size in the connection handshake.
+    Input: zone_names (list of str), track_length (int).
+    Output: None.
+    """
+    global ACTIVE_ZONES
+    ACTIVE_ZONES = {"zones": list(zone_names), "track_length": int(track_length)}
 
 
 def normalize_origin(origin_str):
@@ -98,6 +110,8 @@ async def _ws_handler(websocket):
             "zones": [turn["name"] for turn in TRACK],
             "track_length": sum(turn["readings"] for turn in TRACK),
         }
+        if ACTIVE_ZONES is not None:
+            handshake_payload.update(ACTIVE_ZONES)
         await websocket.send(json.dumps(handshake_payload))
 
         replayed_start = None

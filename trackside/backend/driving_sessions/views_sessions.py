@@ -4,7 +4,6 @@ This module provides endpoints for listing, creating, retrieving, updating,
 and ending driving sessions with strict role-based access scoping.
 """
 
-from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -12,6 +11,7 @@ from rest_framework.response import Response
 
 from accounts.permissions import IsAdminOrCoach
 from devices.authentication import DeviceTokenAuthentication
+from driving_sessions.session_close import close_session_if_open
 from driving_sessions.access import sessions_visible_to, can_access_session
 from driving_sessions.models import Session
 from driving_sessions.serializers import SessionSerializer
@@ -143,7 +143,7 @@ class SessionFinishView(generics.GenericAPIView):
 
         # Atomically set ended_at to current time only if currently null.
         # This prevents race conditions where concurrent calls might both write and alter the timestamp.
-        Session.objects.filter(pk=session.pk, ended_at__isnull=True).update(ended_at=timezone.now())
+        close_session_if_open(session.pk)
         session.refresh_from_db()
 
         serializer = self.get_serializer(session)

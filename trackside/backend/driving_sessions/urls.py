@@ -13,11 +13,14 @@ from driving_sessions.views import (
     SessionNoteListCreateView,
 )
 
+from driving_sessions.views_corner_deltas import SessionCornerDeltasView
+
 urlpatterns = [
     path("", SessionListCreateView.as_view(), name="session-list-create"),
     path("alerts/summary/", AlertSummaryView.as_view(), name="alert-summary"),
     path("roster-status/", RosterStatusView.as_view(), name="roster-status"),
     path("<uuid:pk>/", SessionDetailView.as_view(), name="session-detail"),
+    path("<uuid:pk>/corner-deltas/", SessionCornerDeltasView.as_view(), name="session-corner-deltas"),
     path("<uuid:pk>/finish/", SessionFinishView.as_view(), name="session-finish"),
     path(
         "<uuid:session_pk>/telemetry/",

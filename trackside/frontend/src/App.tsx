@@ -13,6 +13,7 @@ import { LoginPage } from "./pages/login";
 import { CoachDashboard } from "./pages/coach";
 import { AdminDashboard } from "./pages/admin";
 import { DriverDashboard } from "./pages/driver";
+import { MapsPage } from "./pages/maps";
 
 /**
  * ProtectedRoute — redirects to /login if the user isn't authenticated.
@@ -69,6 +70,16 @@ function ProtectedRoute({
 }
 
 /**
+ * RequireLogin — any signed-in role may open the page; others go to /login.
+ */
+function RequireLogin({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+/**
  * LoginRoute — redirects authenticated users to their dashboard.
  */
 function LoginRoute() {
@@ -112,6 +123,16 @@ function AppRoutes() {
           <ProtectedRoute role="driver">
             <DriverDashboard />
           </ProtectedRoute>
+        }
+      />
+
+      {/* Maps — every signed-in role can see them; changes are checked on the server */}
+      <Route
+        path="/maps"
+        element={
+          <RequireLogin>
+            <MapsPage />
+          </RequireLogin>
         }
       />
 

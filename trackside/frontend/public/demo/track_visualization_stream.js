@@ -14,7 +14,10 @@ window.TracksideStream = (function () {
   const trackPath = document.getElementById("track-path");
   const kartDot = document.getElementById("kart-dot");
   const kartPulse = document.getElementById("kart-pulse");
-  const pathLength = trackPath ? trackPath.getTotalLength() : 0;
+  // The path changes when a run brings its own map, so its length is read when needed
+  function currentPathLength() {
+    return trackPath ? trackPath.getTotalLength() : 0;
+  }
 
   const statusIndicator = document.getElementById("status-indicator");
   const statusText = document.getElementById("status-text");
@@ -68,15 +71,22 @@ window.TracksideStream = (function () {
     const gStr = Number.isFinite(Number(data && data.g_force)) ? Number(data.g_force).toFixed(2) : "--";
     const threshStr = Number.isFinite(Number(data && data.threshold)) ? Number(data.threshold).toFixed(2) : "1.15";
 
+    // Corner names are typed by coaches, so they are written as plain text, never as HTML
     const item = document.createElement("div");
     item.className = "alert-item mono";
-    item.innerHTML = `
-      <div class="alert-details">
-        <span class="alert-title">⚠ INTERVENE: ${zoneSafe} Threshold Exceeded</span>
-        <span class="alert-meta">Lap ${lapStr} · Force: ${gStr}g (Limit: ${threshStr}g) · ${timeStr}</span>
-      </div>
-      <span class="alert-badge">RED ALERT</span>
-    `;
+    const details = document.createElement("div");
+    details.className = "alert-details";
+    const title = document.createElement("span");
+    title.className = "alert-title";
+    title.textContent = `⚠ INTERVENE: ${zoneSafe} Threshold Exceeded`;
+    const meta = document.createElement("span");
+    meta.className = "alert-meta";
+    meta.textContent = `Lap ${lapStr} · Force: ${gStr}g (Limit: ${threshStr}g) · ${timeStr}`;
+    details.append(title, meta);
+    const badge = document.createElement("span");
+    badge.className = "alert-badge";
+    badge.textContent = "RED ALERT";
+    item.append(details, badge);
 
     alertList.insertBefore(item, alertList.firstChild);
     while (alertList.children.length > MAX_ALERTS) alertList.removeChild(alertList.lastChild);
@@ -94,6 +104,7 @@ window.TracksideStream = (function () {
     );
     const threshold = data.threshold || 1.15;
 
+    const pathLength = currentPathLength();
     if (trackPath && kartDot && kartPulse && pathLength > 0) {
       const dist = progress * pathLength;
       const pt = trackPath.getPointAtLength(dist);
@@ -140,6 +151,7 @@ window.TracksideStream = (function () {
 
   function handleRunStart(eventData) {
     const isReplay = Boolean(eventData && eventData.replay);
+    if (window.TracksideMap) window.TracksideMap.applyRunStart(eventData);
 
     if (!isReplay) {
       if (alertList) {
@@ -175,6 +187,7 @@ window.TracksideStream = (function () {
     if (modeEl) modeEl.textContent = "Session Mode: Finished";
     if (statusText) statusText.textContent = "RUN FINISHED · SIMULATION COMPLETE";
 
+    const pathLength = currentPathLength();
     if (trackPath && kartDot && kartPulse && pathLength > 0) {
       const pt = trackPath.getPointAtLength(pathLength);
       kartDot.setAttribute("cx", pt.x);

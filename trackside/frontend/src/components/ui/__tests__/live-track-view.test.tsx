@@ -102,7 +102,7 @@ describe("LiveTrackView", () => {
       />
     );
 
-    expect(screen.getByText(/no active track selected/i)).toBeDefined();
+    expect(screen.getByText(/^no active track$/i)).toBeDefined();
   });
 
   it("calls the reference-line API with the correct trackId", async () => {

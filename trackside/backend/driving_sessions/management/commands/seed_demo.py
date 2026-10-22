@@ -12,7 +12,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from tracks.models import Track, Zone
+from tracks.demo_circuit_setup import PLACEHOLDER_GPS, ensure_demo_circuit
+from tracks.models import Zone
 from devices.models import Device
 from driving_sessions.models import Session
 
@@ -48,22 +49,11 @@ class Command(BaseCommand):
         except User.DoesNotExist:
             raise CommandError(f"Driver with email '{driver_email}' does not exist.")
 
-        # 2. Create or reuse Track "Demo Circuit" (kart_class sprint)
-        track, _ = Track.objects.get_or_create(
-            name="Demo Circuit",
-            defaults={
-                "kart_class": Track.KartClass.SPRINT,
-            },
-        )
-        if track.kart_class != Track.KartClass.SPRINT:
-            track.kart_class = Track.KartClass.SPRINT
-            track.save()
+        # 2. Create or reuse the built-in Track "Demo Circuit" (sprint class, locked)
+        track = ensure_demo_circuit()
 
         # 3. Create or reuse Zones: Hairpin (1.15, hairpin), Sweeper (1.55, sweeper), Chicane (1.30, chicane)
-        placeholder_gps = {
-            "start": {"lat": 12.9716, "lng": 77.5946},
-            "end": {"lat": 12.9720, "lng": 77.5950},
-        }
+        placeholder_gps = PLACEHOLDER_GPS
 
         zone_configs = [
             ("Hairpin", 1.15, Zone.CornerType.HAIRPIN),

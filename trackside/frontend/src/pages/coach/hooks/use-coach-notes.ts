@@ -11,7 +11,6 @@ import { DEFAULT_SPRINT_FLOOR, DEFAULT_SPRINT_CEILING } from "../constants";
 export function useCoachNotes(
   activeSessionId: string | null,
   activeTrackId: string | null,
-  setActiveTrackId: (id: string | null) => void,
   selectedDriver: DriverProfile,
 ) {
   const [zones, setZones] = useState<TrackZone[]>([]);
@@ -25,44 +24,45 @@ export function useCoachNotes(
   const [noteError, setNoteError] = useState<string | null>(null);
   const [newNoteText, setNewNoteText] = useState("");
 
-  // Fetch Available Zones for Active Track from API
+  // Load the zones of the active session's own track (empty when there is no track)
   useEffect(() => {
+    setZones([]);
+    setSelectedZoneId("");
+    if (!activeTrackId) return;
+    let cancelled = false;
     async function loadZones() {
       try {
-        const tracksRes = await api.get<any>("/api/tracks/");
-        const trackList = Array.isArray(tracksRes) ? tracksRes : tracksRes.results || [];
-        if (trackList.length > 0) {
-          const trackId = trackList[0].id;
-          setActiveTrackId(trackId);
-          const zonesRes = await api.get<any>(`/api/tracks/${trackId}/zones/`);
-          const zoneList = Array.isArray(zonesRes) ? zonesRes : zonesRes.results || [];
-          if (zoneList.length > 0) {
-            const mappedZones: TrackZone[] = zoneList.map((z: any) => ({
-              id: z.id,
-              label: z.label || z.name || `Zone ${z.order_number || z.id}`,
-              corner_type: z.corner_type || "other",
-              threshold_g:
-                typeof z.threshold_g === "number" ? z.threshold_g : DEFAULT_SPRINT_CEILING,
-              min_threshold_g:
-                typeof z.min_threshold_g === "number" ? z.min_threshold_g : DEFAULT_SPRINT_FLOOR,
-            }));
-            setZones(mappedZones);
-            setSelectedZoneId(mappedZones[0].id);
-          }
-        }
+        const zonesRes = await api.get<any>(`/api/tracks/${activeTrackId}/zones/`);
+        const zoneList = Array.isArray(zonesRes) ? zonesRes : zonesRes.results || [];
+        if (cancelled || zoneList.length === 0) return;
+        const mappedZones: TrackZone[] = zoneList.map((z: any) => ({
+          id: z.id,
+          label: z.label || z.name || `Zone ${z.order_number || z.id}`,
+          corner_type: z.corner_type || "other",
+          threshold_g: typeof z.threshold_g === "number" ? z.threshold_g : DEFAULT_SPRINT_CEILING,
+          min_threshold_g: typeof z.min_threshold_g === "number" ? z.min_threshold_g : DEFAULT_SPRINT_FLOOR,
+        }));
+        setZones(mappedZones);
+        setSelectedZoneId(mappedZones[0].id);
       } catch (err) {
-        console.warn("Using default track zones:", err);
+        console.warn("Could not load the zones of the active track:", err);
       }
     }
     loadZones();
-  }, [setActiveTrackId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTrackId]);
 
   // Fetch Notes for Active Session from API
   useEffect(() => {
+    setNotes([]);
     if (!activeSessionId) return;
+    let cancelled = false;
     async function loadNotes() {
       try {
         const res = await api.get<any>(`/api/sessions/${activeSessionId}/notes/`);
+        if (cancelled) return;
         const noteList = Array.isArray(res) ? res : res.results || [];
         const mapped: SessionNote[] = noteList.map((n: any) => ({
           id: n.id,
@@ -81,6 +81,9 @@ export function useCoachNotes(
       }
     }
     loadNotes();
+    return () => {
+      cancelled = true;
+    };
   }, [activeSessionId, selectedDriver.name, selectedDriver.id]);
 
   const handleZoneSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -99,16 +102,7 @@ export function useCoachNotes(
     const name = newZoneName.trim();
     setIsSavingZone(true);
     try {
-      let targetTrackId = activeTrackId;
-      if (!targetTrackId) {
-        const tracksRes = await api.get<any>("/api/tracks/");
-        const trackList = Array.isArray(tracksRes) ? tracksRes : tracksRes.results || [];
-        if (trackList.length > 0) {
-          targetTrackId = trackList[0].id;
-          setActiveTrackId(targetTrackId);
-        }
-      }
-
+      const targetTrackId = activeTrackId;
       if (targetTrackId) {
         const res: any = await api.post(`/api/tracks/${targetTrackId}/zones/`, {
           label: name,
@@ -146,7 +140,7 @@ export function useCoachNotes(
       if (created) {
         currentZoneId = created.id;
       } else {
-        setNoteError("Failed to create new zone for note.");
+        setNoteError("Could not add that corner here. Add corners in Maps & Demo > Edit corners, then pick it for the note.");
         return;
       }
     }

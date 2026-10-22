@@ -14,22 +14,26 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
   const [currentGForce, setCurrentGForce] = useState<number | null>(null);
   const [currentGpsLat, setCurrentGpsLat] = useState<number | null>(null);
   const [currentGpsLng, setCurrentGpsLng] = useState<number | null>(null);
+  const [currentZoneId, setCurrentZoneId] = useState<string | null>(null);
+  const [currentLap, setCurrentLap] = useState<number | null>(null);
   const [wsStatus, setWsStatus] = useState<"connected" | "reconnecting" | "disconnected">("disconnected");
 
   const [actualSpeedPath, setActualSpeedPath] = useState<number[]>([]);
 
 
-  // Sync state when driver changes
+  // Clear the readings and chart when the driver or the watched session changes (never mix two sessions)
   useEffect(() => {
     setCurrentSpeed(null);
     setCurrentGForce(null);
     setCurrentGpsLat(null);
     setCurrentGpsLng(null);
+    setCurrentZoneId(null);
+    setCurrentLap(null);
     setCurrentHr(selectedDriver?.baseHr ?? 0);
     setCurrentSpo2(selectedDriver?.baseSpo2 ?? 0);
     setCurrentBreathing(selectedDriver?.baseBreathing ?? 0);
     setActualSpeedPath([]);
-  }, [selectedDriver]);
+  }, [selectedDriver, activeSessionId]);
 
   // WebSocket telemetry connection
   useEffect(() => {
@@ -55,7 +59,9 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
           try {
             const message = JSON.parse(event.data);
             if (message.type === "telemetry_reading" && message.data) {
-              const { speed_kmh, lateral_g, gps_lat, gps_lng } = message.data;
+              const { speed_kmh, lateral_g, gps_lat, gps_lng, zone, lap_number } = message.data;
+              if (typeof lap_number === "number") setCurrentLap(lap_number);
+              setCurrentZoneId(typeof zone === "string" ? zone : null);
               if (typeof speed_kmh === "number") {
                 setCurrentSpeed(Math.round(speed_kmh));
                 setActualSpeedPath((prev) => {
@@ -112,6 +118,8 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     currentGForce,
     currentGpsLat,
     currentGpsLng,
+    currentZoneId,
+    currentLap,
     wsStatus,
     actualSpeedPath,
   };

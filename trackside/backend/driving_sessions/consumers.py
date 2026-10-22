@@ -5,7 +5,6 @@ Provides real-time telemetry, alert, and biometric streaming to connected Coach 
 """
 
 import json
-
 from django.core.serializers.json import DjangoJSONEncoder
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async

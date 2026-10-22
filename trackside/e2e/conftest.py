@@ -18,6 +18,8 @@ for p in [str(parent_dir), str(current_dir)]:
 # Set high login rate limit for E2E testing to prevent 429 throttling
 os.environ["LOGIN_THROTTLE_RATE"] = "1000/min"
 
+from setup_helpers import ensure_track_and_zone  # noqa: E402
+
 REPORTS_DIR = Path(__file__).parent / "reports"
 SCREENSHOTS_DIR = REPORTS_DIR / "screenshots"
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -160,36 +162,8 @@ def ensure_test_environment(backend_url):
     user_list = users_res.json()
     users = user_list if isinstance(user_list, list) else user_list.get("results", [])
 
-    # 4. Ensure sprint-class track exists
-    tracks_res = session.get(f"{backend_url}/api/tracks/", timeout=5)
-    assert tracks_res.status_code == 200, f"Failed to fetch tracks: {tracks_res.text}"
-    t_data = tracks_res.json()
-    t_list = t_data if isinstance(t_data, list) else t_data.get("results", [])
-    if len(t_list) == 0:
-        create_track = session.post(
-            f"{backend_url}/api/tracks/",
-            json={"name": "Apex International Circuit", "kart_class": "sprint"},
-            headers=auth_headers(),
-            timeout=5,
-        )
-        assert create_track.status_code in (200, 201), f"Failed to create track: {create_track.status_code} - {create_track.text}"
-        track_id = create_track.json()["id"]
-    else:
-        track_id = t_list[0]["id"]
-
-    # 5. Ensure at least one real corner zone exists
-    zones_res = session.get(f"{backend_url}/api/tracks/{track_id}/zones/", timeout=5)
-    assert zones_res.status_code == 200, f"Failed to fetch zones: {zones_res.text}"
-    z_data = zones_res.json()
-    z_list = z_data if isinstance(z_data, list) else z_data.get("results", [])
-    if len(z_list) == 0:
-        create_zone = session.post(
-            f"{backend_url}/api/tracks/{track_id}/zones/",
-            json={"label": "Turn 4 Hairpin", "corner_type": "hairpin", "threshold_g": 1.15},
-            headers=auth_headers(),
-            timeout=5,
-        )
-        assert create_zone.status_code in (200, 201), f"Failed to create zone: {create_zone.status_code} - {create_zone.text}"
+    # 4-5. Ensure a sprint-class track with at least one real corner zone exists
+    track_id = ensure_track_and_zone(session, backend_url, auth_headers)
 
     # 6. Ensure at least one driving session exists for Driver 1
     sess_res = session.get(f"{backend_url}/api/sessions/", timeout=5)

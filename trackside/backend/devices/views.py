@@ -1,32 +1,32 @@
 """
 Trackside — Devices views.
 
-Device management is Admin-only. Other roles can view device status
-for awareness but cannot modify device records.
+Device management is Admin-only. Coaches can view device status; drivers
+cannot see devices at all (the data names other drivers). Only Admin can modify.
 """
 
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from devices.authentication import DeviceTokenAuthentication
 
-from accounts.permissions import IsAdmin
+from accounts.permissions import IsAdmin, IsAdminOrCoach, IsDevice
 from devices.models import Device, DeviceCommand
 from devices.serializers import DeviceSerializer, DeviceCommandSerializer
 
 
 class DeviceListCreateView(generics.ListCreateAPIView):
     """
-    GET /api/devices/ — list all devices (any authenticated user)
+    GET /api/devices/ — list all devices (Admin and Coach; drivers get 403)
     POST /api/devices/ — register a new device (Admin only)
     """
 
     serializer_class = DeviceSerializer
 
     def get_permissions(self):
+        """Admin registers devices; Admin and Coach read them."""
         if self.request.method == "POST":
             return [IsAdmin()]
-        return [IsAuthenticated()]
+        return [IsAdminOrCoach()]
 
     def get_queryset(self):
         return Device.objects.select_related("assigned_to").all()
@@ -34,16 +34,17 @@ class DeviceListCreateView(generics.ListCreateAPIView):
 
 class DeviceDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    GET /api/devices/<uuid>/ — device details
+    GET /api/devices/<uuid>/ — device details (Admin and Coach; drivers get 403)
     PUT/PATCH/DELETE — Admin only
     """
 
     serializer_class = DeviceSerializer
 
     def get_permissions(self):
+        """Admin changes a device; Admin and Coach read it."""
         if self.request.method in ("PUT", "PATCH", "DELETE"):
             return [IsAdmin()]
-        return [IsAuthenticated()]
+        return [IsAdminOrCoach()]
 
     def get_queryset(self):
         return Device.objects.select_related("assigned_to").all()
@@ -77,9 +78,11 @@ class DevicePendingCommandsView(generics.ListAPIView):
     Device fetches its own pending commands. Authenticated via DeviceTokenAuthentication.
     """
     authentication_classes = [SessionAuthentication, DeviceTokenAuthentication]
+    permission_classes = [IsDevice]
     serializer_class = DeviceCommandSerializer
 
     def get_queryset(self):
+        """Pending commands of the calling device only."""
         # request.user is a DeviceUser object
         device = self.request.user.device
         return DeviceCommand.objects.filter(
@@ -94,10 +97,12 @@ class DeviceCompleteCommandView(generics.UpdateAPIView):
     Device marks a command as completed or failed and submits results.
     """
     authentication_classes = [SessionAuthentication, DeviceTokenAuthentication]
+    permission_classes = [IsDevice]
     serializer_class = DeviceCommandSerializer
     http_method_names = ['post', 'patch']
 
     def get_queryset(self):
+        """Commands of the calling device only."""
         device = self.request.user.device
         return DeviceCommand.objects.filter(device=device)
 
@@ -109,6 +114,9 @@ class DeviceCompleteCommandView(generics.UpdateAPIView):
         instance = self.get_object()
         
         status = request.data.get("status", DeviceCommand.Status.COMPLETED)
+        if status not in (DeviceCommand.Status.COMPLETED, DeviceCommand.Status.FAILED):
+            from rest_framework.response import Response
+            return Response({"status": "Use 'completed' or 'failed'."}, status=400)
         result = request.data.get("result", None)
 
         instance.status = status

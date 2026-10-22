@@ -33,8 +33,10 @@ interface RequestConfig extends Omit<RequestInit, "body"> {
 async function request<T>(url: string, config: RequestConfig = {}): Promise<T> {
   const { body, headers: customHeaders, ...rest } = config;
 
+  // A file upload (FormData) must not get a JSON content type: the browser adds its own boundary
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(customHeaders as Record<string, string>),
   };
 
@@ -48,7 +50,7 @@ async function request<T>(url: string, config: RequestConfig = {}): Promise<T> {
     ...rest,
     headers,
     credentials: "include", // Always send session cookie
-    body: body ? JSON.stringify(body) : undefined,
+    body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
   });
 
   // Handle common error codes
@@ -93,6 +95,10 @@ export const api = {
 
   post: <T>(url: string, body?: unknown) =>
     request<T>(url, { method: "POST", body }),
+
+  /** POST a multipart form (file upload) */
+  upload: <T>(url: string, form: FormData) =>
+    request<T>(url, { method: "POST", body: form }),
 
   put: <T>(url: string, body?: unknown) =>
     request<T>(url, { method: "PUT", body }),

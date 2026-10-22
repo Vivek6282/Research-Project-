@@ -93,3 +93,40 @@ class TestTrackReferenceLineEndpoint(APITestCase):
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestSchematicReferenceLine(APITestCase):
+    """The built-in track answers with a computed schematic outline; other maps keep their own."""
+
+    def setUp(self):
+        super().setUp()
+        self.coach = User.objects.create_user(
+            email="coach_schematic@trackside.local", name="Coach Schematic",
+            password="CoachPassword123!", role="coach",
+        )
+        self.client.force_authenticate(user=self.coach)
+
+    def test_builtin_gets_pseudo_gps_outline_and_nothing_is_stored(self):
+        """Built-in: 400 points near lat 10 / lng 76, is_schematic true, reference_line column untouched."""
+        from tracks.demo_circuit_setup import ensure_demo_circuit
+        track = ensure_demo_circuit()
+        data = self.client.get(f"/api/tracks/{track.id}/reference-line/").json()
+        assert data["is_schematic"] is True
+        assert len(data["reference_line"]) == 400
+        assert all(abs(p["lat"] - 10.0) < 0.01 and abs(p["lng"] - 76.0) < 0.01 for p in data["reference_line"])
+        assert sorted(c["label"] for c in data["corners"]) == ["Chicane", "Hairpin", "Sweeper"]
+        track.refresh_from_db()
+        assert not track.reference_line
+
+    def test_custom_map_is_unchanged_and_not_schematic(self):
+        """Custom map: same reference_line as stored, is_schematic false, corners from stored gps_range."""
+        from tracks.models import Zone
+        line = [{"lat": 11.0, "lng": 76.9}, {"lat": 11.001, "lng": 76.901}]
+        track = Track.objects.create(name="Mine", reference_line=line)
+        Zone.objects.create(track=track, label="T1", threshold_g=1.2, gps_range={
+            "start": {"lat": 11.0, "lng": 76.9}, "end": {"lat": 11.001, "lng": 76.901}})
+        data = self.client.get(f"/api/tracks/{track.id}/reference-line/").json()
+        assert data["is_schematic"] is False
+        assert data["reference_line"] == line
+        assert [c["label"] for c in data["corners"]] == ["T1"]
+        assert data["corners"][0]["start"] == {"lat": 11.0, "lng": 76.9}

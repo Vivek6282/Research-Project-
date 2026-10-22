@@ -104,6 +104,11 @@ window.TracksideChart = (function () {
   }
 
   function updateZonePill(zonePills, zoneName) {
+    // A custom map draws its own pills; the map module lights them
+    if (window.TracksideMap && window.TracksideMap.isCustom()) {
+      window.TracksideMap.highlightZone(zoneName);
+      return;
+    }
     const zn = (zoneName || "").toLowerCase();
     Object.keys(zonePills).forEach((k) => {
       if (zonePills[k]) zonePills[k].classList.remove("active");

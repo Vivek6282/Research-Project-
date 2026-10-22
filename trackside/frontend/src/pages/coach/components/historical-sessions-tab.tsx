@@ -79,7 +79,18 @@ export function HistoricalSessionsTab({
                     data-testid="coach-historical-row"
                     className="border-b border-[#232B35]/60 hover:bg-[#161D26]"
                   >
-                    <td className="py-2.5 px-3 font-bold text-[#3FA6E0]">{s.id}</td>
+                    <td className="py-2.5 px-3 font-bold text-[#3FA6E0]">
+                      {s.id}
+                      {s.isDemo && (
+                        <span
+                          data-testid="coach-demo-run-label"
+                          title="Simulated run started from Maps & Demo, not real driving"
+                          className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#F2A93B66] bg-[#F2A93B14] text-[#F2A93B]"
+                        >
+                          DEMO RUN
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3 text-[#E7EDF3] font-semibold">{s.driver}</td>
                     <td className="py-2.5 px-3 text-[#7C8898]">{s.kart}</td>
                     <td className="py-2.5 px-3 text-[#7C8898]">{s.date}</td>

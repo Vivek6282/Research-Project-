@@ -29,3 +29,6 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Track profile files written for Coach demo runs
+trackside/backend/demo_profiles/

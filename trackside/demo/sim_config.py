@@ -10,12 +10,14 @@ import uuid
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 
-# Load environment configuration from demo/.env if present
+# Load environment configuration from demo/.env if present.
+# override=False: values already in the environment (for example the session id and
+# device token a Coach demo run passes in) always win over the .env file.
 env_file_path = os.path.join(os.path.dirname(__file__), ".env")
 if os.path.exists(env_file_path):
-    load_dotenv(env_file_path)
+    load_dotenv(env_file_path, override=False)
 else:
-    load_dotenv()
+    load_dotenv(override=False)
 
 # Communication and target endpoints
 SERIAL_PORT = os.getenv("SERIAL_PORT", "COM5")
