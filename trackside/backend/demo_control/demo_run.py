@@ -21,7 +21,7 @@ from driving_sessions.models import Session
 from driving_sessions.session_close import close_session_if_open
 from tracks.demo_circuit_setup import ensure_demo_circuit
 from tracks.models import Track
-from demo_control.run_limits import builtin_limit_args
+from demo_control.run_limits import builtin_limit_args, run_limits
 from tracks.outline_gps import write_schematic_gps_file
 from tracks.track_profile import ProfileError, write_track_profile
 
@@ -174,6 +174,7 @@ def start_demo_run(request) -> dict:
             driver=driver, track=track, mode=Session.Mode.PERFORMANCE, started_at=timezone.now(),
             kart_number="Demo", is_demo=True,
         )
+    limits, limits_custom = run_limits(track, driver)
     run_values = {
         "SESSION_ID": str(session.id), "DEVICE_TOKEN": raw_token,
         "BACKEND_URL": f"{request.scheme}://{request.get_host()}", "DEMO_ZONES": json.dumps(zones),
@@ -181,7 +182,8 @@ def start_demo_run(request) -> dict:
     run_info = {
         "session_id": str(session.id), "device_id": str(device.id), "driver_id": str(driver.id),
         "driver_name": driver.name, "track_id": str(track.id), "track_name": track.name, "laps": laps,
-        "pace": pace, "pace_applied": not track.is_builtin, "built_in": track.is_builtin, "finalized": False,
+        "pace": pace, "pace_applied": not track.is_builtin, "built_in": track.is_builtin, "limits": limits, "limits_custom": limits_custom,
+        "finalized": False,
     }
     try:
         pid = simulator.start_simulator(extra_args, run_values, run_info)

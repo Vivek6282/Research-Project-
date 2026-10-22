@@ -20,6 +20,8 @@ export interface DemoRunFacts {
   pace: string;
   pace_applied: boolean;
   built_in: boolean;
+  limits?: Record<string, number>;
+  limits_custom?: boolean;
 }
 
 export interface DemoStatus {
@@ -31,6 +33,8 @@ export interface DemoStatus {
   port_hint: string | null;
   last_lines: string[];
   error: string | null;
+  limits?: Record<string, number> | null;
+  limits_custom?: boolean | null;
   run: DemoRunFacts | null;
 }
 
