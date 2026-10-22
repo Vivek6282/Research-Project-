@@ -47,7 +47,8 @@ export function MapsDemoTab({ onWatchLive }: MapsDemoTabProps) {
             onStop={demo.stop}
             onWatchLive={onWatchLive}
           />
-          <LaptopLinkPanel onWatchLive={onWatchLive} />
+          {/* The laptop link is only a fallback for when the Play demo is not available on this server */}
+          {demo.availability !== "available" && demo.availability !== "checking" && <LaptopLinkPanel onWatchLive={onWatchLive} />}
         </MapsBrowser>
       </Panel>
       {playing && (

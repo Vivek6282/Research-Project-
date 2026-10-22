@@ -62,7 +62,7 @@ On the hosted site (Render) the server runs the virtual race itself and your **b
 4. **Maps & Demo > Play demo** on the Demo Circuit, choose the driver and Start. You land on the live tab; the server runs the simulator and the browser sends each reading's stage to the bridge, so the glove follows the run.
 5. Stop it with **Stop** on the Maps & Demo tab.
 
-Needs the server setting `HOSTED_DEMO_ENABLED=true` (the Render blueprint sets it; remove it or set it to false to switch the hosted demo off). Only a Coach can start a run. The glove lags the screen by a fraction of a second. If the bridge is busy, close the Arduino Serial Monitor. The "Connect laptop" method below still works as a fallback.
+Needs the server setting `HOSTED_DEMO_ENABLED=true` (the Render blueprint sets it; remove it or set it to false to switch the hosted demo off). Only a Coach can start a run. The glove lags the screen by a fraction of a second. If the bridge is busy, close the Arduino Serial Monitor. The "Connect laptop" method below is only a fallback: its box appears on the Maps & Demo tab only when the Play demo is not available on that server.
 
 ### Glove demo with a hosted site ("Connect laptop")
 
