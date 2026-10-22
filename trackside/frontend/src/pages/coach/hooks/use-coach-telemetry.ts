@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { DriverProfile } from "../types";
+import { useLiveReadings } from "./use-live-readings";
 
 export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId: string | null) {
   const [currentSpeed, setCurrentSpeed] = useState<number | null>(null);
@@ -19,6 +20,8 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
   const [wsStatus, setWsStatus] = useState<"connected" | "reconnecting" | "disconnected">("disconnected");
 
   const [actualSpeedPath, setActualSpeedPath] = useState<number[]>([]);
+  const live = useLiveReadings(`${selectedDriver?.id}|${activeSessionId}`);
+  const { applyReading, applyAlert } = live;
 
 
   // Clear the readings and chart when the driver or the watched session changes (never mix two sessions)
@@ -60,6 +63,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
             const message = JSON.parse(event.data);
             if (message.type === "telemetry_reading" && message.data) {
               const { speed_kmh, lateral_g, gps_lat, gps_lng, zone, lap_number } = message.data;
+              applyReading(message.data);
               if (typeof lap_number === "number") setCurrentLap(lap_number);
               setCurrentZoneId(typeof zone === "string" ? zone : null);
               if (typeof speed_kmh === "number") {
@@ -76,6 +80,8 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
                 setCurrentGpsLat(gps_lat);
                 setCurrentGpsLng(gps_lng);
               }
+            } else if (message.type === "alert_triggered" && message.data) {
+              applyAlert(message.data);
             } else if (message.type === "biometric_reading" && message.data) {
               const { heart_rate, spo2, breathing_rate } = message.data;
               if (heart_rate) setCurrentHr(heart_rate);
@@ -108,9 +114,17 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) ws.close();
     };
-  }, [activeSessionId]);
+  }, [activeSessionId, applyReading, applyAlert]);
 
   return {
+    currentLimit: live.currentLimit,
+    currentStage: live.currentStage,
+    currentZoneLabel: live.currentZoneLabel,
+    currentCornerType: live.currentCornerType,
+    isStraight: live.isStraight,
+    alertLog: live.alertLog,
+    gWindow: live.gWindow,
+    clearAlerts: live.clearAlerts,
     currentSpeed,
     currentHr,
     currentSpo2,
