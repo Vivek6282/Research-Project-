@@ -44,3 +44,21 @@ Every driver has a short display ID, the letter `D` and 5 digits (for example `D
 * A corner's g-force limit is `zone.threshold_g`, set on the map (Maps, then **Edit corners**, 1.0 to 1.5 g). It applies to everyone who drives that map. Alerts (`Alert.threshold_applied`), live events, roster status, the simulator profile and the Play demo status all read it through `drivers/limits.py` (`limit_in_force`).
 * The built-in Demo Circuit is locked; duplicate it as a custom map to change its limits.
 * **Per-driver limits are retired.** Old `DriverZoneThreshold` rows are kept as history, unused (no data was deleted or migrated). `POST /api/drivers/thresholds/` answers `410 Gone`; the list endpoints stay read-only. The Admin delete screen still counts those rows, and they are removed with the driver.
+
+## Production variables
+
+Set these in the backend's environment (`.env`). With `DJANGO_ENV=production` the backend refuses to start on a weak `SECRET_KEY`, on SQLite, or on an origin that does not start with `https://`.
+
+| Variable | Example | What it does |
+|---|---|---|
+| `DJANGO_ENV` | `production` | Turns on the production rules: secure cookies, HTTPS redirect, HSTS, trusted proxy header, no SQLite. |
+| `DEBUG` | `False` | Must be `False` in production. |
+| `SECRET_KEY` | output of `python -c "import secrets; print(secrets.token_urlsafe(50))"` | Signs sessions. Long, random, never shared; a placeholder or empty value is refused. |
+| `ALLOWED_HOSTS` | `trackside.example.com,localhost,127.0.0.1` | Host names the backend answers to (also used by the WebSocket origin check). Keep `localhost` so the container health check works. |
+| `DATABASE_URL` | `postgres://trackside_user:PASSWORD@db:5432/trackside` | PostgreSQL connection. SQLite is refused in production. |
+| `REDIS_URL` | `redis://:PASSWORD@redis:6379/0` | Redis for live WebSocket updates. Empty means an in-memory layer (one process only). |
+| `CORS_ALLOWED_ORIGINS` | `https://trackside.example.com` | The site(s) allowed to call the API with cookies (comma separated, each `https://`). The older name `CORS_ALLOWED_ORIGIN` is still accepted. |
+| `CSRF_TRUSTED_ORIGINS` | `https://trackside.example.com` | Optional extra origins trusted for form/API posts (comma separated, each `https://`). The CORS origins are always trusted too. |
+| `TRUSTED_PROXY_COUNT` | `1` | How many reverse proxies sit in front (default 1 in production, 0 otherwise). The proxy must append the real client address to `X-Forwarded-For` and must replace, not trust, any value the client sent; otherwise login limits can be dodged or shared by everyone. |
+
+Behind the proxy the backend trusts `X-Forwarded-Proto` (so HTTPS requests are not redirected again). `GET /api/health/` answers `200 {"status": "ok"}` when the database answers, otherwise `503`, and reveals nothing else; it is exempt from the HTTPS redirect so the container health check can call it.
