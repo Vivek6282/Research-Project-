@@ -52,6 +52,18 @@ On a custom map press **Edit corners**: the outline opens large with green **+**
 5. Before any data arrives the panels say "Waiting for live data", "No alerts yet" or "-"; no numbers are invented.
 
 
+### Glove demo with a hosted site: Play demo + Connect bridge (no scripts)
+
+On the hosted site (Render) the server runs the virtual race itself and your **browser** talks to the bridge over USB (Web Serial), so there is nothing to copy and no script to run.
+
+1. Use **Chrome or Edge** on the laptop (Firefox and Safari do not support Web Serial). Open the hosted site, wait for it to wake, and log in as Coach.
+2. Plug in the bridge (and switch the glove on).
+3. Press **Connect bridge** in the bar at the top (next to LIVE WS STREAM). The browser lists the USB ports: choose a **CP210x** one. The site checks the board's banner: if you chose the glove it says so, press Connect bridge again and pick the other one. The chip turns green: **GLOVE BRIDGE CONNECTED**. Next time the page reconnects a port you chose before by itself.
+4. **Maps & Demo > Play demo** on the Demo Circuit, choose the driver and Start. You land on the live tab; the server runs the simulator and the browser sends each reading's stage to the bridge, so the glove follows the run.
+5. Stop it with **Stop** on the Maps & Demo tab.
+
+Needs the server setting `HOSTED_DEMO_ENABLED=true` (the Render blueprint sets it; remove it or set it to false to switch the hosted demo off). Only a Coach can start a run. The glove lags the screen by a fraction of a second. If the bridge is busy, close the Arduino Serial Monitor. The "Connect laptop" method below still works as a fallback.
+
 ### Glove demo with a hosted site ("Connect laptop")
 
 The glove only talks to the bridge on a laptop, so with a hosted site the laptop's simulator does both jobs: it drives the glove and posts the same readings to the hosted server. The hosted Coach screen then shows the run live.

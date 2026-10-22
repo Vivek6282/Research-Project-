@@ -143,7 +143,7 @@ Logs rotate by themselves (10 MB, 5 files per container).
 
 ## 10. What is not available when hosted
 
-* **The Play demo, the demo Start/Stop control and "Open live visualizer"** only work on the laptop that has the bridge. The server refuses the demo endpoints in production and the hosted website is built without the demo controls.
+* **The Play demo, the demo Start/Stop control and "Open live visualizer"** are not part of this multi-container setup: the server refuses the demo endpoints in production and this website is built without the demo controls. (The single-container Render setup in `RENDER.md` can run the Play demo on the server with `HOSTED_DEMO_ENABLED=true`.)
 * **The visualizer's local stream** (the simulator's own WebSocket on the laptop) is not part of the hosted site.
 * **The glove** never talks to the server; it works from the bridge and the laptop.
 * A laptop simulator posting to the hosted server (`BACKEND_URL=https://your-domain`) needs a device token and a session, and there is no supported way to create them on a production server yet. Until that is designed, run the glove demo locally and use the hosted site for the dashboards.

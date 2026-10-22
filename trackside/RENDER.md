@@ -9,7 +9,7 @@ This is the easy, free way to show the dashboards. The server setup in `DEPLOYME
 * The free web service **sleeps after a period with no visits**. The first visit after that takes about a minute to wake it, and an open live view drops when it sleeps.
 * The free **database may expire** after a limited time. Do not keep data you cannot lose on it. Back up by exporting from Render's dashboard, or move to a paid database or an external one later.
 * Free instances have a small amount of memory. The backend is light, but the first build can take several minutes.
-* The Play demo, the glove, the bridge and the simulator only run on your own laptop. A hosted site cannot start them.
+* The Play demo runs on the server (`HOSTED_DEMO_ENABLED=true`, Coach only). The glove still needs your laptop: press **Connect bridge** in Chrome or Edge and the browser forwards the stages to the bridge (see `demo/README.md`). The free instance is small, so the demo can lag a little.
 
 ## Steps
 
@@ -39,7 +39,7 @@ It never runs twice. To remove it: open the Admin screen, **Delete** the "Sample
 
 ## Glove demo with this site
 
-To show the glove working while this hosted site shows the run live, use **Coach > Maps & Demo > Connect laptop**. The steps are in `demo/README.md` ("Glove demo with a hosted site").
+In Chrome or Edge: plug in the bridge, press **Connect bridge**, then **Maps & Demo > Play demo**. The server runs the virtual race and the browser drives the glove. The steps are in `demo/README.md` ("Play demo + Connect bridge"). **Connect laptop** is the fallback.
 
 ## If something goes wrong
 
