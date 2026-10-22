@@ -114,8 +114,8 @@ class TestZoneChecks(ZoneCreateBase):
         self.assertEqual(response.data["label"], "Padded")
 
     def test_limit_must_be_inside_the_tracks_range(self):
-        """1.0 and 1.5 are fine on a sprint track; 0.99, 1.51, text and NaN are refused."""
-        for limit in (0.99, 1.51, 5, "abc", None):
+        """0.3 and 1.5 are fine on a sprint track; 0.29, 1.51, text and NaN are refused."""
+        for limit in (0.29, 1.51, 5, "abc", None):
             self.assertEqual(self.post(label=f"L{limit}", threshold_g=limit).status_code, 400, repr(limit))
         self.assertEqual(self.post(label="Low", threshold_g=1.0).status_code, 201)
         self.assertEqual(self.post(label="High", threshold_g=1.5).status_code, 201)

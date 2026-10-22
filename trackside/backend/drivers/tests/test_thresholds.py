@@ -34,7 +34,7 @@ class TestDriverZoneThresholdValidation(APITestCase):
             password="Password123!",
         )
 
-        # Sprint-class track (floor: 1.0g)
+        # Sprint-class track (floor: 0.3g)
         self.sprint_track = Track.objects.create(
             name="Sprint GP Circuit",
             kart_class=Track.KartClass.SPRINT,
@@ -45,7 +45,7 @@ class TestDriverZoneThresholdValidation(APITestCase):
             threshold_g=1.40,
         )
 
-        # Rental-class track (floor: 0.4g)
+        # Rental-class track (floor: 0.3g)
         self.rental_track = Track.objects.create(
             name="Fun Park Track",
             kart_class=Track.KartClass.RENTAL,
@@ -69,11 +69,11 @@ class TestDriverZoneThresholdValidation(APITestCase):
         self.assertIn("cannot exceed", str(ctx.exception))
 
     def test_clean_rejects_threshold_below_sprint_floor(self):
-        # 0.3g is below sprint floor (1.0g)
+        # 0.2g is below the floor (0.3g)
         threshold = DriverZoneThreshold(
             driver=self.driver,
             zone=self.sprint_zone,
-            custom_threshold_g=0.30,
+            custom_threshold_g=0.20,
             set_by=self.coach,
         )
         with self.assertRaises(ValidationError) as ctx:

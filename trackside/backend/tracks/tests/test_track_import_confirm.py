@@ -68,7 +68,7 @@ class TestTrackImportConfirm(APITestCase):
         self.assertEqual([z.label for z in zones], ["Corner 1", "Corner 2", "Corner 3", "Corner 4"])
         self.assertEqual({z.threshold_g for z in zones}, {1.2})
         self.assertEqual(set(zones[0].gps_range), {"start", "end"})
-        self.assertEqual(zones[0].min_threshold_g, 1.0)
+        self.assertEqual(zones[0].min_threshold_g, 0.3)
 
     def test_browser_supplied_geometry_is_ignored(self):
         """Extra fields such as reference_line or is_builtin do not reach the saved track."""
@@ -98,13 +98,13 @@ class TestTrackImportConfirm(APITestCase):
         self.assertEqual(self.confirm(corners).status_code, 201)
 
     def test_limits_must_be_inside_the_sprint_range(self):
-        """0.99 and 1.51 g are refused; 1.0 and 1.5 are accepted."""
-        for bad in (0.99, 1.51, "abc", None, "nan", 99):
+        """0.29 and 1.51 g are refused; 0.3 and 1.5 are accepted."""
+        for bad in (0.29, 1.51, "abc", None, "nan", 99):
             corners = good_corners()
             corners[2]["threshold_g"] = bad
             self.assertEqual(self.confirm(corners, name=f"T {bad}").status_code, 400, repr(bad))
         corners = good_corners()
-        corners[0]["threshold_g"], corners[1]["threshold_g"] = 1.0, 1.5
+        corners[0]["threshold_g"], corners[1]["threshold_g"] = 0.3, 1.5
         self.assertEqual(self.confirm(corners).status_code, 201)
 
     def test_corner_list_must_match_the_file(self):
@@ -155,14 +155,14 @@ class TestSafeSpeedHint(APITestCase):
         self.assertAlmostEqual(safe_speed_kmh(1.25, 20.0), 56.38, places=1)
 
     def test_preview_reports_range_default_and_hint(self):
-        """The preview gives the 1.0-1.5 g range and a hint for each corner at the default limit."""
+        """The preview gives the 0.3-1.5 g range and a hint for each corner at the default limit."""
         cache.clear()
         coach = User.objects.create_user(
             email="hint_coach@trackside.local", name="Hint Coach", password="CoachPassword123!", role="coach")
         self.client.force_authenticate(coach)
         upload = SimpleUploadedFile("s.csv", st.racechrono_csv_text(st.make_samples()).encode(), content_type="text/csv")
         data = self.client.post(PREVIEW, {"file": upload}, format="multipart").data
-        self.assertEqual(data["limit_range_g"], {"min": 1.0, "max": 1.5, "default": 1.25})
+        self.assertEqual(data["limit_range_g"], {"min": 0.3, "max": 1.5, "default": 1.25})
         first = data["corners"][0]
         self.assertAlmostEqual(
             first["safe_speed_kmh_at_default"], safe_speed_kmh(1.25, first["tightest_radius_m"]), delta=0.2)

@@ -25,7 +25,7 @@ function makePayload(patch: Partial<EditorPayload> = {}): EditorPayload {
       { center_index: 15, radius_m: 12, suggested_name: "Turn 1", start_index: 8, end_index: 22, already_marked: true },
       { center_index: 80, radius_m: 25, suggested_name: "Turn 2", start_index: 70, end_index: 90, already_marked: false },
     ],
-    limit_range_g: { min: 1.0, max: 1.5, default: 1.25 }, zone_length_m: { min: 10, max: 100, default: 30 }, no_curve_radius_m: 9999, ...patch,
+    limit_range_g: { min: 0.3, max: 1.5, default: 1.25 }, zone_length_m: { min: 10, max: 100, default: 30 }, no_curve_radius_m: 9999, ...patch,
   };
 }
 const map = (patch: Partial<MapTrack> = {}): MapTrack => ({ id: "t1", name: "Kari", source: "vbo", is_builtin: false, is_archived: false, zones: [], ...patch });

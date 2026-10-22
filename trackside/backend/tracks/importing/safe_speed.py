@@ -5,7 +5,7 @@ import math
 from tracks.models import Track
 
 GRAVITY = 9.81
-# Settled decision: sprint-kart limits run from 1.0 to 1.5 g
+# Sprint-kart limits run from 0.3 to 1.5 g (the coach may set a low limit for a slow corner)
 LIMIT_MIN_G = Track.KART_CLASS_FLOOR[Track.KartClass.SPRINT]
 LIMIT_MAX_G = Track.KART_CLASS_CEILING[Track.KartClass.SPRINT]
 # Starting value shown in the form; the user changes it per corner

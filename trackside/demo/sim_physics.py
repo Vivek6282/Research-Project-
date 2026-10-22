@@ -19,8 +19,8 @@ GRAVITY = 9.81
 TIME_STEP_S = 0.2
 DEFAULT_CRUISE_KMH = 80.0
 # Pace = fraction of each corner's safe speed. At the tightest point g = pace^2 x limit,
-# so safe stays green (0.72), edge is amber (0.96) and over is red (1.17).
-PACES: Dict[str, float] = {"safe": 0.85, "edge": 0.98, "over": 1.08}
+# so safe stays green (0.72), edge is amber (0.90) and over is red (1.17).
+PACES: Dict[str, float] = {"safe": 0.85, "edge": 0.95, "over": 1.08}
 MIXED = "mixed"   # a realistic lap: most corners green, some amber, a few red
 # (amber corners, red corners) per lap; repeats every few laps so a short run still shows every colour
 MIXED_LAP_PATTERN = [(0, 0), (1, 0), (1, 1), (0, 0), (2, 1)]
@@ -37,6 +37,9 @@ TRIPLET_BASELINE_M = 10.0
 CURVATURE_WINDOW = 5
 STRAIGHT_THRESHOLD_G = 99.0
 READING_NOISE_G = 0.01
+# In a corner the reading jumps by up to this fraction of the corner's limit (bumps, kerbs, steering).
+# Small enough that safe still never reaches amber and edge never reaches red.
+CORNER_NOISE_FRACTION = 0.06
 MIN_READING_G = 0.05
 
 Point = Tuple[float, float]
@@ -174,8 +177,9 @@ class ProfileSimulator:
             number = self.member[i]
             corner = self.profile.corners[number] if number is not None else None
             lateral_g = speed * speed * self.curvature[i] / GRAVITY
-            lateral_g = max(MIN_READING_G, lateral_g + self.rng.uniform(-READING_NOISE_G, READING_NOISE_G))
             threshold = corner.threshold_g if corner else STRAIGHT_THRESHOLD_G
+            noise_g = CORNER_NOISE_FRACTION * threshold if corner else READING_NOISE_G
+            lateral_g = max(MIN_READING_G, lateral_g + self.rng.uniform(-noise_g, noise_g))
             yield {
                 "lap": lap_number,
                 "zone": corner.label if corner else "Straight",

@@ -61,7 +61,7 @@ class TestEditorRead(EditorBase):
         self.assertEqual(len(data["radii"]), len(data["outline"]))
         self.assertEqual(len(data["markers"]), 4)
         self.assertTrue(all(m["center_index"] is not None and m["radius_m"] for m in data["markers"]))
-        self.assertEqual(data["limit_range_g"], {"min": 1.0, "max": 1.5, "default": 1.25})
+        self.assertEqual(data["limit_range_g"], {"min": 0.3, "max": 1.5, "default": 1.25})
         self.assertEqual(data["zone_length_m"], {"min": 10.0, "max": 100.0, "default": 30.0})
         self.assertEqual(len(data["suggestions"]), 4)
 
@@ -164,7 +164,7 @@ class TestEditorSave(EditorBase):
             "Straight": with_change(label="Straight"),
             "Straightaway": with_change(label="straightaway kink"),
             "duplicate name": with_change(label=good[1]["label"].upper()),
-            "limit too low": with_change(threshold_g=0.99),
+            "limit too low": with_change(threshold_g=0.29),
             "limit too high": with_change(threshold_g=1.51),
             "limit text": with_change(threshold_g="1.2"),
             "zone too short": with_change(length_m=9.9),
@@ -182,10 +182,10 @@ class TestEditorSave(EditorBase):
         self.assertEqual(self.save(data, [dict(good[0], label=f"c{i}", center_index=i * 4) for i in range(61)]).status_code, 400)
 
     def test_boundary_values_are_accepted(self):
-        """1.0 g, 1.5 g, 10 m and 100 m are allowed; 40-character names are allowed."""
+        """0.3 g, 1.5 g, 10 m and 100 m are allowed; 40-character names are allowed."""
         data = self.load()
         markers = api_markers(data)
-        markers[0].update(threshold_g=1.0, length_m=10, label="n" * 40)
+        markers[0].update(threshold_g=0.3, length_m=10, label="n" * 40)
         markers[1].update(threshold_g=1.5, length_m=100)
         self.assertEqual(self.save(data, markers[:2]).status_code, 200)
 

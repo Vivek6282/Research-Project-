@@ -44,11 +44,11 @@ class PaceTests(unittest.TestCase):
     """Each pace shows its colour at every corner on every lap."""
 
     def test_safe_pace_stays_green(self):
-        """Safe: every reading in every corner is NOMINAL and peaks near 0.72 x limit."""
+        """Safe: every reading in every corner is NOMINAL and peaks near 0.72 x limit (plus corner jumps)."""
         packets = lap_packets("safe", seed=1, laps=8)
         self.assertEqual({p["stage"] for p in packets}, {"NOMINAL"})
         for g, _ in corner_peaks(packets).values():
-            self.assertAlmostEqual(g, 0.7225 * LIMIT, delta=0.05)
+            self.assertAlmostEqual(g, 0.7225 * LIMIT, delta=0.09 * LIMIT)
 
     def test_edge_pace_is_amber_never_red(self):
         """Edge: each corner peaks in MONITORING and never reaches INTERVENE."""
@@ -61,6 +61,17 @@ class PaceTests(unittest.TestCase):
         peaks = corner_peaks(lap_packets("over", seed=3, laps=8))
         self.assertEqual(len(peaks), 4 * 8)
         self.assertEqual({stage for _, stage in peaks.values()}, {"INTERVENE"})
+
+    def test_corner_readings_jump_more_than_straight_readings(self):
+        """Inside a corner the readings swing much more than on a straight."""
+        packets = lap_packets("safe", seed=6, laps=3)
+        def spread(rows):
+            values = [p["g_force"] for p in rows]
+            return max(values) - min(values)
+        corner_rows = [p for p in packets if p["zone"] != "Straight"]
+        straight_rows = [p for p in packets if p["zone"] == "Straight"]
+        self.assertGreater(spread(corner_rows), 0.25)
+        self.assertLess(spread(straight_rows), spread(corner_rows))
 
     def test_mixed_pace_shows_every_colour(self):
         """Mixed: over five laps there are green, amber and red readings."""
@@ -86,7 +97,7 @@ class SeedAndVariationTests(unittest.TestCase):
         peaks = corner_peaks(lap_packets("edge", seed=4, laps=6))
         first_corner = [g for (lap, zone), (g, _) in sorted(peaks.items()) if zone == "Corner 1"]
         self.assertGreater(len(set(first_corner)), 1)
-        self.assertLess(max(first_corner) / min(first_corner), 1.08)
+        self.assertLess(max(first_corner) / min(first_corner), 1.15)
 
 
 class LapShapeTests(unittest.TestCase):

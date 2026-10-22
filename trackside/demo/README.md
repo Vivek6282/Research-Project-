@@ -37,7 +37,7 @@ Everything about maps and demonstrations lives in the Coach screen, not in Setti
 If either switch is off, or the server is in production, the tab still shows the maps and the corner editor but hides every Play, Stop and visualizer control.
 
 ### Marking the highest-g corners (Edit corners)
-On a custom map press **Edit corners**: the outline opens large with green **+** suggestions at the tightest point of each bend (where g is highest at a given speed). Click a **+** to accept it or click anywhere on the outline to add a corner, drag a number along the line, rename it (required, up to 40 characters), set its limit (1.0 to 1.5 g) and its zone length (10 to 100 m, default 30 m centred on the point). The list shows each corner's radius and the safe corner speed at the current limit: `sqrt(limit x 9.81 x radius)`. Every saved corner becomes an alert zone that the alert rule and the glove use. A corner that already has telemetry or alerts is hidden instead of deleted, and limit changes are kept in an insert-only history. The Demo Circuit is view-only; use **Duplicate as custom map** to get an editable copy.
+On a custom map press **Edit corners**: the outline opens large with green **+** suggestions at the tightest point of each bend (where g is highest at a given speed). Click a **+** to accept it or click anywhere on the outline to add a corner, drag a number along the line, rename it (required, up to 40 characters), set its limit (0.3 to 1.5 g) and its zone length (10 to 100 m, default 30 m centred on the point). The list shows each corner's radius and the safe corner speed at the current limit: `sqrt(limit x 9.81 x radius)`. Every saved corner becomes an alert zone that the alert rule and the glove use. A corner that already has telemetry or alerts is hidden instead of deleted, and limit changes are kept in an insert-only history. The Demo Circuit is view-only; use **Duplicate as custom map** to get an editable copy.
 
 ### Watching a demo in the Coach module
 
@@ -181,7 +181,7 @@ To store a demo run:
 | `--delay <seconds>` | `0.2` | Interval between telemetry readings (e.g. `0.1` for faster pace) |
 | `--limit <NAME=VALUE>` | `[]` | Custom corner limit for the built-in track, repeatable (e.g. `--limit Hairpin=1.00`) |
 | `--track-file <path>` | none | Run a custom map from a profile file made by `python manage.py export_track <track_id> --out <path>`. Without it the built-in Demo Circuit runs exactly as before |
-| `--pace safe\|edge\|over\|mixed` | `safe` | With `--track-file`: 0.85 / 0.98 / 1.08 of each corner's safe speed (green / amber / red); `mixed` gives each lap a few amber and red corners among green ones |
+| `--pace safe\|edge\|over\|mixed` | `safe` | With `--track-file`: 0.85 / 0.95 / 1.08 of each corner's safe speed (green / amber / red); `mixed` gives each lap a few amber and red corners among green ones |
 | `--seed <N>` | random | With `--track-file`: makes a run repeatable (laps still differ from each other by about 3% of g) |
 | `--cruise-kmh <N>` | `80` | With `--track-file`: straight-line speed (20 to 200) |
 | `--post-batch <N>` | `10` | Most readings sent in one backend POST (1 to 10). `1` posts every reading on its own as soon as it is ready. A bad value exits with code 2. Terminal runs keep the default |
@@ -254,7 +254,7 @@ Chicane limit 1.30 g (default)
 ```
 
 ### Limits on custom maps
-A custom map uses **each corner's own limit**, set in the corner editor (Coach > Maps & Demo > Edit corners, 1.0 to 1.5 g). `--limit` is only for the built-in Demo Circuit and cannot be combined with `--track-file`.
+A custom map uses **each corner's own limit**, set in the corner editor (Coach > Maps & Demo > Edit corners, 0.3 to 1.5 g). `--limit` is only for the built-in Demo Circuit and cannot be combined with `--track-file`.
 
 ### Alert Discrepancy Warning (Manual CLI Execution)
 Backend alert ingestion always evaluates telemetry against the zone's own limit (`zone.threshold_g`, set on the map). Old per-driver limits are no longer used.
@@ -264,7 +264,7 @@ If you launch the simulator from a terminal with a value **above** a zone defaul
 
 ### Where limits come from
 
-* A corner's g-force limit is set **on the map**: Maps, then **Edit corners** (1.0 to 1.5 g). It is stored as the corner's own limit and applies to **everyone** who drives that map.
+* A corner's g-force limit is set **on the map**: Maps, then **Edit corners** (0.3 to 1.5 g). It is stored as the corner's own limit and applies to **everyone** who drives that map.
 * The alerts, the live Coach screen, the simulator (and so the glove and the visualizer) and the Play demo status ("Map limits: Hairpin 1.05 / Sweeper 1.30 / Chicane 1.10") all use that same limit.
 * The built-in **Demo Circuit is locked**: to change its limits, **Duplicate as custom map** and edit the copy. The built-in run uses the simulator's own track and fixed defaults, so the Play demo passes no `--limit` for it.
 * **Per-driver limits are retired.** Old per-driver rows stay in the database as history and are ignored; creating a new one (`POST /api/drivers/thresholds/`) answers `410 Gone`.

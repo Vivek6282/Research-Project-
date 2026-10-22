@@ -29,10 +29,11 @@ class Track(models.Model):
         RACECHRONO_CSV = "racechrono_csv", "RaceChrono CSV"
         VBO = "vbo", "Racelogic VBO"
 
-    # Sustained nominal cornering thresholds for sprint karts (1.0g-1.5g) vs rental karts (0.4g-0.8g)
+    # Corner limits the coach may set: sprint karts 0.3g-1.5g, rental karts 0.3g-0.8g.
+    # A slow corner can have a limit well below 1 g, so the floor is the same for both classes.
     KART_CLASS_FLOOR = {
-        KartClass.RENTAL: 0.4,
-        KartClass.SPRINT: 1.0,
+        KartClass.RENTAL: 0.3,
+        KartClass.SPRINT: 0.3,
     }
 
     KART_CLASS_CEILING = {

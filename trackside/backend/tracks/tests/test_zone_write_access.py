@@ -69,7 +69,7 @@ class TestZoneDetailWrites(ZoneWriteBase):
         self.assertEqual(self.client.patch(self.url(self.track), {"threshold_g": 1.1}, format="json").status_code, 200)
         row = ZoneThresholdHistory.objects.get()
         self.assertEqual((row.old_g, row.new_g, row.changed_by), (1.3, 1.1, self.admin))
-        for bad in ({"threshold_g": 0.5}, {"threshold_g": 1.6}, {"label": ""}, {"label": "x" * 41}, {"label": "Straight 2"},
+        for bad in ({"threshold_g": 0.2}, {"threshold_g": 1.6}, {"label": ""}, {"label": "x" * 41}, {"label": "Straight 2"},
                     {"gps_range": {"start": {"lat": 200, "lng": 0}, "end": RANGE["end"]}}, {"gps_range": "nowhere"}):
             self.assertEqual(self.client.patch(self.url(self.track), bad, format="json").status_code, 400, bad)
         zone = self.zones["Write Track"]
