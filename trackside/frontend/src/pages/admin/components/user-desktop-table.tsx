@@ -43,6 +43,7 @@ export function UserDesktopTable({
         <thead>
           <tr className="text-[10px] uppercase text-left border-b border-[#232B35]" style={{ color: "#7C8898" }}>
             <th className="pb-2 font-semibold">User</th>
+            <th className="pb-2 font-semibold">ID</th>
             <th className="pb-2 font-semibold">Username ID</th>
             <th className="pb-2 font-semibold">Email</th>
             <th className="pb-2 font-semibold">Role</th>
@@ -65,7 +66,7 @@ export function UserDesktopTable({
             if (isEditing) {
               return (
                 <tr key={`tbl-${u.id}`} data-testid="admin-user-row" data-user-id={u.id} className="bg-[#161D26]">
-                  <td className="py-2.5 px-1" colSpan={2}>
+                  <td className="py-2.5 px-1">
                     <input
                       data-testid="admin-edit-name-input"
                       value={editName}
@@ -74,6 +75,8 @@ export function UserDesktopTable({
                       className="w-full px-2 py-1 rounded text-xs font-mono bg-[#0A0E13] border border-[#3FA6E0] text-[#E7EDF3] outline-none"
                     />
                   </td>
+                  <td className="py-2.5 px-1 text-[#F2A93B] font-bold">{u.driver_code || "-"}</td>
+                  <td className="py-2.5 px-1 text-[#3FA6E0] font-bold">{u.username || "—"}</td>
                   <td className="py-2.5 px-1" colSpan={2}>
                     <input
                       data-testid="admin-edit-email-input"
@@ -115,6 +118,9 @@ export function UserDesktopTable({
               <tr key={`tbl-${u.id}`} data-testid="admin-user-row" data-user-id={u.id} className="hover:bg-[#161D26] transition-colors">
                 <td data-testid={`admin-user-name-${u.id}`} className="py-2.5 font-bold">
                   {u.name}
+                </td>
+                <td data-testid={`admin-user-code-${u.id}`} className="py-2.5 text-[#F2A93B] font-bold">
+                  {u.driver_code || "-"}
                 </td>
                 <td data-testid={`admin-user-username-${u.id}`} className="py-2.5 text-[#3FA6E0] font-bold">
                   {u.username || "—"}

@@ -117,6 +117,9 @@ export function UserMobileCards({
                 <div data-testid={`admin-user-username-${u.id}`} className="text-xs text-[#3FA6E0] font-bold">
                   {u.username || "—"}
                 </div>
+                <div data-testid={`admin-user-code-${u.id}`} className="text-xs text-[#F2A93B] font-bold">
+                  ID {u.driver_code || "-"}
+                </div>
               </div>
               <div className="flex items-center gap-1.5">
                 <span

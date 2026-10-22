@@ -5,6 +5,7 @@
 export interface UserRecord {
   id: string;
   username: string;
+  driver_code?: string | null;
   name: string;
   role: "admin" | "coach" | "driver";
   status: string;
@@ -42,6 +43,7 @@ export interface DiagnosticsData {
 
 export interface SuccessData {
   username: string;
+  driver_code?: string | null;
   password: string;
   name: string;
   role: string;
