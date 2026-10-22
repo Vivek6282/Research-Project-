@@ -252,6 +252,12 @@ if DJANGO_ENV == "production":
     SECURE_HSTS_PRELOAD = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
+    # Behind the HTTPS reverse proxy (Caddy): trust its X-Forwarded-Proto so requests are not
+    # redirected to https forever. The proxy must set this header itself (never the client).
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = False
+    # The container health check calls this path over plain http inside the compose network
+    SECURE_REDIRECT_EXEMPT = [r"^api/health/$"]
 else:
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
@@ -267,12 +273,36 @@ DEV_ORIGINS = [
     "http://127.0.0.1:5174",
     "http://127.0.0.1:5175",
 ]
-env_origins = env.list("CORS_ALLOWED_ORIGIN", default=[])
-CORS_ALLOWED_ORIGINS = list(set(DEV_ORIGINS + env_origins))
+
+
+def clean_origin_list(name):
+    """The comma-separated origins in an environment variable, without blanks."""
+    return [origin.strip() for origin in env.list(name, default=[]) if origin.strip()]
+
+
+def without_duplicates(items):
+    """The items in their original order, each one once."""
+    return list(dict.fromkeys(items))
+
+
+# CORS_ALLOWED_ORIGINS is the name to use; the older singular CORS_ALLOWED_ORIGIN is still accepted
+env_cors_origins = clean_origin_list("CORS_ALLOWED_ORIGINS") + clean_origin_list("CORS_ALLOWED_ORIGIN")
+env_csrf_origins = clean_origin_list("CSRF_TRUSTED_ORIGINS")
+
+if DJANGO_ENV == "production":
+    from django.core.exceptions import ImproperlyConfigured
+    for origin in env_cors_origins + env_csrf_origins:
+        if not origin.startswith("https://"):
+            raise ImproperlyConfigured(
+                f"Origin '{origin}' must start with https:// when DJANGO_ENV=production "
+                "(check CORS_ALLOWED_ORIGINS and CSRF_TRUSTED_ORIGINS)."
+            )
+
+CORS_ALLOWED_ORIGINS = without_duplicates(DEV_ORIGINS + env_cors_origins)
 CORS_ALLOW_CREDENTIALS = True
 
-# CSRF trusted origins must match all allowed frontend origins
-CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+# CSRF trusted origins: all the CORS origins plus the optional CSRF_TRUSTED_ORIGINS list
+CSRF_TRUSTED_ORIGINS = without_duplicates(CORS_ALLOWED_ORIGINS + env_csrf_origins)
 
 # ---------------------------------------------------------------------------
 # INTERNATIONALIZATION & HARDWARE WINDOWS
