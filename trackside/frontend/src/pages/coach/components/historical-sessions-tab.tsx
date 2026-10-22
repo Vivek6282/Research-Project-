@@ -4,6 +4,7 @@
  */
 
 import { HistoricalSession } from "../types";
+import { driverLabel } from "../../../lib/driver-label";
 
 interface HistoricalSessionsTabProps {
   historicalSessions: HistoricalSession[];
@@ -91,7 +92,7 @@ export function HistoricalSessionsTab({
                         </span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-[#E7EDF3] font-semibold">{s.driver}</td>
+                    <td className="py-2.5 px-3 text-[#E7EDF3] font-semibold">{driverLabel(s.driver, s.driverCode)}</td>
                     <td className="py-2.5 px-3 text-[#7C8898]">{s.kart}</td>
                     <td className="py-2.5 px-3 text-[#7C8898]">{s.date}</td>
                     <td className="py-2.5 px-3 text-[#E7EDF3]">{s.duration}</td>

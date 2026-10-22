@@ -5,6 +5,7 @@
 
 import { SignalStrip } from "../../../components/ui/signal-strip";
 import { DriverProfile } from "../types";
+import { driverLabel } from "../../../lib/driver-label";
 
 interface LiveTrajectoryPanelProps {
   selectedDriver: DriverProfile;
@@ -47,7 +48,7 @@ export function LiveTrajectoryPanel({
             LIVE TRAJECTORY
           </span>
           <span className="text-xs text-[#7C8898]">
-            {selectedDriver.name !== "—" ? selectedDriver.name : "—"}
+            {selectedDriver.name !== "—" ? driverLabel(selectedDriver.name, selectedDriver.driverCode) : "—"}
             {selectedDriver.session !== "—" ? ` · ${selectedDriver.session}` : ""}
           </span>
         </div>

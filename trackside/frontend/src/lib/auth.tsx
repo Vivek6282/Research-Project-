@@ -23,6 +23,7 @@ import { api, fetchCSRFToken } from "./api";
 export interface User {
   id: string;
   username?: string;
+  driver_code?: string | null;
   email?: string;
   name: string;
   role: "admin" | "coach" | "driver";

@@ -156,6 +156,7 @@ export function useCoachDashboard() {
           ? rosterList.map((r: any) => ({
               id: r.driver_id,
               name: r.driver_name || "—",
+              driver_code: r.driver_code ?? null,
               stage: r.stage,
               active_threshold: r.active_threshold,
               session_state: r.session_state,
@@ -194,6 +195,7 @@ export function useCoachDashboard() {
             pos: idx + 1,
             kart: "—",
             name: d.name,
+            driverCode: d.driver_code ?? null,
             lapTime: "—",
             session: sessionName,
             gap: "—",

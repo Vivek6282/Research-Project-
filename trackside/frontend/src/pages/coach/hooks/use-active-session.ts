@@ -30,6 +30,7 @@ function toHistoricalRow(s: any): HistoricalSession & { trackName?: string } {
     id: s.id.length > 8 ? `SESS-${s.id.slice(0, 4).toUpperCase()}` : s.id,
     rawId: s.id,
     driver: s.driver_name || "—",
+    driverCode: s.driver_code ?? null,
     kart: s.kart || "—",
     trackName: s.track_name || s.track?.name || "",
     date: s.started_at ? new Date(s.started_at).toISOString().split("T")[0] : "—",

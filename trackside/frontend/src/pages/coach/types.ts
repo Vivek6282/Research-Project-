@@ -7,6 +7,7 @@ export interface DriverProfile {
   pos: number;
   kart: string;
   name: string;
+  driverCode?: string | null;
   lapTime: string;
   session: string;
   gap: string;
@@ -36,6 +37,7 @@ export interface HistoricalSession {
   id: string;
   rawId?: string;
   driver: string;
+  driverCode?: string | null;
   kart: string;
   date: string;
   duration: string;

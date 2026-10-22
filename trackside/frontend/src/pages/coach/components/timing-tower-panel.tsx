@@ -5,6 +5,7 @@
 
 import { SignalStrip } from "../../../components/ui/signal-strip";
 import { DriverProfile, RosterStatusItem } from "../types";
+import { driverLabel } from "../../../lib/driver-label";
 
 interface TimingTowerPanelProps {
   drivers: DriverProfile[];
@@ -98,7 +99,7 @@ export function TimingTowerPanel({
                   {d.pos}
                 </span>
                 <div>
-                  <p className="font-semibold text-xs text-[#E7EDF3] leading-none mb-1">{d.name}</p>
+                  <p className="font-semibold text-xs text-[#E7EDF3] leading-none mb-1">{driverLabel(d.name, d.driverCode)}</p>
                   <p className="text-[9px] text-[#7C8898] leading-none">
                     {rosterInfo?.session_state === "in_progress"
                       ? "IN PROGRESS"

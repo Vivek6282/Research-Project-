@@ -19,8 +19,11 @@ import { ModeSelectorPanel } from "./components/mode-selector-panel";
 import { ZoneHeatmapPanel } from "./components/zone-heatmap-panel";
 import { BestLapTargetPanel } from "./components/best-lap-target-panel";
 import { CornerTimesPanel } from "./components/corner-times-panel";
+import { useAuth } from "../../lib/auth";
+import { driverLabel } from "../../lib/driver-label";
 
 export function DriverDashboard() {
+  const { user } = useAuth();
   const {
     mode,
     setMode,
@@ -40,6 +43,12 @@ export function DriverDashboard() {
       <TutorialCallout role="driver" />
 
       <main className="max-w-6xl mx-auto px-4 py-5 space-y-4 animate-fade-in">
+        {user && (
+          <div data-testid="driver-header" className="text-xs font-mono font-bold text-[#E7EDF3] truncate">
+            {driverLabel(user.name, user.driver_code)}
+          </div>
+        )}
+
         {/* Live Telemetry & 5-Segment Glove Signal Strip */}
         <TelemetryPanel
           currentG={currentG}
