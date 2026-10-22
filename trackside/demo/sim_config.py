@@ -20,7 +20,7 @@ else:
     load_dotenv(override=False)
 
 # Communication and target endpoints
-SERIAL_PORT = os.getenv("SERIAL_PORT", "COM5")
+SERIAL_PORT = os.getenv("SERIAL_PORT", "auto")
 SERIAL_BAUD = int(os.getenv("SERIAL_BAUD", "115200"))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 DEVICE_TOKEN = os.getenv("DEVICE_TOKEN", "")

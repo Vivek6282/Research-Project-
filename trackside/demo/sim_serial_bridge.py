@@ -12,6 +12,8 @@ try:
 except ImportError:
     HAS_SERIAL = False
 
+from sim_port_finder import find_bridge_port, is_auto
+
 
 def send_to_bridge(serial_connection, lateral_g_force, warning_stage=None):
     """
@@ -30,17 +32,8 @@ def send_to_bridge(serial_connection, lateral_g_force, warning_stage=None):
         print(f"  [!] Serial send failed: {exc}")
 
 
-def connect_serial_bridge(port_name, baud_rate):
-    """
-    Attempts to establish a serial connection to the Bridge ESP32.
-    Input: port_name (str), baud_rate (int).
-    Output: serial.Serial object on success, or None on failure.
-    """
-    if not HAS_SERIAL:
-        print("  [!] 'pyserial' not installed. Continuing in Serial-free mode.")
-        return None
-
-    print(f"Connecting to Bridge ESP32 on {port_name}...")
+def open_bridge(port_name, baud_rate):
+    """Open the verified bridge port for the run (waits 2 s for the board); None with the usual warning on failure."""
     try:
         serial_connection = serial.Serial(port_name, baud_rate, timeout=1)
         time.sleep(2)
@@ -50,3 +43,41 @@ def connect_serial_bridge(port_name, baud_rate):
         print(f"  [!] Warning: Bridge ESP32 not detected on {port_name} ({exc}).")
         print("      Continuing simulation with WebSocket broadcaster and backend ingestion.\n")
         return None
+
+
+def verdict_of(found, port_name):
+    """The verdict the finder gave a port name (ignoring case), or "unknown" when it was not probed."""
+    return next((row["verdict"] for row in found if row["port"].lower() == port_name.lower()), "unknown")
+
+
+def connect_serial_bridge(port_name, baud_rate):
+    """
+    Finds and opens the Bridge ESP32. The configured port is verified first (by the board's
+    startup banner); with SERIAL_PORT empty or "auto", or when the configured port is the glove,
+    busy or silent, the other serial ports are searched.
+    Input: port_name (str), baud_rate (int).
+    Output: serial.Serial object on success, or None on failure.
+    """
+    if not HAS_SERIAL:
+        print("  [!] 'pyserial' not installed. Continuing in Serial-free mode.")
+        return None
+
+    configured = (port_name or "").strip()
+    if is_auto(configured):
+        print("Looking for the bridge board on the serial ports (SERIAL_PORT=auto)...")
+    else:
+        print(f"Connecting to Bridge ESP32 on {configured}...")
+
+    result = find_bridge_port(configured, baud_rate)
+    if result.port is None:
+        reason = "no serial ports found" if not result.found else "no port answered as the bridge"
+        print(f"  [!] Warning: Bridge ESP32 not detected on {configured or 'auto'} ({reason}).")
+        for row in result.found:
+            print(f"      {row['port']}: {row['verdict']} - {row['detail']}")
+        print("      Continuing simulation with WebSocket broadcaster and backend ingestion.\n")
+        return None
+
+    if not is_auto(configured) and result.port.lower() != configured.lower():
+        print(f"  [i] {configured} is the {verdict_of(result.found, configured)}; "
+              f"the bridge was found on {result.port}. Using {result.port}.")
+    return open_bridge(result.port, baud_rate)
