@@ -38,7 +38,7 @@ class TestStartCustomMap(DemoRunBase):
         self.assertFalse(kwargs["shell"])
         self.assertEqual(argv[1], "-u")
         self.assertTrue(argv[2].endswith("virtual_lap_simulator.py"))
-        self.assertEqual(argv[3:], ["--laps", "2", "--track-file", os.path.join(self.profile_dir, f"{self.track.id}.json"), "--pace", "edge"])
+        self.assertEqual(argv[3:], ["--laps", "2", "--track-file", os.path.join(self.profile_dir, f"{self.track.id}.json"), "--pace", "edge", "--post-batch", "1"])
         secret = kwargs["env"]["DEVICE_TOKEN"]
         self.assertFalse(any(secret in part or str(Session.objects.get().id) in part for part in argv))
         self.assertTrue(os.path.exists(argv[6]))
@@ -93,7 +93,7 @@ class TestStartBuiltin(DemoRunBase):
         self.assertEqual(response.status_code, 200, response.data)
         args, kwargs = self.popen_mock.call_args
         gps_path = os.path.join(self.profile_dir, f"{demo.id}.gps.json")
-        self.assertEqual(args[0][3:], ["--laps", "3", "--gps-file", gps_path])
+        self.assertEqual(args[0][3:], ["--laps", "3", "--gps-file", gps_path, "--post-batch", "1"])
         with open(gps_path, encoding="utf-8") as handle:
             self.assertEqual(len(json.load(handle)["points"]), 400)
         self.assertEqual(set(json.loads(kwargs["env"]["DEMO_ZONES"])), {"Hairpin", "Sweeper", "Chicane"})

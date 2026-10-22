@@ -40,6 +40,10 @@ class DemoRunError(Exception):
         self.status_code = status_code
 
 
+# Post every reading on its own so the Coach screen moves smoothly (a fixed value, never taken from the request)
+POST_BATCH_ARGS = ["--post-batch", "1"]
+
+
 def profile_directory() -> str:
     """The fixed server folder for track profile files (backend/demo_profiles)."""
     return str(settings.BASE_DIR / "demo_profiles")
@@ -153,13 +157,13 @@ def start_demo_run(request) -> dict:
     if track.is_builtin:
         track = ensure_demo_circuit()
         gps_path = write_schematic_gps_file(profile_directory(), track.id)
-        extra_args = ["--laps", str(laps), "--gps-file", gps_path] + builtin_limit_args(track, driver)
+        extra_args = ["--laps", str(laps), "--gps-file", gps_path] + builtin_limit_args(track, driver) + POST_BATCH_ARGS
     else:
         try:
             profile_path = write_track_profile(track, profile_directory(), driver)
         except ProfileError as error:
             raise DemoRunError(str(error))
-        extra_args = ["--laps", str(laps), "--track-file", profile_path, "--pace", pace]
+        extra_args = ["--laps", str(laps), "--track-file", profile_path, "--pace", pace] + POST_BATCH_ARGS
     zones = zone_map_for(track)
     if not zones:
         raise DemoRunError("This map has no corners yet. Open 'Edit corners' and add some first.")
