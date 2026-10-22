@@ -6,7 +6,8 @@ Trackside — hosted demo helper (glove demo with a hosted site).
 It reads the four copied lines from the clipboard, writes them into demo/.env (nothing else in that file
 changes), then starts the simulator (default: --post-batch 4 --laps 5). The token is never printed.
 
-Other options:  py hosted_demo.py --from-file lines.txt   (read the lines from a file instead of the clipboard)
+Other options:  py hosted_demo.py --paste                 (paste the four lines into this window, then press Enter, Ctrl+Z, Enter on Windows)
+                py hosted_demo.py --from-file lines.txt   (read the lines from a file instead of the clipboard)
                 py hosted_demo.py --write-only             (update .env, do not start the simulator)
 Any other arguments are passed to the simulator, for example:  py hosted_demo.py --laps 3
 """
@@ -86,9 +87,13 @@ def main() -> None:
         index = args.index("--from-file")
         source_file = args[index + 1] if index + 1 < len(args) else sys.exit("--from-file needs a file name")
         args = args[:index] + args[index + 2:]
-    args = [a for a in args if a != "--write-only"]
+    paste = "--paste" in args
+    args = [a for a in args if a not in ("--write-only", "--paste")]
 
-    if source_file:
+    if paste:
+        print("Paste the four lines from the site (Show token first), then press Enter, then Ctrl+Z and Enter (Ctrl+D on Mac/Linux):")
+        text = sys.stdin.read()
+    elif source_file:
         with open(source_file, encoding="utf-8") as handle:
             text = handle.read()
     else:
