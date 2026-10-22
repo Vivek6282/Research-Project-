@@ -22,11 +22,10 @@ const STATE_TEXT: Record<string, { text: string; color: string }> = {
 };
 const buttonClass = "inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 min-h-[34px] rounded-[2px] border cursor-pointer";
 
-/** "Limits in force: Hairpin 1.00 / Sweeper 1.32", or "Zone defaults" when the driver has no limit of their own. */
-function limitsText(limits: Record<string, number> | null | undefined, isCustom: boolean | null | undefined): string | null {
+/** "Map limits: Hairpin 1.05 / Sweeper 1.30 / Chicane 1.10" (the corner limits set on the map), or null when there are none. */
+function limitsText(limits: Record<string, number> | null | undefined): string | null {
   if (!limits || Object.keys(limits).length === 0) return null;
-  if (!isCustom) return "Zone defaults";
-  return `Limits in force: ${Object.entries(limits).map(([name, value]) => `${name} ${value.toFixed(2)}`).join(" / ")}`;
+  return `Map limits: ${Object.entries(limits).map(([name, value]) => `${name} ${value.toFixed(2)}`).join(" / ")}`;
 }
 
 /** The panel; shows a short note instead of controls when demo tools are not available. */
@@ -67,8 +66,8 @@ export function DemoStatusPanel({ availability, status, actionError, onStop, onW
           {run.track_name} · {run.driver_name} · {run.laps} {run.laps === 1 ? "lap" : "laps"} · {run.pace_applied ? `pace ${run.pace}` : "fixed demo pattern"}
         </p>
       )}
-      {run && limitsText(status?.limits, status?.limits_custom) && (
-        <p data-testid="demo-limits" className="text-[11px] font-mono text-[#7C8898]">{limitsText(status?.limits, status?.limits_custom)}</p>
+      {run && limitsText(status?.limits) && (
+        <p data-testid="demo-limits" className="text-[11px] font-mono text-[#7C8898]">{limitsText(status?.limits)}</p>
       )}
       {state === "running" && status?.bridge_connected === false && (
         <p className="text-[11px] font-mono text-[#F2A93B]">The glove bridge is not connected: close the Arduino Serial Monitor and check SERIAL_PORT in trackside/demo/.env.</p>
