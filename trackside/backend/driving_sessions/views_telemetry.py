@@ -14,6 +14,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from devices.authentication import DeviceTokenAuthentication
 from driving_sessions.access import sessions_visible_to, can_access_session
 from driving_sessions.alerting import process_telemetry_alerts
+from driving_sessions.live_fields import live_event_cache
 from driving_sessions.models import Session, Telemetry
 from driving_sessions.serializers import TelemetrySerializer
 
@@ -109,7 +110,11 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
 
         telemetry_serializer = self.get_serializer(data=request.data, many=is_batch_submission)
         telemetry_serializer.is_valid(raise_exception=True)
-        persisted_instances = telemetry_serializer.save(session=target_session)
+        if is_batch_submission:
+            # Readings are saved (and broadcast live) in recorded_at order, whatever order they were sent in
+            telemetry_serializer.validated_data.sort(key=lambda reading: reading["recorded_at"])
+        with live_event_cache():
+            persisted_instances = telemetry_serializer.save(session=target_session)
         if not is_batch_submission:
             persisted_instances = [persisted_instances]
 

@@ -13,6 +13,7 @@ from django.dispatch import receiver
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
+from driving_sessions.live_fields import live_fields
 from driving_sessions.models import Telemetry, Alert, BiometricReading
 from driving_sessions.serializers import (
     TelemetrySerializer,
@@ -33,6 +34,7 @@ def broadcast_telemetry(sender, instance, created, **kwargs):
         channel_layer = get_channel_layer()
         if channel_layer:
             data = plain_json(TelemetrySerializer(instance).data)
+            data.update(plain_json(live_fields(instance)))
             async_to_sync(channel_layer.group_send)(
                 f"session_{instance.session_id}",
                 {
