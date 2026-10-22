@@ -13,6 +13,7 @@ from accounts.views_auth import (
 from accounts.views_users import (
     AdminDiagnosticsView,
     AuditLogListView,
+    UserDeletePreviewView,
     UserDetailView,
     UserListCreateView,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "MeView",
     "UserListCreateView",
     "UserDetailView",
+    "UserDeletePreviewView",
     "AuditLogListView",
     "AdminDiagnosticsView",
 ]

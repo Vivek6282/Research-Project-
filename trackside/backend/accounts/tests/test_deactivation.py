@@ -172,9 +172,15 @@ class TestUserDeactivationAndLoginPrevention(APITestCase):
         self.assertIsNotNone(fresh_admin.username)
         self.assertTrue(fresh_admin.username.startswith("TRK-ADMIN-"))
 
-    def test_delete_user_returns_405_method_not_allowed(self):
-        """DELETE /api/auth/users/<id>/ returns 405 Method Not Allowed to prevent cascading data loss."""
+    def test_delete_user_needs_the_typed_confirmation(self):
+        """DELETE without the user's driver code is refused (400, nothing deleted); with it the user is removed."""
         self.client.force_authenticate(user=self.admin_user)
-        res = self.client.delete(f"/api/auth/users/{self.driver_user.id}/")
-        self.assertEqual(res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        url = f"/api/auth/users/{self.driver_user.id}/"
+        res = self.client.delete(url)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        res = self.client.delete(url, {"confirm": "wrong"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertTrue(User.objects.filter(id=self.driver_user.id).exists())
+        res = self.client.delete(url, {"confirm": self.driver_user.driver_code}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertFalse(User.objects.filter(id=self.driver_user.id).exists())

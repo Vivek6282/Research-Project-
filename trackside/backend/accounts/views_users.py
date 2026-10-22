@@ -9,6 +9,8 @@ import time
 from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -16,6 +18,7 @@ from rest_framework.views import APIView
 
 from accounts.models import AuditLogEntry
 from accounts.permissions import IsAdmin
+from accounts.user_delete import blocked_reason, confirm_text_for, delete_counts
 from accounts.serializers import (
     AuditLogEntrySerializer,
     UserCreateSerializer,
@@ -96,11 +99,13 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
     """
     GET /api/auth/users/<uuid:pk>/ — view detailed user record (Admin only).
     PUT/PATCH /api/auth/users/<uuid:pk>/ — update user details (Admin only).
-    DELETE is deliberately disabled to preserve data integrity across racing sessions.
+    DELETE removes the user for good, only with the typed confirmation and the safeguards below.
 
     Security:
     - Scoped strictly to Admin users.
     - Tracks deactivation and reactivation in the audit log.
+    - DELETE is refused for yourself, for Admin accounts and for a driver who is live right now (409);
+      the body must carry {"confirm": "<driver code, or username for a coach>"} (400 otherwise).
     """
 
     permission_classes = [IsAdmin]
@@ -152,6 +157,46 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
             target_user_name=updated_user.name,
             details=audit_details,
         )
+
+
+    def delete(self, request, pk=None):
+        """Permanently delete the user: safeguards first, then the audit entry, then the delete (all or nothing)."""
+        target = get_object_or_404(User, pk=pk)
+        reason = blocked_reason(target, request.user)
+        if reason:
+            return Response({"detail": reason, "blocked_reason": reason}, status=status.HTTP_409_CONFLICT)
+        confirm = request.data.get("confirm") if isinstance(request.data, dict) else None
+        expected = confirm_text_for(target)
+        if not expected or confirm != expected:
+            return Response({"detail": f"Type {expected or 'the username'} exactly to confirm. Nothing was deleted."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            counts = delete_counts(target)
+            AuditLogEntry.objects.create(
+                actor=request.user,
+                action=AuditLogEntry.Action.DELETE_USER,
+                target_user_id=str(target.id),
+                target_user_name=target.name,
+                details=f"Permanently deleted {target.role} {target.name} ({target.driver_code or target.username}); removed: {counts}",
+            )
+            target.delete()
+        return Response({"deleted": True, "counts": counts}, status=status.HTTP_200_OK)
+
+
+class UserDeletePreviewView(APIView):
+    """GET /api/auth/users/<uuid:pk>/delete-preview/ — what a delete would remove. Changes nothing (Admin only)."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request, pk=None):
+        """Who the user is, whether the delete is allowed, why not, and the counts that would be removed."""
+        target = get_object_or_404(User, pk=pk)
+        reason = blocked_reason(target, request.user)
+        return Response({
+            "id": str(target.id), "name": target.name, "role": target.role, "username": target.username,
+            "driver_code": target.driver_code, "can_delete": reason is None, "blocked_reason": reason,
+            "counts": delete_counts(target),
+        })
 
 
 class AuditLogListView(APIView):
