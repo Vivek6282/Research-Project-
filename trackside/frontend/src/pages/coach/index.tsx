@@ -15,6 +15,8 @@
 import { TopBar } from "../../components/shell/top-bar";
 import { LiveTrackView } from "../../components/ui/live-track-view";
 import { LiveReadoutsBar } from "./components/live-readouts-bar";
+import { LiveTrackExtras } from "./components/live-track-extras";
+import { liveStage } from "../../components/ui/live-stage";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { useCoachDashboard } from "./hooks/use-coach-dashboard";
 import { LiveTrajectoryPanel } from "./components/live-trajectory-panel";
@@ -78,6 +80,7 @@ export function CoachDashboard() {
     currentZoneLabel,
     currentCornerType,
     isStraight,
+    gWindow,
     activeSessionId,
     wsStatus,
     actualSpeedPath,
@@ -191,7 +194,13 @@ export function CoachDashboard() {
                     currentSpeed={currentSpeed}
                   />
                 }
-              />
+              >
+                <LiveTrackExtras
+                  gWindow={gWindow}
+                  limit={currentLimit}
+                  stageColor={liveStage(currentGForce, currentLimit ?? currentThreshold, isStraight).color}
+                />
+              </LiveTrackView>
 
               {/* BIOMETRICS 3-Card Row */}
               <BiometricsCards />
