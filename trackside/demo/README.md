@@ -58,11 +58,13 @@ The glove only talks to the bridge on a laptop, so with a hosted site the laptop
 
 1. **Wake the site** (a free Render service sleeps when idle): open it a minute early and log in as Coach.
 2. **Coach > Maps & Demo > Connect laptop:** choose the driver and press **Start link**. The panel shows four lines (`BACKEND_URL`, `SESSION_ID`, `DEVICE_TOKEN`, `DEMO_ZONES`); the token is hidden until you press **Show token** and is shown only now.
-3. **On the laptop, the easy way:** press **Copy lines** on the site, then double-click `trackside\demo\run_hosted_demo.bat` (or run `py hosted_demo.py` in `trackside\demo`). It reads the copied lines from the clipboard, writes them into `.env` (nothing else in the file changes), never prints the token, and then starts the simulator (steps 4 and 5 below are then done for you, except plugging in the bridge). **By hand instead:** open `trackside\demo\.env` and replace those four lines with the ones from the panel. Keep `SERIAL_PORT=auto`.
+3. **On the laptop, the easy way:** press **Copy lines** on the site, then double-click `trackside\demo\run_hosted_demo.bat` (or run `py hosted_demo.py` in `trackside\demo`). It reads the copied lines from the clipboard, writes them into `.env` (nothing else in the file changes), never prints the token, and then starts the simulator with `--post-batch 4` (steps 4 and 5 below are then done for you, except plugging in the bridge). **By hand instead:** open `trackside\demo\.env` and replace those four lines with the ones from the panel. Keep `SERIAL_PORT=auto`.
 4. **Plug in the bridge**, switch the glove on, close the Arduino Serial Monitor, and check `py virtual_lap_simulator.py --list-ports` shows `bridge`.
-5. **Run** in `trackside\demo`: `py virtual_lap_simulator.py --post-batch 1 --laps 5`. The glove's LED follows the stages.
+5. **Run** in `trackside\demo`: `py virtual_lap_simulator.py --post-batch 4 --laps 5`. The glove's LED follows the stages.
 6. **On the site:** the panel says "Receiving readings from the laptop"; press **Watch live** to see the dot, readouts, waveform and alerts. The run is marked DEMO RUN.
 7. When the simulator finishes it closes the session. **End link** also closes it and cancels the token. A new **Start link** always replaces the old one.
+
+Why `--post-batch 4` and not 1: over the internet a request takes longer than the 0.2 s between readings, so one request per reading falls behind and readings are lost when the run ends (a real rehearsal: sent 101, unsent 139). Four per request keeps up. If the summary still shows `unsent` above 0, use `--post-batch 6`.
 
 Notes: only a Coach or Admin can start a link; the token only works as that device (posting readings and finishing sessions for that driver) and stops working when the link ends. The server never runs the simulator. Do a full rehearsal the day before.
 

@@ -4,7 +4,7 @@ Trackside — hosted demo helper (glove demo with a hosted site).
 1. On the site: Coach > Maps & Demo > Connect laptop > Start link, then press "Copy lines".
 2. Here:        py hosted_demo.py
 It reads the four copied lines from the clipboard, writes them into demo/.env (nothing else in that file
-changes), then starts the simulator (default: --post-batch 1 --laps 5). The token is never printed.
+changes), then starts the simulator (default: --post-batch 4 --laps 5). The token is never printed.
 
 Other options:  py hosted_demo.py --from-file lines.txt   (read the lines from a file instead of the clipboard)
                 py hosted_demo.py --write-only             (update .env, do not start the simulator)
@@ -19,7 +19,8 @@ import sys
 DEMO_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_FILE = os.path.join(DEMO_DIR, ".env")
 KEYS = ("BACKEND_URL", "SESSION_ID", "DEVICE_TOKEN", "DEMO_ZONES")
-DEFAULT_SIM_ARGS = ["--post-batch", "1", "--laps", "5"]
+# 4 readings per request: over the internet one request per reading cannot keep up with 5 readings a second
+DEFAULT_SIM_ARGS = ["--post-batch", "4", "--laps", "5"]
 
 
 def read_clipboard() -> str:

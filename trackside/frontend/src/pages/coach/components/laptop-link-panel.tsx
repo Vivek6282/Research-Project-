@@ -98,7 +98,7 @@ export function LaptopLinkPanel({ onWatchLive }: LaptopLinkPanelProps) {
             </button>
           </div>
           <p className="text-[11px] font-mono text-[#F2A93B]">
-            2) Plug in the bridge, then in <b>trackside\demo</b> run: <b>py virtual_lap_simulator.py --post-batch 1 --laps 5</b>
+            2) Plug in the bridge, then in <b>trackside\demo</b> run: <b>py virtual_lap_simulator.py --post-batch 4 --laps 5</b>
           </p>
         </div>
       )}
