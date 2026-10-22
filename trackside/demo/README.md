@@ -212,6 +212,46 @@ Each reading broadcast by `virtual_lap_simulator.py` uses this standardized JSON
 }
 ```
 
+### Live events (backend to the Coach screen)
+
+The backend sends these over `/ws/sessions/<session id>/telemetry/`. Every message is
+`{"type": ..., "data": {...}}` and all values are plain JSON (ids and times are strings).
+This is separate from the simulator's own visualizer socket above.
+
+`telemetry_reading` - one per stored reading, in `recorded_at` order:
+
+```json
+{
+  "type": "telemetry_reading",
+  "data": {
+    "id": "...", "session": "...", "zone": "<zone id or null>",
+    "recorded_at": "2026-10-22T10:00:00.200000Z",
+    "lateral_g": 1.28, "speed_kmh": 51.4, "gps_lat": 10.0007, "gps_lng": 76.0003, "lap_number": 1,
+    "threshold": 1.15, "stage": "intervene", "zone_label": "Hairpin", "corner_type": "hairpin"
+  }
+}
+```
+
+The last four keys exist only in this live message (they are not stored and not in the REST output):
+
+* `threshold` - the limit in force: the driver's newest own limit for that corner, else the zone default. `null` on a straight.
+* `stage` - `nominal`, `monitoring` (amber) or `intervene` (red), from the same rule as the alerts (`alerting.stage_for`). A straight is `nominal`.
+* `zone_label`, `corner_type` - the corner's name and type, `null` on a straight.
+
+`alert_triggered` - one per new amber or red alert:
+
+```json
+{"type": "alert_triggered", "data": {"id": "...", "session": "...", "zone": "...", "zone_label": "Hairpin",
+ "severity": "red", "g_value": 1.28, "threshold_applied": 1.15, "triggered_at": "2026-10-22T10:00:00.200000Z"}}
+```
+
+`biometric_reading` - one per stored biometric reading:
+
+```json
+{"type": "biometric_reading", "data": {"id": "...", "session": "...", "recorded_at": "...",
+ "heart_rate": 92, "spo2": 98, "breathing_rate": 16}}
+```
+
 ---
 
 ## 8. Run Lifecycle, Session Closing & Known Limits
