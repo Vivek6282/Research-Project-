@@ -8,6 +8,7 @@ and the backend REST API.
 import time
 
 from sim_backend_poster import send_to_backend
+from sim_backpressure import wait_for_backend_room
 from sim_physics import ProfileSimulator
 from sim_serial_bridge import send_to_bridge
 from sim_websocket_server import broadcast_reading
@@ -29,6 +30,7 @@ def run_profile_lap(simulator: ProfileSimulator, serial_connection, session_id, 
             best = peaks.get(packet["zone"])
             if best is None or packet["g_force"] > best[0]:
                 peaks[packet["zone"]] = (packet["g_force"], packet["stage"])
+        wait_for_backend_room()   # a slow server must not lose the end of the run
         time.sleep(reading_delay)
     for label, (peak_g, stage) in peaks.items():
         print(f"  -> {label:10s} | peak {peak_g:.2f}g | {stage}")

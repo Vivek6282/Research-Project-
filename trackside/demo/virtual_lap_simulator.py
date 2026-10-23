@@ -38,6 +38,7 @@ from sim_backend_poster import (
     send_to_backend,
     start_backend_worker,
 )
+from sim_backpressure import wait_for_backend_room
 from sim_websocket_server import (
     broadcast_event,
     broadcast_reading,
@@ -98,6 +99,7 @@ def run_lap(serial_connection, session_id, lap_number, total_laps, reading_delay
             # 3. Post to backend REST API
             send_to_backend(session_id, measured_g, turn["name"], current_stage, derived_speed_kmh, lap_number=lap_number,
                             gps=gps_for_reading(gps_points, current_reading_index - 1, total_readings_in_lap))
+            wait_for_backend_room()   # a slow server must not lose the end of the run
 
             time.sleep(reading_delay)
 
@@ -284,7 +286,7 @@ def main():
             except Exception:
                 pass
         flush_backend_telemetry(
-            timeout_seconds=5.0,
+            timeout_seconds=30.0,
             session_id=active_session_id,
             device_token=DEVICE_TOKEN,
             backend_url=BACKEND_URL,

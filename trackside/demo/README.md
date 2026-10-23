@@ -214,6 +214,8 @@ Windows gives the boards different COM numbers when cables move, so a fixed `SER
 
 **The cache file:** the last good port is remembered in `trackside/demo/.last_bridge_port` (git-ignored) and tried early next time. It is only a hint: the banner is always checked again. Delete the file any time. `TRACKSIDE_PORT_CANDIDATES=COM3,COM7` (comma-separated) replaces the port discovery for unusual systems.
 
+**Slow server:** each reading is posted to the server one at a time. When the server answers slower than the 0.2 s between readings (a hosted site calling its own public address, or a slow link), the run pauses briefly so the readings never pile up, and at the end it waits up to 30 seconds for the last ones before closing the session. The run takes a little longer, but every reading arrives and the live dot ends on the start/finish line. Without this, the last part of the run could be lost and the dot would stop part-way round the lap.
+
 **Other devices on this laptop:** to find the bridge the search opens each serial port and resets the board on it (the standard ESP32 reset). That is harmless for the Trackside boards but restarts any other device on a port it tries, for example a 3D printer controller. `TRACKSIDE_PORT_SKIP=COM3,COM4` (comma-separated) makes the search never open those ports. Choosing a port yourself (`SERIAL_PORT=COMx`) still opens exactly that one.
 
 **Pin a COM number in Windows (optional):** Device Manager, Ports (COM & LPT), right-click the board, Properties, Port Settings, Advanced, then choose a COM port number that is free. Put the same number in `SERIAL_PORT` if you want to force it.
