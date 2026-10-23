@@ -9,6 +9,9 @@ area's cookie. Rights still come from the account's own role on every request; t
 browser's own cookies is used, so it cannot give anyone more than their account already has.
 
 No header: the old single cookie is used exactly as before (tests, scripts, older pages).
+Moving over: a page of an area that has no cookie yet, but whose browser still holds an old single-cookie sign-in of
+the SAME role, adopts that sign-in (it is copied into the area's cookie). A sign-in of another role is never adopted,
+so a coach's old sign-in can never appear in the driver area.
 Header "auto" on the login request: the cookie is chosen by the role of the account that signed in.
 """
 
@@ -16,6 +19,7 @@ import time
 from urllib.parse import parse_qs
 
 from django.conf import settings
+from django.contrib.auth import SESSION_KEY, get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.sessions.backends.base import UpdateError
 from django.contrib.sessions.exceptions import SessionInterrupted
@@ -49,8 +53,30 @@ class AreaSessionMiddleware(SessionMiddleware):
             request.session_cookie_name = PENDING_COOKIE_NAME
             request.session = self.SessionStore(None)
             return
-        request.session_cookie_name = cookie_name_for(clean_area(header))
-        request.session = self.SessionStore(request.COOKIES.get(request.session_cookie_name))
+        area = clean_area(header)
+        request.session_cookie_name = cookie_name_for(area)
+        session_key = request.COOKIES.get(request.session_cookie_name)
+        request.session = self.SessionStore(session_key)
+        if area and session_key is None:
+            adopted = self.old_sign_in_of_role(request, area)
+            if adopted is not None:
+                request.session = adopted   # saved under the area's cookie when the response is made
+
+    def old_sign_in_of_role(self, request, area):
+        """The sign-in held in the old single cookie, when it belongs to an account of this area's role; else None."""
+        old_key = request.COOKIES.get(settings.SESSION_COOKIE_NAME)
+        if not old_key:
+            return None
+        old = self.SessionStore(old_key)
+        user_model = get_user_model()
+        try:
+            user_id = user_model._meta.pk.to_python(old.get(SESSION_KEY))
+        except Exception:
+            return None
+        if user_id is None or user_model.objects.filter(pk=user_id, role=area).exists() is False:
+            return None
+        old.modified = True   # makes the response set the area's cookie for this same session
+        return old
 
     def process_response(self, request, response):
         """Save the session and set (or delete) the area's cookie; the same steps as Django's own middleware."""

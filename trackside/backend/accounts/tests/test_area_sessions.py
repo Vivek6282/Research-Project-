@@ -130,7 +130,8 @@ class TestLoginRules(AreaSessionBase):
         self.assertEqual(self.sign_in("area_coach@t.test", "CoachPass123!").status_code, 200)
         self.assertIn("sessionid", self.browser.cookies)
         self.assertEqual(self.who().json()["role"], "coach")
-        self.assertEqual(self.who("coach").status_code, 403)    # the old cookie does not leak into an area
+        self.assertEqual(self.who("driver").status_code, 403)   # a coach's old sign-in never appears in another role's area
+        self.assertEqual(self.who("coach").json()["role"], "coach")   # the coach area adopts it (same role)
 
     def test_an_unknown_area_value_gets_no_special_access(self):
         """Made-up area names read the old cookie only (nothing, here) and cannot be used to pick another cookie."""
@@ -185,3 +186,54 @@ class TestLiveFeedUsesTheAreaCookie(AreaSessionBase):
     def test_no_area_and_only_area_cookies_is_refused(self):
         """Without ?area the old single cookie is read, and there is none: refused."""
         self.assertEqual(self.connect(""), (False, 4401))
+
+
+class TestMovingFromTheOldSingleCookie(AreaSessionBase):
+    """A person already signed in with the old single cookie is not signed out by the update."""
+
+    def old_sign_in(self, email, password):
+        """Sign in the way the old page did: no area header, so the sign-in lands in the single cookie."""
+        self.assertEqual(self.sign_in(email, password).status_code, 200)
+        self.assertIn("sessionid", self.browser.cookies)
+
+    def test_an_old_driver_sign_in_still_works_on_the_driver_page_and_moves_to_its_own_cookie(self):
+        """A refresh after the update (a request in the driver area) keeps the driver signed in."""
+        self.old_sign_in("area_drv@t.test", "DriverPass123!")
+        response = self.who("driver")
+        self.assertEqual((response.status_code, response.json()["role"]), (200, "driver"))
+        self.assertIn("sessionid_driver", self.browser.cookies)
+        del self.browser.cookies["sessionid"]                # the old cookie is no longer needed
+        self.assertEqual(self.who("driver").json()["role"], "driver")
+
+    def test_an_old_coach_sign_in_never_appears_in_the_driver_area(self):
+        """The old cookie holds a coach: the driver area stays signed out and gets no cookie."""
+        self.old_sign_in("area_coach@t.test", "CoachPass123!")
+        self.assertEqual(self.who("driver").status_code, 403)
+        self.assertNotIn("sessionid_driver", self.browser.cookies)
+        self.assertEqual(self.who("coach").status_code, 200)   # but the coach area may adopt it
+
+    def test_an_old_driver_sign_in_never_appears_in_the_coach_or_admin_area(self):
+        """The same rule the other way round."""
+        self.old_sign_in("area_drv@t.test", "DriverPass123!")
+        self.assertEqual(self.who("coach").status_code, 403)
+        self.assertEqual(self.who("admin").status_code, 403)
+        self.assertNotIn("sessionid_coach", self.browser.cookies)
+
+    def test_an_own_area_cookie_wins_over_the_old_cookie(self):
+        """With both present, the area cookie decides (a driver sign-in is not replaced by an old coach one)."""
+        self.old_sign_in("area_coach@t.test", "CoachPass123!")
+        self.sign_in("area_drv@t.test", "DriverPass123!", **AUTO)
+        self.assertEqual(self.who("driver").json()["role"], "driver")
+
+    def test_signing_out_of_an_adopted_sign_in_really_ends_it(self):
+        """After adopting, logging out in the area ends the session itself, so the old cookie cannot bring it back."""
+        self.old_sign_in("area_drv@t.test", "DriverPass123!")
+        self.who("driver")                                   # adopts
+        self.browser.post("/api/auth/logout/", **area("driver"))
+        self.assertEqual(self.who("driver").status_code, 403)
+        self.assertEqual(self.who().status_code, 403)        # the old cookie's session is gone too
+
+    def test_a_garbage_old_cookie_is_ignored(self):
+        """A made-up old cookie value does not break anything or sign anyone in."""
+        self.browser.cookies["sessionid"] = "not-a-real-session-key"
+        self.assertEqual(self.who("driver").status_code, 403)
