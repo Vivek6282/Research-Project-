@@ -71,8 +71,10 @@ export function TimingTowerPanel({
         {drivers.map((d) => {
           const isSelected = selectedDriverId === d.id;
           const rosterInfo = rosterMap[d.id];
+          // Lights and the g number show only while the driver is live; an ended or idle driver shows none
           const hasRealData = Boolean(
             rosterInfo &&
+            rosterInfo.live === true &&
             rosterInfo.stage !== "no_data" &&
             rosterInfo.current_g !== null &&
             rosterInfo.current_g !== undefined

@@ -56,4 +56,22 @@ describe("SignalStrip No Data State", () => {
     expect(screen.getByText(/0 live · 1 drivers/i)).toBeDefined();
     expect(screen.queryByText(/• LIVE/i)).toBeNull();
   });
+  it("shows no lights and no g number for an ended driver, but shows them while live", () => {
+    const driver = { id: "d1", name: "Ended Driver", pos: 1, gap: "—", session: "—", lapTime: "—", inPit: false } as unknown as DriverProfile;
+    const roster = (live: boolean, state: string) => ({
+      d1: { current_g: 0.12, active_threshold: 1.2, stage: "nominal", live, session_state: state },
+    });
+    const view = render(
+      <TimingTowerPanel drivers={[driver]} selectedDriverId="d1" setSelectedDriverId={vi.fn()}
+        rosterMap={roster(false, "ended")} thresholds={{}} />
+    );
+    expect(screen.queryByText("0.12g")).toBeNull();
+    expect(screen.getByText("ENDED")).toBeDefined();
+
+    view.rerender(
+      <TimingTowerPanel drivers={[driver]} selectedDriverId="d1" setSelectedDriverId={vi.fn()}
+        rosterMap={roster(true, "in_progress")} thresholds={{}} />
+    );
+    expect(screen.getByText("0.12g")).toBeDefined();
+  });
 });
