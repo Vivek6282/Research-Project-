@@ -25,7 +25,7 @@ export interface LatestSessionData {
   goal_passed: boolean | null;
   started_at: string;
   track_name: string;
-  best_lap_time?: string;
+  best_lap_time?: string | null;
   is_demo?: boolean;
   ended_at?: string | null;
   live?: boolean;

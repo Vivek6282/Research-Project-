@@ -31,6 +31,11 @@ class FakeSocket {
   }
 }
 
+/** The newest socket the page opened. */
+function lastSocket(): FakeSocket {
+  return FakeSocket.all[FakeSocket.all.length - 1];
+}
+
 /** Let the pending promises and the timers run for the given milliseconds. */
 async function pass(ms: number) {
   await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
@@ -57,7 +62,7 @@ describe("Driver screen follows the coach's run", () => {
     mockGet.mockResolvedValue({ has_sessions: true, total_sessions: 1, zones: [], latest_session: RUN });
     await pass(SUMMARY_REFRESH_MS + 10);
     expect(result.current.latestSession?.id).toBe("s1");
-    expect(FakeSocket.all.at(-1)?.url).toContain("/ws/sessions/s1/telemetry/");
+    expect(lastSocket().url).toContain("/ws/sessions/s1/telemetry/");
 
     mockGet.mockResolvedValue({ has_sessions: true, total_sessions: 1, zones: [], latest_session: { ...RUN, laps: 3, alert_count: 2 } });
     await pass(SUMMARY_REFRESH_MS + 10);
@@ -69,7 +74,7 @@ describe("Driver screen follows the coach's run", () => {
     mockGet.mockResolvedValue({ has_sessions: true, total_sessions: 1, zones: [], latest_session: RUN });
     const { result } = renderHook(() => useDriverDashboard());
     await pass(10);
-    act(() => FakeSocket.all.at(-1)!.send({
+    act(() => lastSocket().send({
       type: "telemetry_reading", data: { lateral_g: 0.93, zone_label: "Hairpin", threshold: 1.0, stage: "monitoring" },
     }));
     expect(result.current.currentG).toBe(0.93);
