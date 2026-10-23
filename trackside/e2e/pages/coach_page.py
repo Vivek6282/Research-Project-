@@ -1,6 +1,5 @@
 from typing import List
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait, Select
 from .base_page import BasePage
 
 
@@ -23,7 +22,7 @@ class CoachDashboardPage(BasePage):
             "timing_tower": "coach-panel-timing-tower",
             "corner_deltas": "coach-panel-corner-deltas",
             "biometrics": "coach-panel-biometrics",
-            "session_notes": "coach-panel-session-notes",
+            "session_notes_phase2": "dev-banner-phase-2",
             "live_track_view": "coach-panel-live-track-view",
         }
         testid = panel_map.get(panel_name, panel_name)
@@ -59,37 +58,6 @@ class CoachDashboardPage(BasePage):
 
     def is_simulated_data_badge_visible(self) -> bool:
         return self.is_visible("coach-simulated-data-badge", timeout=3)
-
-    def save_session_note(self, text: str):
-        self.type_text("coach-note-input", text)
-        self.click("coach-save-note-btn")
-        # Wait until the input has been cleared by React after successful save
-        WebDriverWait(self.driver, self.default_timeout).until(
-            lambda d: d.find_element(By.CSS_SELECTOR, '[data-testid="coach-note-input"]').get_attribute("value") == ""
-        )
-
-    def get_saved_notes_list(self, timeout: int = 10) -> List[str]:
-        try:
-            self.wait_for_visible("coach-note-item", timeout=timeout)
-        except Exception:
-            pass
-        items = self.find_elements("coach-note-item")
-        return [item.text for item in items]
-
-    def create_zone(self, name: str, corner_type: str = "hairpin"):
-        select_el = self.wait_for_element("coach-zone-select")
-        Select(select_el).select_by_value("__new__")
-
-        self.wait_for_visible("coach-new-zone-form")
-        self.type_text("coach-new-zone-name-input", name)
-        corner_select = self.wait_for_element("coach-new-zone-corner-select")
-        Select(corner_select).select_by_value(corner_type.lower())
-        self.click("coach-new-zone-add-btn")
-        self.wait_for_invisible("coach-new-zone-form")
-
-    def get_zone_options(self) -> List[str]:
-        select_el = self.wait_for_element("coach-zone-select")
-        return [opt.text for opt in Select(select_el).options]
 
     def is_live_track_fallback_displayed(self) -> bool:
         return self.is_visible("live-track-fallback", timeout=3)

@@ -23,14 +23,13 @@ def coach_login(driver, base_url):
 
 
 def test_tc_coach_01_dashboard_loads_all_panels(driver, base_url, coach_login):
-    """TC-COACH-01: Dashboard loads all panels: Live Trajectory, Timing Tower, Corner Deltas, biometric cards, Session Notes, Live Track View."""
+    """TC-COACH-01: Dashboard loads all panels: Live Trajectory, Timing Tower, Corner Deltas, biometric cards, Live Track View (Session Notes is a Phase 2 banner)."""
     coach_page = coach_login
     expected_panels = [
         "live_trajectory",
         "timing_tower",
         "corner_deltas",
         "biometrics",
-        "session_notes",
         "live_track_view",
     ]
     for panel in expected_panels:
@@ -64,36 +63,11 @@ def test_tc_coach_03_no_simulated_data_badge_in_real_data_mode(driver, base_url,
     assert not coach_page.is_simulated_data_badge_visible()
 
 
-def test_tc_coach_05_save_session_note_persists(driver, base_url, coach_login):
-    """TC-COACH-05: Save a session note → appears in the list and persists after refresh."""
+def test_tc_coach_05_session_notes_is_parked_for_phase_2(driver, base_url, coach_login):
+    """TC-COACH-05: Session Notes is a Phase 2 banner: it is shown, and there is no note box or save button to use."""
     coach_page = coach_login
-    unique_suffix = int(driver.execute_script("return Date.now();")) % 100000
-    note_text = f"Apex turn observation {unique_suffix}"
-
-    coach_page.save_session_note(note_text)
-
-    # Verify note appears in notes list
-    notes = coach_page.get_saved_notes_list()
-    assert any(note_text in n for n in notes), f"Note '{note_text}' not found in notes list"
-
-    # Refresh page
-    driver.refresh()
-    coach_page.wait_for_visible("coach-panel-session-notes")
-
-    refreshed_notes = coach_page.get_saved_notes_list()
-    assert any(note_text in n for n in refreshed_notes), f"Note '{note_text}' did not persist after refresh"
-
-
-def test_tc_coach_06_create_new_zone(driver, base_url, coach_login):
-    """TC-COACH-06: "+ New Zone" creates a zone with a corner type and it appears in the dropdown."""
-    coach_page = coach_login
-    unique_suffix = int(driver.execute_script("return Date.now();")) % 100000
-    zone_name = f"Turn {unique_suffix} Sweeper"
-
-    coach_page.create_zone(name=zone_name, corner_type="sweeper")
-
-    options = coach_page.get_zone_options()
-    assert any(zone_name in opt for opt in options), f"Zone '{zone_name}' not found in zone dropdown options: {options}"
+    assert coach_page.is_panel_displayed("session_notes_phase2")
+    assert not driver.find_elements(By.CSS_SELECTOR, '[data-testid="coach-note-input"], [data-testid="coach-save-note-btn"]')
 
 
 def test_tc_coach_07_live_track_view_fallback_state(driver, base_url, coach_login):
@@ -146,4 +120,3 @@ def test_tc_coach_10_empty_driver_shows_no_data_and_no_fictional_strings(driver,
     # None of the old strings appear in product view
     for forbidden in ["KART", "NODE 7", "APEX", "Turn 4 Hairpin"]:
         assert forbidden not in page_text, f"Forbidden string '{forbidden}' found on Coach dashboard"
-

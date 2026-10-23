@@ -8,7 +8,7 @@
  * - Live Track Map GPS Projection
  * - Biometrics 3-Card Row (Heart Rate, SpO2, Breathing)
  * - Custom Zone Threshold Slider & Safety Validation
- * - Session Notes Tied to Lap / Zone
+ * - Session Notes (parked for Phase 2: a banner for now)
  * - Historical Academy Sessions Archive
  */
 
@@ -23,7 +23,8 @@ import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { useCoachDashboard } from "./hooks/use-coach-dashboard";
 import { LiveTrajectoryPanel } from "./components/live-trajectory-panel";
 import { BiometricsCards } from "./components/biometrics-cards";
-import { SessionNotesPanel } from "./components/session-notes-panel";
+import { DevBanner } from "../../components/ui/dev-banner";
+import { NotebookPen } from "lucide-react";
 import { TimingTowerPanel } from "./components/timing-tower-panel";
 import { CornerDeltasPanel } from "./components/corner-deltas-panel";
 import { HistoricalSessionsTab } from "./components/historical-sessions-tab";
@@ -47,9 +48,6 @@ function CoachDashboardView() {
     drivers, driversError, retryLoadDrivers, selectedDriverId, setSelectedDriverId, selectedDriver, selectedDriverTrack,
     currentThreshold,
     historicalSessions, sessionsError, retryLoadSessions, activeTrackId, activeSessionId, rosterMap,
-    zones, selectedZoneId, setSelectedZoneId, isCreatingZone, setIsCreatingZone, newZoneName, setNewZoneName,
-    newCornerType, setNewCornerType, isSavingZone, handleZoneSelectChange, handleCreateZone,
-    notes, noteError, newNoteText, setNewNoteText, handleAddNote,
     currentSpeed, currentGForce, currentGpsLat, currentGpsLng, currentZoneId, currentLap,
     currentLimit, currentZoneLabel, currentCornerType, isStraight, gWindow, alertLog, clearAlerts,
     wsStatus, actualSpeedPath,
@@ -177,27 +175,18 @@ function CoachDashboardView() {
               {/* BIOMETRICS 3-Card Row */}
               <BiometricsCards />
 
-              {/* SESSION NOTES Panel */}
-              <SessionNotesPanel
-                selectedDriver={selectedDriver}
-                selectedZoneId={selectedZoneId}
-                zones={zones}
-                handleZoneSelectChange={handleZoneSelectChange}
-                newNoteText={newNoteText}
-                setNewNoteText={setNewNoteText}
-                handleAddNote={handleAddNote}
-                noteError={noteError}
-                isCreatingZone={isCreatingZone}
-                setIsCreatingZone={setIsCreatingZone}
-                setSelectedZoneId={setSelectedZoneId}
-                newZoneName={newZoneName}
-                setNewZoneName={setNewZoneName}
-                newCornerType={newCornerType}
-                setNewCornerType={setNewCornerType}
-                handleCreateZone={handleCreateZone}
-                isSavingZone={isSavingZone}
-                notes={notes}
-              />
+              {/* SESSION NOTES: parked for Phase 2 (the server still stores notes; the recorder screen returns later) */}
+              <DevBanner phase="Phase 2">
+                <div className="flex items-center gap-2 mb-2 font-mono">
+                  <NotebookPen size={14} style={{ color: "#E8C547" }} />
+                  <p className="text-xs font-mono uppercase tracking-widest text-[#E8C547] font-bold">
+                    Session Notes Recorder
+                  </p>
+                </div>
+                <p className="text-xs text-[#7C8898]">
+                  Coach notes tied to a lap and a corner come back in Phase 2. Corners are added and changed on the Maps screen (Edit corners).
+                </p>
+              </DevBanner>
 
               {/* DEVELOPMENT ONGOING Banner */}
               <div className="bg-[#12181F] border border-[#E8C547]/40 rounded-[2px] p-3 font-mono">
