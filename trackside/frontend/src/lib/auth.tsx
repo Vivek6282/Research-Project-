@@ -18,6 +18,19 @@ import {
   type ReactNode,
 } from "react";
 import { api, fetchCSRFToken } from "./api";
+import { clearPrivateCaches } from "./private-cache";
+
+/** Do not ask the server who is signed in more often than this when the tab gains focus. */
+export const SESSION_RECHECK_MIN_MS = 5000;
+/** How often, and how far apart, the first read of the session is repeated when the server does not answer. */
+export const SESSION_READ_RETRIES = 3;
+export const SESSION_READ_RETRY_MS = 1500;
+
+/** True when the server clearly refused the session (401 or 403), not when it was only slow or unreachable. */
+function isSignedOut(err: unknown): boolean {
+  const status = (err as { status?: number } | null)?.status;
+  return status === 401 || status === 403;
+}
 
 /** User shape returned by the API */
 export interface User {
@@ -44,6 +57,21 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
+ * Ask the server who is signed in. When the server is only slow or waking up (a network failure or a 5xx),
+ * try again a few times instead of treating it as "signed out"; a clear refusal is answered at once.
+ */
+async function readCurrentUser(): Promise<User> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await api.get<User>("/api/auth/me/");
+    } catch (err) {
+      if (isSignedOut(err) || attempt >= SESSION_READ_RETRIES) throw err;
+      await new Promise((resolve) => setTimeout(resolve, SESSION_READ_RETRY_MS));
+    }
+  }
+}
+
+/**
  * AuthProvider — wraps the app and manages authentication state.
  *
  * On mount, fetches a CSRF token and checks for an existing session.
@@ -57,9 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /** Check for existing session on app load */
   useEffect(() => {
     async function checkSession() {
+      clearPrivateCaches();
       try {
         await fetchCSRFToken();
-        const currentUser = await api.get<User>("/api/auth/me/");
+        const currentUser = await readCurrentUser();
         setUser(currentUser);
       } catch {
         // No active session — user needs to log in
@@ -69,6 +98,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     checkSession();
+  }, []);
+
+  // The session cookie is shared by every tab of this browser. If another tab signs in as someone else
+  // (or signs out), this tab must follow the server at once instead of showing the old person's page.
+  useEffect(() => {
+    let lastCheck = Date.now();
+    async function recheck() {
+      if (document.hidden || Date.now() - lastCheck < SESSION_RECHECK_MIN_MS) return;
+      lastCheck = Date.now();
+      try {
+        const serverUser = await api.get<User>("/api/auth/me/");
+        setUser((shown) => (shown && shown.id === serverUser.id && shown.role === serverUser.role ? shown : serverUser));
+      } catch (err) {
+        // Only a refusal from the server means "signed out"; a network failure leaves the page as it is.
+        if (isSignedOut(err)) setUser(null);
+      }
+    }
+    document.addEventListener("visibilitychange", recheck);
+    window.addEventListener("focus", recheck);
+    return () => {
+      document.removeEventListener("visibilitychange", recheck);
+      window.removeEventListener("focus", recheck);
+    };
   }, []);
 
   /** Log in with email or username and password */
@@ -97,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api.post("/api/auth/logout/");
     } finally {
       setUser(null);
+      clearPrivateCaches();
     }
   }, []);
 

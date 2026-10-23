@@ -32,23 +32,11 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/demo\//],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\/api\/(sessions|tracks|auth).*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "trackside-api-cache",
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 86400, // 24 hours
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-        ],
+        // Private data must never be kept by the service worker: its cache is shared by every account
+        // that uses this browser, so a cached /api/auth/me/ could show the wrong person's dashboard.
+        // So no API route is cached at all, and navigations never fall back to the page for /api or /ws.
+        navigateFallbackDenylist: [/^\/demo\//, /^\/api\//, /^\/ws\//],
+        runtimeCaching: [],
       },
     }),
   ],

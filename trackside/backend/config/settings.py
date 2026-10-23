@@ -91,6 +91,8 @@ MIDDLEWARE = [
     # Answers /api/health/ first (see config/health.py)
     "config.health.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Private API answers are never stored by browsers, proxies or the service worker (config/no_store.py)
+    "config.no_store.NoStoreApiMiddleware",
     # CORS must come before CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

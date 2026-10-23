@@ -22,6 +22,17 @@ function getCSRFToken(): string {
 }
 
 /** Base configuration for all API requests */
+/** An error that also says which HTTP status the server answered with (0 when it never answered). */
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 interface RequestConfig extends Omit<RequestInit, "body"> {
   body?: unknown;
 }
@@ -61,15 +72,15 @@ async function request<T>(url: string, config: RequestConfig = {}): Promise<T> {
         errorData.detail ||
         errorData.message ||
         "Invalid email/username or password.";
-      throw new Error(message);
+      throw new ApiError(message, 401);
     }
     // Session expired or not authenticated on protected endpoint — redirect to login
     window.location.href = "/login";
-    throw new Error("Authentication required");
+    throw new ApiError("Authentication required", 401);
   }
 
   if (response.status === 429) {
-    throw new Error("Too many requests. Please wait and try again.");
+    throw new ApiError("Too many requests. Please wait and try again.", 429);
   }
 
   if (!response.ok) {
@@ -78,7 +89,7 @@ async function request<T>(url: string, config: RequestConfig = {}): Promise<T> {
       errorData.detail ||
       errorData.message ||
       `Request failed with status ${response.status}`;
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
 
   // Handle 204 No Content
