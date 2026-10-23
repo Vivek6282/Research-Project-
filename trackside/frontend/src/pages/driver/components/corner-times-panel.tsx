@@ -9,10 +9,11 @@ import { formatSeconds, useCornerDeltas } from "../../../lib/use-corner-deltas";
 
 interface CornerTimesPanelProps {
   sessionId: string | null;
+  isLive?: boolean;
 }
 
-export function CornerTimesPanel({ sessionId }: CornerTimesPanelProps) {
-  const { corners } = useCornerDeltas(sessionId, null, false);
+export function CornerTimesPanel({ sessionId, isLive = false }: CornerTimesPanelProps) {
+  const { corners } = useCornerDeltas(sessionId, null, isLive);
 
   return (
     <Panel testId="driver-panel-corner-times" title="Corner Times" icon={Timer}>

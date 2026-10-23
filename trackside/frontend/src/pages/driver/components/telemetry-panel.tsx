@@ -8,12 +8,14 @@ import { Activity } from "lucide-react";
 import { Panel } from "../../../components/ui/panel";
 import { SignalStrip } from "../../../components/ui/signal-strip";
 import { StaleDataBadge } from "../../../components/ui/stale-data-badge";
+import { TrajectoryStage } from "../../../components/ui/signal-strip";
 
 interface TelemetryPanelProps {
   currentG: number | null;
   activeThreshold: number | null;
   activeZone?: string | null;
-  lastSyncTime: number;
+  lastSyncTime?: number;
+  stage?: TrajectoryStage | null;
 }
 
 /**
@@ -24,6 +26,7 @@ export function TelemetryPanel({
   activeThreshold,
   activeZone,
   lastSyncTime,
+  stage,
 }: TelemetryPanelProps) {
   return (
     <Panel testId="driver-panel-telemetry" title="Live Driver Telemetry & Glove LED Feed" icon={Activity}>
@@ -38,7 +41,7 @@ export function TelemetryPanel({
               <>
                 <span className="text-3xl font-extrabold text-[#3FA6E0]">{currentG} g</span>
                 <span className="text-xs text-[#7C8898]">
-                  / {activeThreshold !== null && activeThreshold !== undefined ? `${activeThreshold.toFixed(2)} g` : "—"} THRESHOLD
+                  / {activeThreshold !== null && activeThreshold !== undefined ? `${activeThreshold.toFixed(2)} g THRESHOLD` : "no limit on a straight"}
                 </span>
               </>
             ) : (
@@ -52,8 +55,7 @@ export function TelemetryPanel({
           <span className="text-[10px] text-[#7C8898] uppercase">GLOVE LED HARDWARE STATUS</span>
           <SignalStrip
             testId="driver-signal-strip"
-            currentG={currentG !== null ? currentG : undefined}
-            threshold={activeThreshold ?? undefined}
+            stage={currentG !== null ? stage ?? "nominal" : "no_data"}
             size="lg"
             showLabel={true}
           />

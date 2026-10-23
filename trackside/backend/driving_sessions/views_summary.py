@@ -76,39 +76,16 @@ class AlertSummaryView(APIView):
         if not track_zones:
             track_zones = list(Zone.objects.all().order_by("label"))
 
-        zone_summaries = []
-        for zone in track_zones:
-            alert_count = Alert.objects.filter(
-                session_id__in=session_ids, zone=zone
-            ).count()
-            red_count = Alert.objects.filter(
-                session_id__in=session_ids, zone=zone, severity=Alert.Severity.RED
-            ).count()
-
-            if alert_count == 0:
-                zone_status = "Clean"
-                status_color = "#33D17E"
-            elif red_count > 0 or alert_count >= 5:
-                zone_status = "High Risk"
-                status_color = "#E5473C"
-            else:
-                zone_status = "Caution"
-                status_color = "#F2A93B"
-
-            zone_summaries.append(
-                {
-                    "name": zone.label,
-                    "count": alert_count,
-                    "red_count": red_count,
-                    "status": zone_status,
-                    "color": status_color,
-                    "threshold": zone.threshold_g,
-                }
-            )
-
         most_recent_session = recent_sessions[0]
+        zone_summaries = self.zone_summaries(track_zones, session_ids, most_recent_session.track_id)
+
 
         has_goal = bool(most_recent_session.goal_text and most_recent_session.goal_text.strip())
+        session_facts = SessionSerializer(most_recent_session).data
+        newest_reading_at = (
+            Telemetry.objects.filter(session=most_recent_session)
+            .order_by("-recorded_at").values_list("recorded_at", flat=True).first()
+        )
         latest_session_details = {
             "id": str(most_recent_session.id),
             "mode": most_recent_session.mode,
@@ -116,8 +93,15 @@ class AlertSummaryView(APIView):
             "goal_passed": most_recent_session.goal_passed if has_goal else None,
             "started_at": most_recent_session.started_at,
             "track_name": most_recent_session.track.name if most_recent_session.track else "Standard Track",
-            "best_lap_time": SessionSerializer(most_recent_session).data.get("best_lap"),
+            "best_lap_time": session_facts.get("best_lap"),
             "is_demo": most_recent_session.is_demo,
+            # What the coach sees about the same run, so both screens agree
+            "ended_at": most_recent_session.ended_at,
+            "live": is_live_now(most_recent_session, newest_reading_at),
+            "laps": session_facts.get("laps"),
+            "alert_count": session_facts.get("alert_count"),
+            "duration": session_facts.get("duration"),
+            "max_g": session_facts.get("max_g"),
         }
 
         return Response(
@@ -129,6 +113,31 @@ class AlertSummaryView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+    @staticmethod
+    def zone_summaries(track_zones, session_ids, latest_track_id):
+        """One tile per corner name: alerts of the last sessions added up, the limit of the latest track."""
+        merged = {}
+        for zone in track_zones:
+            tile = merged.setdefault(zone.label, {"count": 0, "red_count": 0, "zone": zone})
+            tile["count"] += Alert.objects.filter(session_id__in=session_ids, zone=zone).count()
+            tile["red_count"] += Alert.objects.filter(
+                session_id__in=session_ids, zone=zone, severity=Alert.Severity.RED).count()
+            if zone.track_id == latest_track_id:
+                tile["zone"] = zone
+        summaries = []
+        for label, tile in merged.items():
+            if tile["count"] == 0:
+                zone_status, status_color = "Clean", "#33D17E"
+            elif tile["red_count"] > 0 or tile["count"] >= 5:
+                zone_status, status_color = "High Risk", "#E5473C"
+            else:
+                zone_status, status_color = "Caution", "#F2A93B"
+            summaries.append({
+                "name": label, "count": tile["count"], "red_count": tile["red_count"],
+                "status": zone_status, "color": status_color, "threshold": tile["zone"].threshold_g,
+            })
+        return summaries
 
 
 class RosterStatusView(APIView):

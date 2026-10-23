@@ -17,6 +17,7 @@ import { useDriverDashboard } from "./hooks/use-driver-dashboard";
 import { TelemetryPanel } from "./components/telemetry-panel";
 import { ModeSelectorPanel } from "./components/mode-selector-panel";
 import { ZoneHeatmapPanel } from "./components/zone-heatmap-panel";
+import { SessionStatusPanel } from "./components/session-status-panel";
 import { BestLapTargetPanel } from "./components/best-lap-target-panel";
 import { CornerTimesPanel } from "./components/corner-times-panel";
 import { useAuth } from "../../lib/auth";
@@ -33,6 +34,7 @@ export function DriverDashboard() {
     hasSessions,
     latestSession,
     loading,
+    liveStage,
     activeThreshold,
     activeZone,
   } = useDriverDashboard();
@@ -55,7 +57,11 @@ export function DriverDashboard() {
           activeThreshold={activeThreshold}
           activeZone={activeZone}
           lastSyncTime={lastSyncTime}
+          stage={liveStage}
         />
+
+        {/* The run the coach started: its date, laps and alerts */}
+        <SessionStatusPanel latestSession={latestSession} />
 
         {/* Session Setup Mode Selector */}
         <ModeSelectorPanel mode={mode} setMode={setMode} />
@@ -71,7 +77,7 @@ export function DriverDashboard() {
         <BestLapTargetPanel latestSession={latestSession} />
 
         {/* Time through each corner of the latest session */}
-        <CornerTimesPanel sessionId={latestSession?.id ?? null} />
+        <CornerTimesPanel sessionId={latestSession?.id ?? null} isLive={latestSession?.live === true} />
 
         {/* Phase 1.5 Dev Banner — Alert Clips */}
         <DevBanner phase="Phase 1.5">

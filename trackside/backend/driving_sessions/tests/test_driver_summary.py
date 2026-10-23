@@ -2,6 +2,8 @@
 Trackside — Unit tests for Driver Alert Summary API and Driver Data Isolation.
 """
 
+from datetime import timedelta
+
 import pytest
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -9,7 +11,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from tracks.models import Track, Zone
-from driving_sessions.models import Session, Alert
+from driving_sessions.models import Session, Alert, Telemetry
+from driving_sessions.serializers import SessionSerializer
 
 User = get_user_model()
 
@@ -146,3 +149,57 @@ class TestDriverAlertSummaryDataIsolation(APITestCase):
         assert data["zones"] == []
         assert data["latest_session"] is None
 
+
+
+class TestDriverSummaryMatchesCoachView(APITestCase):
+    """The driver's summary carries the same live state, laps and alerts the coach sees for that run."""
+
+    def setUp(self):
+        self.driver = User.objects.create_user(email="sync_driver@trackside.local", name="Sync Driver",
+                                               role="driver", password="Password123!")
+        self.track = Track.objects.create(name="Sync Track")
+        self.zone = Zone.objects.create(track=self.track, label="Hairpin", threshold_g=1.2)
+        self.session = Session.objects.create(driver=self.driver, track=self.track, mode=Session.Mode.SAFETY,
+                                              started_at=timezone.now())
+
+    def summary(self):
+        """The driver's own summary answer."""
+        self.client.force_authenticate(user=self.driver)
+        return self.client.get("/api/sessions/alerts/summary/").json()
+
+    def test_open_run_with_recent_readings_is_live_with_laps_and_alerts(self):
+        """A run with fresh readings reads live; its laps and alert count match the session itself."""
+        for lap in (1, 2):
+            Telemetry.objects.create(session=self.session, zone=self.zone, lateral_g=0.5, speed_kmh=50,
+                                     gps_lat=0, gps_lng=0, recorded_at=timezone.now(), lap_number=lap)
+        Alert.objects.create(session=self.session, zone=self.zone, severity=Alert.Severity.RED, g_value=1.3,
+                             threshold_applied=1.2, triggered_at=timezone.now())
+        latest = self.summary()["latest_session"]
+        self.assertTrue(latest["live"])
+        self.assertIsNone(latest["ended_at"])
+        self.assertEqual(latest["alert_count"], 1)
+        self.assertEqual(latest["laps"], SessionSerializer(self.session).data["laps"])
+
+    def test_ended_run_is_not_live(self):
+        """After the run is finished the driver sees it as ended, not live."""
+        Telemetry.objects.create(session=self.session, zone=self.zone, lateral_g=0.5, speed_kmh=50,
+                                 gps_lat=0, gps_lng=0, recorded_at=timezone.now(), lap_number=1)
+        self.session.ended_at = timezone.now()
+        self.session.save()
+        latest = self.summary()["latest_session"]
+        self.assertFalse(latest["live"])
+        self.assertIsNotNone(latest["ended_at"])
+
+    def test_same_named_corners_on_two_tracks_make_one_tile(self):
+        """Sessions on two maps with the same corner names give one tile per name, alerts added up."""
+        copy = Track.objects.create(name="Sync Track copy")
+        copy_zone = Zone.objects.create(track=copy, label="Hairpin", threshold_g=0.9)
+        newer = Session.objects.create(driver=self.driver, track=copy, mode=Session.Mode.SAFETY,
+                                       started_at=timezone.now() + timedelta(minutes=1))
+        for session, zone in ((self.session, self.zone), (newer, copy_zone)):
+            Alert.objects.create(session=session, zone=zone, severity=Alert.Severity.AMBER, g_value=1.0,
+                                 threshold_applied=1.2, triggered_at=timezone.now())
+        tiles = [z for z in self.summary()["zones"] if z["name"] == "Hairpin"]
+        self.assertEqual(len(tiles), 1)
+        self.assertEqual(tiles[0]["count"], 2)
+        self.assertEqual(tiles[0]["threshold"], 0.9)   # the limit of the latest run's map
