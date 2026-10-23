@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.serializers import LoginSerializer, UserSerializer
+from config.area_session import AREA_HEADER, AUTO, clean_area, cookie_name_for
 from accounts.throttles import LoginAccountThrottle, LoginRateThrottle
 
 User = get_user_model()
@@ -101,6 +102,17 @@ class LoginView(APIView):
             return Response(
                 {"detail": "This account has been deactivated."},
                 status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Which session cookie this sign-in goes into: the account's own role area ("auto"), or the old single cookie
+        # when the caller names no area. A caller that names another area than the account's own is refused.
+        area_header = request.META.get(AREA_HEADER)
+        if area_header == AUTO:
+            request._request.session_cookie_name = cookie_name_for(matched_user.role)
+        elif clean_area(area_header) and clean_area(area_header) != matched_user.role:
+            return Response(
+                {"detail": "This account cannot sign in here. Use the sign-in page."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # Create the session — sets the HttpOnly session cookie

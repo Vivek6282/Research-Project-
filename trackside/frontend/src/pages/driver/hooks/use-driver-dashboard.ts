@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../../../lib/api";
 import { singleFlight } from "../../../lib/single-flight";
+import { withArea } from "../../../lib/area";
 import { TrajectoryStage } from "../../../components/ui/signal-strip";
 
 export interface ZoneSummary {
@@ -103,7 +104,7 @@ export function useDriverDashboard() {
 
     const connectSocket = () => {
       try {
-        socket = new WebSocket(`${wsProtocol}//${wsHost}/ws/sessions/${latestSession.id}/telemetry/`);
+        socket = new WebSocket(withArea(`${wsProtocol}//${wsHost}/ws/sessions/${latestSession.id}/telemetry/`));   // this page's own sign-in
 
         socket.onmessage = (event) => {
           try {

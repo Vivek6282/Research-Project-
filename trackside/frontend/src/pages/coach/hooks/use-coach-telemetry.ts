@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { DriverProfile } from "../types";
 import { useLiveReadings } from "./use-live-readings";
 import { READING_EVENT } from "../../../lib/bridge-serial";
+import { withArea } from "../../../lib/area";
 
 export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId: string | null) {
   const [currentSpeed, setCurrentSpeed] = useState<number | null>(null);
@@ -55,7 +56,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
 
     const connectWebSocket = () => {
       try {
-        ws = new WebSocket(wsUrl);
+        ws = new WebSocket(withArea(wsUrl));   // the live feed uses this page's own sign-in
         setWsStatus("reconnecting");
 
         ws.onopen = () => {

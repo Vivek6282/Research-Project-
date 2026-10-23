@@ -59,7 +59,6 @@ describe("Session follows the server", () => {
     act(() => { window.dispatchEvent(new Event("focus")); });
     await pass(10);
     expect(screen.getByTestId("session-notice").textContent).toContain("Cole Coach (coach)");
-    expect(screen.getByTestId("session-notice").textContent).toContain("second browser");
 
     mockGet.mockRejectedValue(failure(403));
     await pass(SESSION_RECHECK_MIN_MS + 10);

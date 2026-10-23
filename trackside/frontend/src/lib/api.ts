@@ -9,6 +9,11 @@
  * All API calls go through this module — never use raw fetch().
  */
 
+import { currentArea } from "./area";
+
+/** The login request names no role yet: "auto" lets the server put the sign-in in the account's own role area. */
+const LOGIN_PATH = "/api/auth/login/";
+
 /** Read the CSRF token from the cookie set by Django */
 function getCSRFToken(): string {
   const cookies = document.cookie.split(";");
@@ -50,6 +55,10 @@ async function request<T>(url: string, config: RequestConfig = {}): Promise<T> {
     ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(customHeaders as Record<string, string>),
   };
+
+  // Say which role area this page belongs to, so a driver tab and a coach tab keep separate sign-ins
+  const area = url.includes(LOGIN_PATH) ? "auto" : currentArea();
+  if (area) headers["X-Trackside-Area"] = area;
 
   // Include CSRF token for state-changing requests
   const method = (rest.method || "GET").toUpperCase();

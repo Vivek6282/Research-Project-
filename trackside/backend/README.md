@@ -39,6 +39,10 @@ Every driver has a short display ID, the letter `D` and 5 digits (for example `D
 
 * `python manage.py set_driver_identity (--email X | --username X | --name "Current Name") [--new-name "Marco Ferrati"] [--code D17256]` sets the name and/or driver ID of exactly one driver, prints before and after, and writes an audit entry. It touches nothing else.
 
+## Sign-ins: one per role
+
+Each role keeps its own session cookie: `sessionid_admin`, `sessionid_coach`, `sessionid_driver`. A page tells the server which one it uses with the `X-Trackside-Area` header (live feeds: `?area=`), so a driver tab and a coach tab stay signed in together in one browser and never turn into each other. The login request sends `auto`, and the server puts the sign-in into the cookie of the signed-in account's own role. Rights are never taken from the area: they come from the account's role on every request, and a request that names an area gets only that area's cookie. With no header the old single `sessionid` cookie is used exactly as before (tests and scripts). The code is `config/area_session.py`, tested in `accounts/tests/test_area_sessions.py`.
+
 ## Where limits come from
 
 * A corner's g-force limit is `zone.threshold_g`, set on the map (Maps, then **Edit corners**, 0.3 to 1.5 g). It applies to everyone who drives that map. Alerts (`Alert.threshold_applied`), live events, roster status, the simulator profile and the Play demo status all read it through `drivers/limits.py` (`limit_in_force`).

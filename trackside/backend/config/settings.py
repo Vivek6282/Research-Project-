@@ -97,7 +97,8 @@ MIDDLEWARE = [
     "config.limits.RequestSizeLimitMiddleware",
     # CORS must come before CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
+    # One session cookie per role area, so two roles can be signed in at once in one browser (config/area_session.py)
+    "config.area_session.AreaSessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     # CSRF protection — non-negotiable
     "django.middleware.csrf.CsrfViewMiddleware",

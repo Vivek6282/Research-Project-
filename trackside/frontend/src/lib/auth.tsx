@@ -19,6 +19,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, fetchCSRFToken } from "./api";
+import { forgetArea, rememberArea } from "./area";
 import { clearPrivateCaches } from "./private-cache";
 
 /** Do not ask the server who is signed in more often than this when the tab gains focus. */
@@ -150,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: identifier,
         password,
       });
+      rememberArea(loggedInUser.role);   // this tab now belongs to that role's sign-in
       setUser(loggedInUser);
       return loggedInUser;
     } catch (err) {
@@ -165,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api.post("/api/auth/logout/");
     } finally {
+      forgetArea();
       setUser(null);
       clearPrivateCaches();
     }

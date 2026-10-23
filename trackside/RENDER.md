@@ -52,7 +52,9 @@ The per-account limit (10 wrong tries a minute for one email or Driver ID) works
 
 ## Two roles at the same time
 
-All tabs of one browser share one sign-in. Signing in as the coach in a second tab switches the driver tab to the coach (it shows a notice saying so). To show a driver and a coach side by side, use two browsers, or one normal window and one private window.
+Each role has its own sign-in in the browser (separate cookies for Admin, Coach and Driver), so a driver tab and a coach tab can both stay signed in side by side in one browser. Signing in as the coach never changes the driver tab, and signing the driver out never signs the coach out. A tab changes account by itself only when the same role was signed in or out in another tab (it then shows a notice saying so).
+
+After this update everyone signs in once more, because the old single sign-in is no longer used by the pages.
 
 ## If something goes wrong
 
