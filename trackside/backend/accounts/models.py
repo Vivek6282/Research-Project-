@@ -61,6 +61,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text="System-generated unique login identifier (e.g. TRK-DRV-000042)",
     )
 
+    # Login also accepts this short ID (see LoginView); the help text below is kept as is to avoid a migration
     driver_code = models.CharField(
         max_length=6,
         unique=True,

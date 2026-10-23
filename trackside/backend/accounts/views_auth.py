@@ -68,13 +68,15 @@ class LoginView(APIView):
         login_serializer = LoginSerializer(data=request.data)
         login_serializer.is_valid(raise_exception=True)
 
-        user_identifier = login_serializer.validated_data["identifier"]
+        user_identifier = login_serializer.validated_data["identifier"].strip()
         raw_password = login_serializer.validated_data["password"]
 
-        # Dual-identifier lookup: check email first (case-insensitive), then fallback to username
+        # Look the person up by email, then the long username (TRK-DRV-...), then the short driver ID (D12345)
         matched_user = User.objects.filter(email__iexact=user_identifier).first()
         if not matched_user:
             matched_user = User.objects.filter(username__iexact=user_identifier).first()
+        if not matched_user:
+            matched_user = User.objects.filter(driver_code__iexact=user_identifier).first()
 
         if matched_user is None or not matched_user.check_password(raw_password):
             return Response(

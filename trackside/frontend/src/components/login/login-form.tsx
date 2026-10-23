@@ -90,7 +90,7 @@ export function LoginForm() {
               data-testid="login-identifier-input"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="Email or Driver ID (e.g. TRK-DRV-000042)"
+              placeholder="Email or Driver ID (e.g. D17256)"
               required
               className="w-full px-3 py-2.5 min-h-[44px] rounded-[2px] text-xs font-mono outline-none transition-colors bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3] placeholder-[#4B5563] focus:border-[#3FA6E0]"
             />

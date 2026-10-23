@@ -123,3 +123,21 @@ class TestUsernameAndDualIdentifierLogin(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertNotEqual(res.data["username"], "TRK-FAKE-999999")
         self.assertTrue(res.data["username"].startswith("TRK-DRV-"))
+
+    def test_driver_signs_in_with_the_short_driver_id(self):
+        """The short ID shown on screen (D plus 5 digits) works, in any letter case and with spaces around it."""
+        driver = User.objects.create_user(email=None, name="Short Id", role="driver", password="Password123!")
+        self.assertRegex(driver.driver_code, r"^D[0-9]{5}$")
+        for typed in (driver.driver_code, driver.driver_code.lower(), f"  {driver.driver_code} "):
+            cache.clear()
+            res = self.client.post("/api/auth/login/", {"identifier": typed, "password": "Password123!"}, format="json")
+            self.assertEqual(res.status_code, status.HTTP_200_OK, typed)
+            self.assertEqual(res.data["driver_code"], driver.driver_code)
+            self.client.post("/api/auth/logout/")
+
+    def test_short_driver_id_with_wrong_password_is_refused(self):
+        """A right short ID with a wrong password gets the same 401 as any bad login."""
+        cache.clear()
+        driver = User.objects.create_user(email=None, name="Short Id", role="driver", password="Password123!")
+        res = self.client.post("/api/auth/login/", {"identifier": driver.driver_code, "password": "Wrong123!"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
