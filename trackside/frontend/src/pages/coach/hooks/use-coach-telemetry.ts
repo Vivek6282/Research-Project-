@@ -49,6 +49,9 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
 
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    // Set when this effect is cleaned up (another session was chosen, or the page closed). The socket's own
+    // "close" event arrives afterwards and must not start a new connection to the old session.
+    let closedByUs = false;
 
     const connectWebSocket = () => {
       try {
@@ -96,6 +99,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
         };
 
         ws.onclose = () => {
+          if (closedByUs) return;
           setWsStatus("disconnected");
           reconnectTimer = setTimeout(connectWebSocket, 3000);
         };
@@ -113,6 +117,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     connectWebSocket();
 
     return () => {
+      closedByUs = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) ws.close();
     };

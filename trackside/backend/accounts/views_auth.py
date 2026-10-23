@@ -5,6 +5,7 @@ CSRF token retrieval, user login with rate limiting, user logout, and current se
 """
 
 from django.contrib.auth import login, logout, get_user_model
+from django.contrib.auth.hashers import check_password, make_password
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -17,6 +18,9 @@ from accounts.serializers import LoginSerializer, UserSerializer
 from accounts.throttles import LoginAccountThrottle, LoginRateThrottle
 
 User = get_user_model()
+
+# A real password hash of a throw-away text, used only to spend the same time when no account matches
+DUMMY_PASSWORD_HASH = make_password("not-a-real-password-just-for-timing")
 
 
 class CSRFTokenView(APIView):
@@ -79,7 +83,15 @@ class LoginView(APIView):
         if not matched_user:
             matched_user = User.objects.filter(driver_code__iexact=user_identifier).first()
 
-        if matched_user is None or not matched_user.check_password(raw_password):
+        # Do the same password work whether or not the account exists, so the answer time does not reveal
+        # which accounts exist (a missing account is checked against a fixed dummy hash).
+        if matched_user is None:
+            check_password(raw_password, DUMMY_PASSWORD_HASH)
+            password_ok = False
+        else:
+            password_ok = matched_user.check_password(raw_password)
+
+        if not password_ok:
             return Response(
                 {"detail": "Invalid email/username or password."},
                 status=status.HTTP_401_UNAUTHORIZED,

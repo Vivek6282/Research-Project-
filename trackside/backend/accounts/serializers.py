@@ -213,6 +213,16 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         if request and request.user and self.instance and self.instance == request.user:
             if attrs.get("is_active") is False:
                 raise serializers.ValidationError({"is_active": "You cannot deactivate your own admin account."})
+            # Changing one's own role could leave the system with no admin at all
+            if "role" in attrs and attrs["role"] != self.instance.role:
+                raise serializers.ValidationError({"role": "You cannot change your own role."})
+
+        # An admin may only be demoted or deactivated while another active admin remains
+        if self.instance and self.instance.role == "admin":
+            losing_admin_rights = role != "admin" or attrs.get("is_active") is False
+            others_remain = User.objects.filter(role="admin", is_active=True).exclude(pk=self.instance.pk).exists()
+            if losing_admin_rights and not others_remain:
+                raise serializers.ValidationError("The last active admin cannot be demoted or deactivated.")
 
         if role == "coach" and email is not None and not email:
             raise serializers.ValidationError({"email": "Email address is required for Coach accounts."})

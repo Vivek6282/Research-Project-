@@ -14,6 +14,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from devices.authentication import DeviceTokenAuthentication
 from driving_sessions.access import sessions_visible_to, can_access_session
 from driving_sessions.alerting import process_telemetry_alerts
+from driving_sessions.duplicates import drop_stored_duplicates
 from driving_sessions.live_fields import live_event_cache
 from driving_sessions.models import Session, Telemetry
 from driving_sessions.serializers import TelemetrySerializer
@@ -110,6 +111,15 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
 
         telemetry_serializer = self.get_serializer(data=request.data, many=is_batch_submission)
         telemetry_serializer.is_valid(raise_exception=True)
+
+        # A retried upload must not store the same readings twice
+        posted = telemetry_serializer.validated_data if is_batch_submission else [telemetry_serializer.validated_data]
+        fresh, skipped = drop_stored_duplicates(target_session, posted)
+        if skipped and not fresh:
+            return Response({"detail": "Already stored.", "duplicates_skipped": skipped}, status=status.HTTP_200_OK)
+        if skipped:
+            telemetry_serializer.validated_data[:] = fresh
+
         if is_batch_submission:
             # Readings are saved (and broadcast live) in recorded_at order, whatever order they were sent in
             telemetry_serializer.validated_data.sort(key=lambda reading: reading["recorded_at"])

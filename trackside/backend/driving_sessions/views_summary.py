@@ -5,6 +5,8 @@ This module provides aggregate reporting endpoints:
 - RosterStatusView: Live telemetry trajectory monitoring across active drivers.
 """
 
+import uuid
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
@@ -45,7 +47,11 @@ class AlertSummaryView(APIView):
 
         driver_param = request.query_params.get("driver") or request.query_params.get("driver_id")
         if driver_param and requesting_user.role in ("coach", "admin"):
-            target_driver = get_object_or_404(User, pk=driver_param)
+            try:
+                driver_id = uuid.UUID(str(driver_param))
+            except ValueError:
+                return Response({"detail": "driver must be a valid driver id."}, status=status.HTTP_400_BAD_REQUEST)
+            target_driver = get_object_or_404(User, pk=driver_id)
             recent_sessions = list(
                 visible_sessions.filter(driver=target_driver)
                 .select_related("track")

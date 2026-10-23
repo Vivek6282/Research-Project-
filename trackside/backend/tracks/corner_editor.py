@@ -59,7 +59,7 @@ class EditorOutline:
     def version(self) -> str:
         """Short fingerprint of the outline; a save made against an older outline is refused."""
         text = f"{self.count}|{self.points[0]}|{self.points[self.count // 2]}|{self.points[-1]}"
-        return hashlib.sha1(text.encode()).hexdigest()[:12]
+        return hashlib.sha1(text.encode(), usedforsecurity=False).hexdigest()[:12]
 
     def lat_lng(self, index: int) -> Dict[str, float]:
         """Lat/lng of one outline point."""

@@ -4,6 +4,8 @@
 set -eu
 
 cd "$(dirname "$0")/.."
+# Backups hold every account and driving record: readable by the owner only
+umask 077
 mkdir -p backups
 
 stamp=$(date +%Y%m%d-%H%M%S)
