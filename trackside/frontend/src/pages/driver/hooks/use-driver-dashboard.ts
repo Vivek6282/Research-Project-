@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../../../lib/api";
+import { singleFlight } from "../../../lib/single-flight";
 import { TrajectoryStage } from "../../../components/ui/signal-strip";
 
 export interface ZoneSummary {
@@ -83,8 +84,9 @@ export function useDriverDashboard() {
   // 1. Read the summary now and then every few seconds while the page is open
   useEffect(() => {
     loadSummary(true);
+    const refreshOnce = singleFlight(() => loadSummary(false));   // a slow answer is waited for, not stacked on
     const timer = setInterval(() => {
-      if (!document.hidden) loadSummary(false);
+      if (!document.hidden) refreshOnce();
     }, SUMMARY_REFRESH_MS);
     return () => clearInterval(timer);
   }, [loadSummary]);

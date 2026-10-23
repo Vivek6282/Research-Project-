@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../lib/api";
+import { singleFlight } from "../../../lib/single-flight";
 
 export const LINK_POLL_MS = 3000;
 
@@ -55,7 +56,7 @@ export function useLaptopLink() {
 
   useEffect(() => {
     refresh();
-    const timer = setInterval(refresh, LINK_POLL_MS);
+    const timer = setInterval(singleFlight(refresh), LINK_POLL_MS);   // a slow answer is waited for, not stacked on
     return () => clearInterval(timer);
   }, [refresh]);
 

@@ -59,6 +59,39 @@ describe("openBridge", () => {
     expect(fake.log).toEqual(["open", "close"]);
   });
 
+  it("keeps only the newest line when the port is slow", async () => {
+    const written: string[] = [];
+    let release: () => void = () => undefined;
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const readable = new ReadableStream<Uint8Array>({ start: (c) => (controller = c) });
+    const port: SerialPortLike = {
+      open: async () => undefined, close: async () => undefined, setSignals: async () => undefined, readable,
+      writable: new WritableStream<Uint8Array>({
+        write: (chunk) => {
+          const text = new TextDecoder().decode(chunk);
+          written.push(text);
+          return text.startsWith("0.1,") ? new Promise<void>((resolve) => (release = resolve)) : undefined;   // the first write stalls
+        },
+      }),
+    };
+    const pending = openBridge(port, async () => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.enqueue(new TextEncoder().encode("=== TRACKSIDE BRIDGE ===\n"));
+    const connection = await pending;
+
+    const first = connection.send("0.1,NOMINAL\n");        // stalls inside the port
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    connection.send("0.5,NOMINAL\n");                      // overtaken
+    connection.send("0.9,MONITORING\n");                   // overtaken
+    const last = connection.send("1.3,INTERVENE\n");       // the newest: this is the one that must arrive
+    release();
+    await Promise.all([first, last]);
+    expect(written).toEqual(["0.1,NOMINAL\n", "1.3,INTERVENE\n"]);
+
+    await connection.send("0.3,NOMINAL\n");                // and normal sending carries on afterwards
+    expect(written).toEqual(["0.1,NOMINAL\n", "1.3,INTERVENE\n", "0.3,NOMINAL\n"]);
+  });
+
   it("refuses the glove: it is closed again at once and nothing is written", async () => {
     const fake = fakePort();
     const pending = openBridge(fake.port, async () => undefined);

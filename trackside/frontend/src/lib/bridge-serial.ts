@@ -95,13 +95,29 @@ export async function openBridge(
   const verdict = await banner;
   clearTimeout(timer);
 
-  let queue: Promise<void> = Promise.resolve();
+  // Each line is the newest stage, so only the newest waiting line matters: when the port is slow, lines that
+  // are overtaken are dropped instead of piling up and arriving late. Lines that are not overtaken go in order.
+  let waiting: string | null = null;
+  let draining: Promise<void> | null = null;
+  const encoder = new TextEncoder();
+  const drain = async () => {
+    try {
+      while (waiting !== null) {
+        const next: string = waiting;
+        waiting = null;
+        await writer.write(encoder.encode(next));
+      }
+    } finally {
+      draining = null;
+    }
+  };
   const connection: BridgeConnection = {
     verdict,
-    // Writes go out one after another, in order
+    // Resolves once this line, or a newer one that replaced it, has been written
     send(line: string) {
-      queue = queue.then(() => writer.write(new TextEncoder().encode(line)));
-      return queue;
+      waiting = line;
+      if (!draining) draining = drain();
+      return draining;
     },
     async close() {
       try {

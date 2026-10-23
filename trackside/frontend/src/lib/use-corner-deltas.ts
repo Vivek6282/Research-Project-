@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "./api";
+import { singleFlight } from "./single-flight";
 
 export const CORNER_DELTAS_REFRESH_MS = 5000;
 
@@ -39,7 +40,7 @@ export function useCornerDeltas(sessionId: string | null, lapNumber: number | nu
     if (!sessionId) return;
     let cancelled = false;
     const load = () => {
-      api
+      return api
         .get<{ corners: CornerDelta[] }>(`/api/sessions/${sessionId}/corner-deltas/`)
         .then((res) => {
           if (cancelled) return;
@@ -51,7 +52,7 @@ export function useCornerDeltas(sessionId: string | null, lapNumber: number | nu
         });
     };
     load();
-    const timer = isLive ? setInterval(load, CORNER_DELTAS_REFRESH_MS) : null;
+    const timer = isLive ? setInterval(singleFlight(load), CORNER_DELTAS_REFRESH_MS) : null;
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);

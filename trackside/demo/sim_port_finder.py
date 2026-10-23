@@ -25,6 +25,7 @@ OPEN_TIMEOUT_S = 0.2        # read timeout of an opened port
 RESET_PULSE_S = 0.1         # how long the reset line is held
 PREFERRED_USB_IDS = ("10C4:EA60", "1A86:7523")   # the USB-serial chips on ESP32 boards
 CANDIDATES_ENV = "TRACKSIDE_PORT_CANDIDATES"     # comma-separated names; replaces discovery
+SKIP_ENV = "TRACKSIDE_PORT_SKIP"                 # comma-separated names that are never opened or reset
 CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".last_bridge_port")
 BUSY_HINT = "close the Arduino Serial Monitor"
 
@@ -47,7 +48,18 @@ def blank_info(name: str) -> Dict[str, str]:
     return {"port": name, "description": "", "vid_pid": "", "serial_number": ""}
 
 
+def skipped_names() -> set:
+    """The port names (lower case) in TRACKSIDE_PORT_SKIP: devices that must never be opened or reset by the search."""
+    return {n.strip().lower() for n in os.environ.get(SKIP_ENV, "").split(",") if n.strip()}
+
+
 def system_ports() -> List[Dict[str, str]]:
+    """Every serial port the system lists (or only TRACKSIDE_PORT_CANDIDATES when set), without the skipped ones."""
+    skip = skipped_names()
+    return [info for info in all_listed_ports() if info["port"].lower() not in skip]
+
+
+def all_listed_ports() -> List[Dict[str, str]]:
     """Every serial port the system lists, or only the names in TRACKSIDE_PORT_CANDIDATES when that is set."""
     listed = {}
     if HAS_SERIAL:

@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../../lib/api";
+import { singleFlight } from "../../../lib/single-flight";
 
 export type DemoAvailability = "checking" | "available" | "off" | "production";
 export type DemoState = "idle" | "running" | "finished" | "stopped" | "failed";
@@ -79,7 +80,7 @@ export function useDemoRun(enabled: boolean) {
     alive.current = true;
     if (!enabled) return undefined;
     refresh();
-    const timer = setInterval(refresh, POLL_MS);
+    const timer = setInterval(singleFlight(refresh), POLL_MS);   // a slow answer is waited for, not stacked on
     return () => {
       alive.current = false;
       clearInterval(timer);

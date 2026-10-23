@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "../../../lib/api";
+import { singleFlight } from "../../../lib/single-flight";
 import { useCoachTelemetry } from "./use-coach-telemetry";
 import { useCoachNotes } from "./use-coach-notes";
 import { useCoachTab } from "./use-coach-tab";
@@ -102,7 +103,7 @@ export function useCoachDashboard() {
     }
 
     fetchRosterStatus();
-    const interval = setInterval(fetchRosterStatus, 2500);
+    const interval = setInterval(singleFlight(fetchRosterStatus), 2500);   // a slow answer is waited for, not stacked on
     return () => clearInterval(interval);
   }, [activeTab]);
 

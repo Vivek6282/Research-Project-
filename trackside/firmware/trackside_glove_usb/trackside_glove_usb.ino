@@ -139,8 +139,8 @@ void loop() {
   // No data for 1.5 s -> back to the waiting state
   if (gStage != WAITING && (now - gLastPacket) > 1500) gStage = WAITING;
 
-  // Red LED blinks (4 Hz) while intervening
-  bool wantRed = (gStage != INTERVENE) || ((now % 250) < 150);
+  // Red LED blinks 2.5 times a second while intervening (kept at or below 3, the same as the radio glove)
+  bool wantRed = (gStage != INTERVENE) || ((now % 400) < 200);
 
   if (gStage != shownStage || (gStage == INTERVENE && wantRed != redOn)) {
     if (gStage != shownStage) {
