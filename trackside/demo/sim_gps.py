@@ -51,10 +51,14 @@ def load_gps_file(path: str) -> List[GpsPoint]:
 
 
 def gps_for_reading(points: Optional[List[GpsPoint]], reading_number: int, readings_per_lap: int) -> Optional[GpsPoint]:
-    """The point for reading k of a lap: the lap's readings are spread evenly round the whole outline."""
+    """The point for reading k of a lap: readings are spread evenly round the outline, the first on the
+    start/finish line and the last also on the line, so the dot ends each lap at the finish."""
     if not points or readings_per_lap <= 0:
         return None
-    return points[(reading_number % readings_per_lap) * len(points) // readings_per_lap]
+    number = reading_number % readings_per_lap
+    if readings_per_lap == 1:
+        return points[0]
+    return points[(number * len(points) // (readings_per_lap - 1)) % len(points)]
 
 
 def load_gps_or_exit(path: Optional[str]) -> Optional[List[GpsPoint]]:

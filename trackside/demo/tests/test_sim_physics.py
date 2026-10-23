@@ -73,6 +73,15 @@ class PaceTests(unittest.TestCase):
         self.assertGreater(spread(corner_rows), 0.25)
         self.assertLess(spread(straight_rows), spread(corner_rows))
 
+    def test_every_lap_ends_on_the_start_finish_line(self):
+        """The first reading of a lap is at progress 0 and the last at 1.0, on outline point 0."""
+        simulator = ProfileSimulator(load_profile(FIXTURE), "safe", seed=5)
+        for lap in (1, 2):
+            packets = list(simulator.lap_packets(lap))
+            self.assertEqual(packets[0]["track_progress"], 0.0)
+            self.assertEqual(packets[-1]["track_progress"], 1.0)
+            self.assertEqual(simulator.current_index, 0)
+
     def test_mixed_pace_shows_every_colour(self):
         """Mixed: over five laps there are green, amber and red readings."""
         stages = {p["stage"] for p in lap_packets("mixed", seed=4, laps=5)}
@@ -114,11 +123,12 @@ class LapShapeTests(unittest.TestCase):
         self.assertTrue(all(p["threshold"] == (99.0 if p["zone"] == "Straight" else LIMIT) for p in self.packets))
 
     def test_progress_runs_from_zero_to_one_once_per_lap(self):
-        """Progress never goes backwards inside a lap and starts at 0."""
+        """Progress never goes backwards inside a lap, starts at 0 and ends at exactly 1.0 (the finish line)."""
         progress = [p["track_progress"] for p in self.packets]
         self.assertEqual(progress[0], 0.0)
         self.assertEqual(progress, sorted(progress))
-        self.assertLess(progress[-1], 1.0)
+        self.assertEqual(progress[-1], 1.0)
+        self.assertLess(progress[-2], 1.0)
 
     def test_lap_numbers_and_time_step(self):
         """Three laps are numbered 1..3 and each takes lap_length / speed seconds in 0.2 s steps."""

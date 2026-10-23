@@ -172,21 +172,27 @@ class ProfileSimulator:
         distance_m = 0.0
         while distance_m < self.total_m:
             i = min(int(distance_m / self.profile.spacing_m), len(speeds) - 1)
-            self.current_index = i
-            speed = speeds[i]
-            number = self.member[i]
-            corner = self.profile.corners[number] if number is not None else None
-            lateral_g = speed * speed * self.curvature[i] / GRAVITY
-            threshold = corner.threshold_g if corner else STRAIGHT_THRESHOLD_G
-            noise_g = CORNER_NOISE_FRACTION * threshold if corner else READING_NOISE_G
-            lateral_g = max(MIN_READING_G, lateral_g + self.rng.uniform(-noise_g, noise_g))
-            yield {
-                "lap": lap_number,
-                "zone": corner.label if corner else "Straight",
-                "g_force": round(lateral_g, 2),
-                "stage": classify_stage(lateral_g, threshold),
-                "speed_kmh": round(speed * 3.6, 1),
-                "track_progress": round(distance_m / self.total_m, 4),
-                "threshold": threshold,
-            }
-            distance_m += speed * TIME_STEP_S
+            yield self.packet_at(lap_number, speeds, i, distance_m)
+            distance_m += speeds[i] * TIME_STEP_S
+        # Closing reading exactly on the start/finish line, so the dot ends the lap at the finish
+        yield self.packet_at(lap_number, speeds, 0, self.total_m)
+
+    def packet_at(self, lap_number: int, speeds: List[float], i: int, distance_m: float):
+        """One telemetry packet for outline point i, with the g noise for a corner or a straight."""
+        self.current_index = i
+        speed = speeds[i]
+        number = self.member[i]
+        corner = self.profile.corners[number] if number is not None else None
+        lateral_g = speed * speed * self.curvature[i] / GRAVITY
+        threshold = corner.threshold_g if corner else STRAIGHT_THRESHOLD_G
+        noise_g = CORNER_NOISE_FRACTION * threshold if corner else READING_NOISE_G
+        lateral_g = max(MIN_READING_G, lateral_g + self.rng.uniform(-noise_g, noise_g))
+        return {
+            "lap": lap_number,
+            "zone": corner.label if corner else "Straight",
+            "g_force": round(lateral_g, 2),
+            "stage": classify_stage(lateral_g, threshold),
+            "speed_kmh": round(speed * 3.6, 1),
+            "track_progress": round(distance_m / self.total_m, 4),
+            "threshold": threshold,
+        }

@@ -46,11 +46,12 @@ class GpsFileTests(unittest.TestCase):
             load_gps_file("/no/such/file.gps.json")
 
     def test_48_readings_are_spread_evenly_over_the_outline(self):
-        """Reading k of 48 takes point k*N//48; first reading is point 0; the next lap starts over."""
+        """Readings spread over the outline; the first and the last reading of a lap are both on the start/finish line."""
         points = [(float(i), 0.0) for i in range(400)]
         self.assertEqual(gps_for_reading(points, 0, 48), (0.0, 0.0))
-        self.assertEqual(gps_for_reading(points, 24, 48), (200.0, 0.0))
-        self.assertEqual(gps_for_reading(points, 47, 48), (391.0, 0.0))
+        self.assertEqual(gps_for_reading(points, 24, 48), (204.0, 0.0))
+        self.assertEqual(gps_for_reading(points, 46, 48), (391.0, 0.0))
+        self.assertEqual(gps_for_reading(points, 47, 48), (0.0, 0.0))
         self.assertEqual(gps_for_reading(points, 48, 48), (0.0, 0.0))
         self.assertIsNone(gps_for_reading(None, 3, 48))
 
