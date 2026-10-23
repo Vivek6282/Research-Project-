@@ -14,6 +14,7 @@ import { CoachDashboard } from "./pages/coach";
 import { AdminDashboard } from "./pages/admin";
 import { DriverDashboard } from "./pages/driver";
 import { MapsPage } from "./pages/maps";
+import { SessionNoticeBanner } from "./components/shell/session-notice-banner";
 
 /**
  * ProtectedRoute — redirects to /login if the user isn't authenticated.
@@ -147,6 +148,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <PreferencesProvider>
+          <SessionNoticeBanner />
           <AppRoutes />
         </PreferencesProvider>
       </AuthProvider>

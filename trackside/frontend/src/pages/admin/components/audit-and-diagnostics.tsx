@@ -98,6 +98,21 @@ export function AuditAndDiagnostics({
                 {diagnostics ? diagnostics.db_query_time_ms : 0}ms
               </span>
             </div>
+
+            {/* How the server reads this admin's address (it drives the login rate limit behind a proxy) */}
+            <div className="border-t border-[#232B35] pt-2 mt-2" data-testid="admin-client-address">
+              <div className="flex items-center justify-between">
+                <span className="text-[#7C8898]">Your address, as the server sees it:</span>
+                <span className="font-bold text-[#3FA6E0]" data-testid="admin-client-address-value">
+                  {diagnostics?.client_address_seen || "—"}
+                </span>
+              </div>
+              <p className="text-[10px] text-[#7C8898] mt-1">
+                Trusted proxies: {diagnostics?.trusted_proxy_count ?? "—"} · forwarded entries: {diagnostics?.forwarded_for_entries ?? "—"}.
+                This should be your own public address. If it is not, the login limit is counting the wrong address:
+                set TRUSTED_PROXY_COUNT to the number of proxies in front of the server.
+              </p>
+            </div>
           </div>
         </div>
       </Panel>

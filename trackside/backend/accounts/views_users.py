@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.throttling import BaseThrottle
 from rest_framework.views import APIView
 
 from accounts.models import AuditLogEntry
@@ -258,8 +259,14 @@ class AdminDiagnosticsView(APIView):
         benchmark_duration_ms = (time.perf_counter() - start_benchmark_time) * 1000.0
         measured_database_latency_ms = round(max(benchmark_duration_ms, 0.45), 2)
 
+        # How the server reads the admin's own address: the same rule the login limit uses. It should be the
+        # admin's real public address; if it is a platform address, TRUSTED_PROXY_COUNT is set wrongly.
+        forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
         return Response(
             {
+                "client_address_seen": BaseThrottle().get_ident(request),
+                "forwarded_for_entries": len([part for part in forwarded.split(",") if part.strip()]),
+                "trusted_proxy_count": getattr(settings, "TRUSTED_PROXY_COUNT", 0),
                 "active_nodes": active_hardware_nodes,
                 "total_nodes": total_hardware_nodes,
                 "user_count": total_user_count,

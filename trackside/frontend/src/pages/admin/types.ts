@@ -39,6 +39,9 @@ export interface DiagnosticsData {
   db_query_time_ms: number;
   user_count?: number;
   audit_count_30_days?: number;
+  client_address_seen?: string;
+  forwarded_for_entries?: number;
+  trusted_proxy_count?: number;
 }
 
 export interface SuccessData {

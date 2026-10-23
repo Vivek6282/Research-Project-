@@ -41,6 +41,19 @@ It never runs twice. To remove it: open the Admin screen, **Delete** the "Sample
 
 In Chrome or Edge: plug in the bridge, press **Connect bridge**, then **Maps & Demo > Play demo**. The server runs the virtual race and the browser drives the glove. The steps are in `demo/README.md` ("Play demo + Connect bridge"). **Connect laptop** is the fallback.
 
+## Check the login limit sees real addresses (one minute)
+
+The login limit counts attempts per visitor address, and per account. The per-address part only works if the server reads the visitor's real address from behind Render's proxy. Sign in as **Admin** and look at **Telemetry Diagnostics > Your address, as the server sees it**:
+
+* it should be **your own public address** (search "what is my IP" to compare). Then nothing to do;
+* if it shows a Render or Cloudflare address instead, set `TRUSTED_PROXY_COUNT` in Environment to the number of proxies in front of the server (try `2`) and redeploy, then look again.
+
+The per-account limit (10 wrong tries a minute for one email or Driver ID) works whatever this shows, so guessing one account's password is capped either way.
+
+## Two roles at the same time
+
+All tabs of one browser share one sign-in. Signing in as the coach in a second tab switches the driver tab to the coach (it shows a notice saying so). To show a driver and a coach side by side, use two browsers, or one normal window and one private window.
+
 ## If something goes wrong
 
 * **Build fails:** open the service's **Logs** tab and send me the last 30 lines. Never paste a password or a `SECRET_KEY`.

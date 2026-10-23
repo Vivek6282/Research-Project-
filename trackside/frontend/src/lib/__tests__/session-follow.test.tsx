@@ -7,6 +7,7 @@ import { act, render, screen } from "@testing-library/react";
 
 vi.mock("../api", () => ({ api: { get: vi.fn(), post: vi.fn() }, fetchCSRFToken: vi.fn(async () => undefined) }));
 import { api } from "../api";
+import { SessionNoticeBanner } from "../../components/shell/session-notice-banner";
 import { AuthProvider, SESSION_READ_RETRIES, SESSION_READ_RETRY_MS, SESSION_RECHECK_MIN_MS, useAuth } from "../auth";
 import { clearPrivateCaches } from "../private-cache";
 
@@ -45,6 +46,26 @@ describe("Session follows the server", () => {
     act(() => { window.dispatchEvent(new Event("focus")); });
     await pass(10);
     expect(screen.getByTestId("who").textContent).toBe("coach:Cole Coach");
+  });
+
+  it("says why the account changed, and when another tab signed out", async () => {
+    mockGet.mockResolvedValue(DRIVER);
+    render(<AuthProvider><SessionNoticeBanner /><Who /></AuthProvider>);
+    await pass(10);
+    expect(screen.queryByTestId("session-notice")).toBeNull();
+
+    mockGet.mockResolvedValue(COACH);
+    await pass(SESSION_RECHECK_MIN_MS + 10);
+    act(() => { window.dispatchEvent(new Event("focus")); });
+    await pass(10);
+    expect(screen.getByTestId("session-notice").textContent).toContain("Cole Coach (coach)");
+    expect(screen.getByTestId("session-notice").textContent).toContain("second browser");
+
+    mockGet.mockRejectedValue(failure(403));
+    await pass(SESSION_RECHECK_MIN_MS + 10);
+    act(() => { window.dispatchEvent(new Event("focus")); });
+    await pass(10);
+    expect(screen.getByTestId("session-notice").textContent).toContain("signed out in another tab");
   });
 
   it("signs out when the server refuses, but not when it is only unreachable", async () => {

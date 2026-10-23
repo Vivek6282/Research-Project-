@@ -15,6 +15,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import { api, fetchCSRFToken } from "./api";
@@ -52,6 +53,9 @@ interface AuthContextType {
   login: (identifier: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   clearError: () => void;
+  /** Says why this tab changed account on its own (another tab signed in or out); null when nothing happened. */
+  sessionNotice: string | null;
+  dismissSessionNotice: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -81,6 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  // The person currently shown, readable inside the focus handler without re-attaching it every render
+  const userRef = useRef<User | null>(null);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   /** Check for existing session on app load */
   useEffect(() => {
@@ -109,10 +119,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastCheck = Date.now();
       try {
         const serverUser = await api.get<User>("/api/auth/me/");
-        setUser((shown) => (shown && shown.id === serverUser.id && shown.role === serverUser.role ? shown : serverUser));
+        const shown = userRef.current;
+        if (shown && (shown.id !== serverUser.id || shown.role !== serverUser.role)) {
+          setSessionNotice(`Another tab signed in as ${serverUser.name} (${serverUser.role}), so this tab switched to that account.`);
+          setUser(serverUser);
+        }
       } catch (err) {
         // Only a refusal from the server means "signed out"; a network failure leaves the page as it is.
-        if (isSignedOut(err)) setUser(null);
+        if (isSignedOut(err)) {
+          if (userRef.current) setSessionNotice("You were signed out in another tab.");
+          setUser(null);
+        }
       }
     }
     document.addEventListener("visibilitychange", recheck);
@@ -154,10 +171,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearError = useCallback(() => setError(null), []);
+  const dismissSessionNotice = useCallback(() => setSessionNotice(null), []);
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, error, login, logout, clearError }}
+      value={{ user, isLoading, error, login, logout, clearError, sessionNotice, dismissSessionNotice }}
     >
       {children}
     </AuthContext.Provider>

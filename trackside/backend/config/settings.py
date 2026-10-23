@@ -93,6 +93,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     # Private API answers are never stored by browsers, proxies or the service worker (config/no_store.py)
     "config.no_store.NoStoreApiMiddleware",
+    # Refuse oversized requests early (config/limits.py)
+    "config.limits.RequestSizeLimitMiddleware",
     # CORS must come before CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -214,6 +216,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [],
     "DEFAULT_THROTTLE_RATES": {
         "login": env("LOGIN_THROTTLE_RATE", default="5/min"),
+        # Per account typed, whatever the address (see accounts/throttles.py)
+        "login_account": env("LOGIN_ACCOUNT_THROTTLE_RATE", default="10/min"),
         "device_telemetry": env("DEVICE_TELEMETRY_THROTTLE_RATE", default="600/min"),
         # C2: at most 10 track-file import previews per hour per user
         "track_import": "10/hour",
@@ -325,7 +329,8 @@ if DJANGO_ENV == "production":
                 "(check CORS_ALLOWED_ORIGINS and CSRF_TRUSTED_ORIGINS)."
             )
 
-CORS_ALLOWED_ORIGINS = without_duplicates(DEV_ORIGINS + env_cors_origins)
+# The local development addresses are trusted only in development; a production server trusts only its own origins
+CORS_ALLOWED_ORIGINS = without_duplicates((DEV_ORIGINS if DJANGO_ENV != "production" else []) + env_cors_origins)
 CORS_ALLOW_CREDENTIALS = True
 
 # CSRF trusted origins: all the CORS origins plus the optional CSRF_TRUSTED_ORIGINS list

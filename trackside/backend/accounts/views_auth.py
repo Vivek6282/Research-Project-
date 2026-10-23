@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.serializers import LoginSerializer, UserSerializer
-from accounts.throttles import LoginRateThrottle
+from accounts.throttles import LoginAccountThrottle, LoginRateThrottle
 
 User = get_user_model()
 
@@ -49,7 +49,8 @@ class LoginView(APIView):
     Authenticates user credentials using email or username, creates a Django session,
     and returns the authenticated user profile.
     Security:
-    - Rate-limited to 5 attempts per minute per IP via LoginRateThrottle to prevent brute-force attacks.
+    - Rate-limited to 5 attempts per minute per IP (LoginRateThrottle) and 10 per minute per account
+      (LoginAccountThrottle) to prevent brute-force attacks.
     - Credentials are never logged in plaintext.
     - Deactivated accounts are rejected.
     """
@@ -57,7 +58,7 @@ class LoginView(APIView):
     # AllowAny justified: users must be able to log in without being
     # already authenticated — this is the authentication entry point
     permission_classes = [AllowAny]
-    throttle_classes = [LoginRateThrottle]
+    throttle_classes = [LoginRateThrottle, LoginAccountThrottle]
 
     def post(self, request):
         """

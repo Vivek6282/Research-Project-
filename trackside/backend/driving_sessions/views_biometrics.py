@@ -42,6 +42,13 @@ class BiometricListCreateView(generics.ListCreateAPIView):
             session__in=visible_sessions,
         )
 
+    def create(self, request, *args, **kwargs):
+        """Check who may use the session before the body is looked at, so outsiders cannot probe the rules."""
+        target_session = get_object_or_404(Session, pk=self.kwargs.get("session_pk"))
+        if not can_access_session(request.user, target_session):
+            raise exceptions.PermissionDenied("You are not authorized for this driver's session.")
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """
         Validates access rights before saving biometric readings linked to the session.
