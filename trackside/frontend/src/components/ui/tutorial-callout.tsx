@@ -19,22 +19,17 @@ interface StepContent {
 const COACH_STEPS: StepContent[] = [
   {
     title: "LIVE TRAJECTORY & 5-SEGMENT SIGNAL STRIP",
-    badge: "1 OF 4",
+    badge: "1 OF 3",
     description: "Streams kart telemetry at 20Hz (actual vs target speed curves) paired with a live 5-segment LED signal strip displaying Nominal, Monitoring, or Intervene status.",
   },
   {
     title: "TIMING TOWER & DRIVER ROSTER",
-    badge: "2 OF 4",
+    badge: "2 OF 3",
     description: "Real-time 5-driver classification tower showing live status (ACTIVE / PITS), lap times, gaps, sector deltas, and active kart selection.",
   },
   {
-    title: "CUSTOM ZONE THRESHOLD CONTROL",
-    badge: "3 OF 4",
-    description: "Calibrate per-driver lateral G-force safety thresholds validated server-side to enforce safety envelopes.",
-  },
-  {
     title: "SESSION NOTES RECORDER",
-    badge: "4 OF 4",
+    badge: "3 OF 3",
     description: "Record coach observations for specific laps and track zones, saved directly to the backend database.",
   },
 ];

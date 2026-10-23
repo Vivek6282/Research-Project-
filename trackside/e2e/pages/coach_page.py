@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from .base_page import BasePage
@@ -23,7 +23,6 @@ class CoachDashboardPage(BasePage):
             "timing_tower": "coach-panel-timing-tower",
             "corner_deltas": "coach-panel-corner-deltas",
             "biometrics": "coach-panel-biometrics",
-            "threshold_control": "coach-panel-threshold-control",
             "session_notes": "coach-panel-session-notes",
             "live_track_view": "coach-panel-live-track-view",
         }
@@ -60,23 +59,6 @@ class CoachDashboardPage(BasePage):
 
     def is_simulated_data_badge_visible(self) -> bool:
         return self.is_visible("coach-simulated-data-badge", timeout=3)
-
-    def get_threshold_slider_bounds(self) -> Tuple[float, float]:
-        slider = self.wait_for_element("coach-threshold-slider")
-        min_val = float(slider.get_attribute("min"))
-        max_val = float(slider.get_attribute("max"))
-        return min_val, max_val
-
-    def set_threshold_slider(self, val: float):
-        slider = self.wait_for_element("coach-threshold-slider")
-        self.driver.execute_script(
-            "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('change', { bubbles: true })); arguments[0].dispatchEvent(new Event('input', { bubbles: true }));",
-            slider,
-            str(val)
-        )
-
-    def get_calibrated_limit_text(self) -> str:
-        return self.get_text("coach-calibrated-limit-value")
 
     def save_session_note(self, text: str):
         self.type_text("coach-note-input", text)

@@ -32,7 +32,7 @@ interface LiveTrackViewProps {
   gpsLat: number | null;
   gpsLng: number | null;
   currentG: number | null;
-  threshold: number;
+  threshold: number | null;
   zoneId?: string | null;
   isStraight?: boolean;
   readouts?: ReactNode;

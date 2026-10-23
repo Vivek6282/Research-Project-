@@ -12,7 +12,6 @@ interface TimingTowerPanelProps {
   selectedDriverId: string;
   setSelectedDriverId: (id: string) => void;
   rosterMap: Record<string, RosterStatusItem>;
-  thresholds: Record<string, number>;
   driversError?: string | null;
   onRetry?: () => void;
 }
@@ -25,7 +24,6 @@ export function TimingTowerPanel({
   selectedDriverId,
   setSelectedDriverId,
   rosterMap,
-  thresholds,
   driversError,
   onRetry,
 }: TimingTowerPanelProps) {
@@ -81,7 +79,7 @@ export function TimingTowerPanel({
           );
           const driverG = hasRealData ? rosterInfo.current_g : null;
           const driverThresh = hasRealData
-            ? (rosterInfo?.active_threshold ?? thresholds[d.id] ?? d.customThreshold ?? undefined)
+            ? (rosterInfo?.active_threshold ?? d.customThreshold ?? undefined)
             : undefined;
 
           return (

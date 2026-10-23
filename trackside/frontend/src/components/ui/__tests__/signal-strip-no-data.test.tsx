@@ -49,7 +49,6 @@ describe("SignalStrip No Data State", () => {
             session_state: "none",
           },
         }}
-        thresholds={{}}
       />
     );
 
@@ -63,14 +62,14 @@ describe("SignalStrip No Data State", () => {
     });
     const view = render(
       <TimingTowerPanel drivers={[driver]} selectedDriverId="d1" setSelectedDriverId={vi.fn()}
-        rosterMap={roster(false, "ended")} thresholds={{}} />
+        rosterMap={roster(false, "ended")} />
     );
     expect(screen.queryByText("0.12g")).toBeNull();
     expect(screen.getByText("ENDED")).toBeDefined();
 
     view.rerender(
       <TimingTowerPanel drivers={[driver]} selectedDriverId="d1" setSelectedDriverId={vi.fn()}
-        rosterMap={roster(true, "in_progress")} thresholds={{}} />
+        rosterMap={roster(true, "in_progress")} />
     );
     expect(screen.getByText("0.12g")).toBeDefined();
   });

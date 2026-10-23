@@ -23,14 +23,13 @@ def coach_login(driver, base_url):
 
 
 def test_tc_coach_01_dashboard_loads_all_panels(driver, base_url, coach_login):
-    """TC-COACH-01: Dashboard loads all panels: Live Trajectory, Timing Tower, Corner Deltas, biometric cards, Custom Zone Threshold Control, Session Notes, Live Track View."""
+    """TC-COACH-01: Dashboard loads all panels: Live Trajectory, Timing Tower, Corner Deltas, biometric cards, Session Notes, Live Track View."""
     coach_page = coach_login
     expected_panels = [
         "live_trajectory",
         "timing_tower",
         "corner_deltas",
         "biometrics",
-        "threshold_control",
         "session_notes",
         "live_track_view",
     ]
@@ -63,16 +62,6 @@ def test_tc_coach_03_no_simulated_data_badge_in_real_data_mode(driver, base_url,
     """TC-COACH-03: Real-data only mode: no fake "SIMULATED DATA" badge is displayed."""
     coach_page = coach_login
     assert not coach_page.is_simulated_data_badge_visible()
-
-
-def test_tc_coach_04_threshold_slider_reflects_kart_bounds(driver, base_url, coach_login):
-    """TC-COACH-04: Threshold slider min/max reflect kart-class bounds (not the old hardcoded 0.60–1.15)."""
-    coach_page = coach_login
-    min_val, max_val = coach_page.get_threshold_slider_bounds()
-
-    # Sprint kart-class bounds default to floor 1.0g and ceiling 1.50g (or zone configured bounds), NOT old 0.60
-    assert min_val >= 0.8, f"Slider min is {min_val}, expected kart class floor >= 0.8g (not old 0.60)"
-    assert max_val >= 1.15, f"Slider max is {max_val}, expected >= 1.15g"
 
 
 def test_tc_coach_05_save_session_note_persists(driver, base_url, coach_login):

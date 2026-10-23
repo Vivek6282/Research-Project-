@@ -23,7 +23,6 @@ import { TutorialCallout } from "../../components/ui/tutorial-callout";
 import { useCoachDashboard } from "./hooks/use-coach-dashboard";
 import { LiveTrajectoryPanel } from "./components/live-trajectory-panel";
 import { BiometricsCards } from "./components/biometrics-cards";
-import { ThresholdControlPanel } from "./components/threshold-control-panel";
 import { SessionNotesPanel } from "./components/session-notes-panel";
 import { TimingTowerPanel } from "./components/timing-tower-panel";
 import { CornerDeltasPanel } from "./components/corner-deltas-panel";
@@ -46,7 +45,7 @@ function CoachDashboardView() {
   const {
     activeTab, setActiveTab,
     drivers, driversError, retryLoadDrivers, selectedDriverId, setSelectedDriverId, selectedDriver, selectedDriverTrack,
-    thresholds, setThresholds, currentThreshold, sliderMin, sliderMax, currentZoneObj,
+    currentThreshold,
     historicalSessions, sessionsError, retryLoadSessions, activeTrackId, activeSessionId, rosterMap,
     zones, selectedZoneId, setSelectedZoneId, isCreatingZone, setIsCreatingZone, newZoneName, setNewZoneName,
     newCornerType, setNewCornerType, isSavingZone, handleZoneSelectChange, handleCreateZone,
@@ -178,17 +177,6 @@ function CoachDashboardView() {
               {/* BIOMETRICS 3-Card Row */}
               <BiometricsCards />
 
-              {/* CUSTOM ZONE THRESHOLD CONTROL Panel */}
-              <ThresholdControlPanel
-                currentZoneObj={currentZoneObj}
-                selectedDriver={selectedDriver}
-                sliderMin={sliderMin}
-                sliderMax={sliderMax}
-                currentThreshold={currentThreshold}
-                thresholds={thresholds}
-                setThresholds={setThresholds}
-              />
-
               {/* SESSION NOTES Panel */}
               <SessionNotesPanel
                 selectedDriver={selectedDriver}
@@ -238,7 +226,6 @@ function CoachDashboardView() {
                 selectedDriverId={selectedDriverId}
                 setSelectedDriverId={setSelectedDriverId}
                 rosterMap={rosterMap}
-                thresholds={thresholds}
                 driversError={driversError}
                 onRetry={retryLoadDrivers}
               />

@@ -46,7 +46,6 @@ export function useCoachDashboard() {
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [driversError, setDriversError] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState("");
-  const [thresholds, setThresholds] = useState<Record<string, number>>({});
 
   const [rosterMap, setRosterMap] = useState<Record<string, RosterStatusItem>>({});
 
@@ -70,10 +69,8 @@ export function useCoachDashboard() {
 
   const currentZoneObj =
     notesManager.zones.find((z) => z.id === notesManager.selectedZoneId) || notesManager.zones[0];
-  const sliderMin = currentZoneObj?.min_threshold_g ?? DEFAULT_SPRINT_FLOOR;
-  const sliderMax = currentZoneObj?.threshold_g ?? DEFAULT_SPRINT_CEILING;
-
-  const currentThreshold = thresholds[selectedDriver.id] ?? (selectedDriver?.customThreshold ?? (currentZoneObj?.threshold_g ?? null));
+  // The limit shown when nothing live has arrived yet: the map's limit for the zone (set only on the Maps screen)
+  const currentThreshold = selectedDriver?.customThreshold ?? (currentZoneObj?.threshold_g ?? null);
 
   // Poll GET /api/sessions/roster-status/ every 2.5s for Timing Tower signal strips
   useEffect(() => {
@@ -245,11 +242,7 @@ export function useCoachDashboard() {
     setSelectedKart: setSelectedDriverId,
     selectedDriver,
     selectedDriverTrack,
-    thresholds,
-    setThresholds,
     currentThreshold,
-    sliderMin,
-    sliderMax,
     currentZoneObj,
     historicalSessions,
     sessionsError,
