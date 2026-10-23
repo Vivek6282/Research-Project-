@@ -12,7 +12,7 @@
  * placeholder state is shown instead of a broken/empty map.
  */
 
-import { useState, useEffect, useRef, useMemo, ReactNode } from "react";
+import { lazy, Suspense, useState, useEffect, useRef, useMemo, ReactNode } from "react";
 import { api } from "../../lib/api";
 import { liveStage } from "./live-stage";
 import {
@@ -26,6 +26,10 @@ import { ProgressSample } from "./live-track/use-smooth-marker";
 import { TrackFallback } from "./live-track/track-fallback";
 import { TrackCanvas } from "./live-track/track-canvas";
 import { TrackCorner, buildCornerSegments } from "./live-track/corner-segments";
+import { readMapMode, saveMapMode, type MapMode } from "./live-track/map-mode";
+
+// The real map (and Leaflet with it) is loaded only when a track with real coordinates is shown
+const GpsMapCanvas = lazy(() => import("./live-track/gps-map-canvas"));
 
 interface LiveTrackViewProps {
   trackId: string | null;
@@ -56,6 +60,7 @@ export function LiveTrackView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [carSample, setCarSample] = useState<ProgressSample | null>(null);
+  const [mapMode, setMapMode] = useState<MapMode>(readMapMode);
   const pathRef = useRef<SVGPathElement>(null);
 
   // Fetch reference line when trackId changes
@@ -196,16 +201,46 @@ export function LiveTrackView({
 
       {readouts}
 
-      {/* SVG Track Map */}
-      <TrackCanvas
-        trackPathD={trackPathD}
-        pathRef={pathRef}
-        svgData={svgData}
-        carSample={carSample}
-        stageColor={stageDetails.color}
-        cornerSegments={cornerSegments}
-        activeZoneId={zoneId}
-      />
+      {/* The track: on a real map when it has real coordinates (and the map view is chosen), otherwise the plain drawing */}
+      {!isSchematic && (
+        <div className="flex justify-end gap-1 mb-1" role="group" aria-label="Track view">
+          {(["map", "plain"] as MapMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              data-testid={`live-view-${mode}`}
+              aria-pressed={mapMode === mode}
+              onClick={() => { setMapMode(mode); saveMapMode(mode); }}
+              className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-[2px] border cursor-pointer"
+              style={{ borderColor: mapMode === mode ? "#3FA6E0" : "#232B35", color: mapMode === mode ? "#3FA6E0" : "#7C8898" }}
+            >
+              {mode === "map" ? "Map" : "Plain"}
+            </button>
+          ))}
+        </div>
+      )}
+      {!isSchematic && mapMode === "map" ? (
+        <Suspense fallback={<div className="h-[300px] flex items-center justify-center text-[10px] font-mono text-[#7C8898] border border-[#232B35]">Loading map…</div>}>
+          <GpsMapCanvas
+            line={referenceLine}
+            corners={corners}
+            activeZoneId={zoneId}
+            gpsLat={gpsLat}
+            gpsLng={gpsLng}
+            stageColor={stageDetails.color}
+          />
+        </Suspense>
+      ) : (
+        <TrackCanvas
+          trackPathD={trackPathD}
+          pathRef={pathRef}
+          svgData={svgData}
+          carSample={carSample}
+          stageColor={stageDetails.color}
+          cornerSegments={cornerSegments}
+          activeZoneId={zoneId}
+        />
+      )}
       {children}
     </div>
   );

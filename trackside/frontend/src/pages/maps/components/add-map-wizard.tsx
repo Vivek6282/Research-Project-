@@ -5,8 +5,7 @@
 
 import { Upload, X } from "lucide-react";
 import { useImportWizard } from "../hooks/use-import-wizard";
-import { CornerTable } from "./corner-table";
-import { OutlineSvg } from "./outline-svg";
+import { WizardReview } from "./wizard-review";
 
 interface AddMapWizardProps {
   onClose: () => void;
@@ -84,54 +83,20 @@ export function AddMapWizard({ onClose, onSaved }: AddMapWizardProps) {
           )}
 
           {preview && (
-            <>
-              <p className="text-xs font-mono text-[#7C8898]" data-testid="wizard-summary">
-                {preview.rows_used.toLocaleString()} GPS rows used, {preview.rows_rejected.toLocaleString()} rejected ·
-                lap length {preview.outline_length_m.toFixed(0)} m · {preview.corners.length} corners at radius{" "}
-                {preview.corner_radius_m} m
-              </p>
-              <OutlineSvg outline={preview.outline} corners={preview.corners} />
-              <label className="flex flex-col gap-1 text-[11px] font-mono text-[#7C8898]">
-                Map name
-                <input
-                  data-testid="map-name-input"
-                  value={wizard.mapName}
-                  maxLength={150}
-                  onChange={(e) => wizard.setMapName(e.target.value)}
-                  className="bg-[#0A0E13] border border-[#232B35] rounded-[2px] px-2 py-1.5 text-xs text-[#E7EDF3]"
-                />
-              </label>
-              {preview.corners.length === 0 ? (
-                <p className="text-xs text-[#F2A93B]" data-testid="wizard-no-corners">
-                  No corners were found at this radius. Go back, raise the radius, and preview again.
-                </p>
-              ) : (
-                <CornerTable
-                  corners={preview.corners}
-                  choices={wizard.choices}
-                  range={preview.limit_range_g}
-                  onChange={wizard.changeChoice}
-                />
-              )}
-              {wizard.blocker && (
-                <p data-testid="wizard-blocker" className="text-[11px] text-[#7C8898]">
-                  Cannot save yet: {wizard.blocker}
-                </p>
-              )}
-              <div className="flex gap-2 justify-end">
-                <button onClick={wizard.backToUpload} className={`${buttonClass} border border-[#232B35] text-[#7C8898]`}>
-                  Back
-                </button>
-                <button
-                  data-testid="map-save-btn"
-                  disabled={Boolean(wizard.blocker) || wizard.busy}
-                  onClick={wizard.save}
-                  className={`${buttonClass} bg-[#3FA6E0] text-[#06121B] font-bold`}
-                >
-                  {wizard.busy ? "Saving…" : "Save map"}
-                </button>
-              </div>
-            </>
+            <WizardReview
+              preview={preview}
+              summary={`${preview.rows_used.toLocaleString()} GPS rows used, ${preview.rows_rejected.toLocaleString()} rejected · lap length ${preview.outline_length_m.toFixed(0)} m · ${preview.corners.length} corners at radius ${preview.corner_radius_m} m`}
+              mapName={wizard.mapName}
+              onMapName={wizard.setMapName}
+              choices={wizard.choices}
+              onChoice={wizard.changeChoice}
+              blocker={wizard.blocker}
+              busy={wizard.busy}
+              backLabel="Back"
+              onBack={wizard.backToUpload}
+              onSave={wizard.save}
+              noCornersHint="No corners were found at this radius. Go back, raise the radius, and preview again."
+            />
           )}
         </div>
       </div>

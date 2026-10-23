@@ -41,6 +41,19 @@ It never runs twice. To remove it: open the Admin screen, **Delete** the "Sample
 
 In Chrome or Edge: plug in the bridge, press **Connect bridge**, then **Maps & Demo > Play demo**. The server runs the virtual race and the browser drives the glove. The steps are in `demo/README.md` ("Play demo + Connect bridge"). **Connect laptop** is the fallback.
 
+## Real map: draw a track, see the driver on it
+
+* **Draw a track:** Maps → **Draw on map**. Zoom to the track (or type `latitude, longitude`, or press My location), click points around it in driving order (the first point is the start/finish line), press **Preview track**, name the corners, set each corner's limit (0.3 to 1.5 g) and save. It becomes a normal map: Edit corners, Play demo and the live view all use it.
+* **Live position:** on the Coach page the Live Track View shows any map with real coordinates on a real map, with the corners highlighted and the driver's dot. **Plain** switches to the simple drawing (for example with no internet at the track). The **Demo Circuit** is not a real place, so it keeps the simple drawing.
+* **No key needed to start:** the pictures come from OpenStreetMap, which is free but meant for light use, and the credit "© OpenStreetMap contributors" stays on the map.
+* **Satellite later (needs a provider key, for example MapTiler or Mapbox):** in Render → Environment add these, then redeploy (the first three are read when the site is built):
+  * `VITE_MAP_TILE_URL` = the provider's tile address with `{z}/{x}/{y}` in it, key included
+  * `VITE_MAP_ATTRIBUTION` = the credit text the provider requires
+  * `VITE_MAP_MAX_ZOOM` = the highest zoom the provider offers
+  * `MAP_TILE_HOSTS` = the provider's host, for example `https://api.maptiler.com` (the page only loads pictures from hosts listed here)
+  
+  A key inside the tile address is visible to anyone who opens the site, so in the provider's dashboard **restrict the key to your site's address**. Never paste a key into chat or commit it.
+
 ## Check the login limit sees real addresses (one minute)
 
 The login limit counts attempts per visitor address, and per account. The per-address part only works if the server reads the visitor's real address from behind Render's proxy. Sign in as **Admin** and look at **Telemetry Diagnostics > Your address, as the server sees it**:

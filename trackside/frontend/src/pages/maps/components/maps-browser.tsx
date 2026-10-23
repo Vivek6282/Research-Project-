@@ -5,11 +5,12 @@
  */
 
 import { useState, type ReactNode } from "react";
-import { Plus } from "lucide-react";
+import { MapPinned, Plus } from "lucide-react";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useMaps, type MapView } from "../hooks/use-maps";
 import type { MapTrack } from "../types";
 import { AddMapWizard } from "./add-map-wizard";
+import { DrawMapWizard } from "./draw-map-wizard";
 import { CornerEditorDialog } from "./corner-editor-dialog";
 import { MapCardGrid } from "./map-card-grid";
 
@@ -38,6 +39,7 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorn
   const maps = useMaps(canManage, reloadKey);
   const [editing, setEditing] = useState<MapTrack | null>(null);
   const [showWizard, setShowWizard] = useState(false);
+  const [showDrawing, setShowDrawing] = useState(false);
   const [toArchive, setToArchive] = useState<MapTrack | null>(null);
 
   return (
@@ -62,13 +64,22 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorn
           ))}
         </div>
         {canManage && (
-          <button
-            data-testid="add-map-btn"
-            onClick={() => setShowWizard(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-mono font-bold px-3 py-2 min-h-[36px] rounded-[2px] bg-[#3FA6E0] text-[#06121B] cursor-pointer"
-          >
-            <Plus size={14} /> Add track
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              data-testid="draw-map-btn"
+              onClick={() => setShowDrawing(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-mono font-bold px-3 py-2 min-h-[36px] rounded-[2px] border border-[#3FA6E0] text-[#3FA6E0] cursor-pointer"
+            >
+              <MapPinned size={14} /> Draw on map
+            </button>
+            <button
+              data-testid="add-map-btn"
+              onClick={() => setShowWizard(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-mono font-bold px-3 py-2 min-h-[36px] rounded-[2px] bg-[#3FA6E0] text-[#06121B] cursor-pointer"
+            >
+              <Plus size={14} /> Add track
+            </button>
+          </div>
         )}
       </div>
 
@@ -94,6 +105,15 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorn
           onClose={() => setShowWizard(false)}
           onSaved={() => {
             setShowWizard(false);
+            maps.reload();
+          }}
+        />
+      )}
+      {showDrawing && (
+        <DrawMapWizard
+          onClose={() => setShowDrawing(false)}
+          onSaved={() => {
+            setShowDrawing(false);
             maps.reload();
           }}
         />

@@ -43,6 +43,12 @@ Every driver has a short display ID, the letter `D` and 5 digits (for example `D
 
 Each role keeps its own session cookie: `sessionid_admin`, `sessionid_coach`, `sessionid_driver`. A page tells the server which one it uses with the `X-Trackside-Area` header (live feeds: `?area=`), so a driver tab and a coach tab stay signed in together in one browser and never turn into each other. The login request sends `auto`, and the server puts the sign-in into the cookie of the signed-in account's own role. Rights are never taken from the area: they come from the account's role on every request, and a request that names an area gets only that area's cookie. With no header the old single `sessionid` cookie is used exactly as before (tests and scripts). The code is `config/area_session.py`, tested in `accounts/tests/test_area_sessions.py`.
 
+## Draw a track on the map
+
+`POST /api/tracks/draw/preview/` and `POST /api/tracks/draw/confirm/` (Admin and Coach, 60 a hour each) take the points clicked on a map (`points: [{lat, lng}]`, 8 to 1,000, loop 100 m to 20 km). The server joins them into a smooth closed curve (a centripetal Catmull-Rom spline), spaces it evenly (about 2 m) and smooths it like an imported lap, then uses the same corner finder, name checks and saver as a file import, so the map is stored with `source = "drawn"`. Preview answers in the same shape as an import preview; confirm rebuilds the outline from the points and never trusts an outline sent by the browser. The code is `tracks/importing/drawn.py` and `tracks/views_draw.py`.
+
+`MAP_TILE_HOSTS` (default `https://tile.openstreetmap.org`) lists the hosts the page may load map pictures from; it goes into the page's content policy (`img-src`) and each entry must be a plain `https://host` (a path, space, semicolon or `http` stops the server from starting). The site also sends `Referrer-Policy: strict-origin-when-cross-origin`, so tile servers see the site's address but never which page is open.
+
 ## Where limits come from
 
 * A corner's g-force limit is `zone.threshold_g`, set on the map (Maps, then **Edit corners**, 0.3 to 1.5 g). It applies to everyone who drives that map. Alerts (`Alert.threshold_applied`), live events, roster status, the simulator profile and the Play demo status all read it through `drivers/limits.py` (`limit_in_force`).

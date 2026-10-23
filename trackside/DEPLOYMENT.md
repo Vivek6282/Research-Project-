@@ -47,6 +47,7 @@ Fill in every value (the file explains each one):
   `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`
 * `DOMAIN`, `ALLOWED_HOSTS` (keep `localhost,127.0.0.1` in the list), `CORS_ALLOWED_ORIGINS` (`https://your-domain`)
 * leave `DJANGO_ENV=production`, `DEBUG=False`, `TRUSTED_PROXY_COUNT=1`
+* optional real-map picture source (default OpenStreetMap, no key): set `VITE_MAP_TILE_URL`, `VITE_MAP_ATTRIBUTION` and `VITE_MAP_MAX_ZOOM` in `.env` for another source such as satellite (see `RENDER.md`, "Real map"); they are read when the website is built. Caddy already sends the referrer policy the map pictures need, and this setup has no page content policy to extend. Restrict any key to your site's address at the provider.
 
 `.env` is git-ignored and is never printed in the logs. Keep a copy somewhere safe (a password manager): without it you cannot rebuild the server. See `backend/README.md` ("Production variables") for what each variable does.
 

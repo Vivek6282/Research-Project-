@@ -28,6 +28,7 @@ class Track(models.Model):
         BUILTIN = "builtin", "Built-in"
         RACECHRONO_CSV = "racechrono_csv", "RaceChrono CSV"
         VBO = "vbo", "Racelogic VBO"
+        DRAWN = "drawn", "Drawn on the map"
 
     # Corner limits the coach may set: sprint karts 0.3g-1.5g, rental karts 0.3g-0.8g.
     # A slow corner can have a limit well below 1 g, so the floor is the same for both classes.

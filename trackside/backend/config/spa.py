@@ -24,7 +24,7 @@ def content_security_policy(request) -> str:
         "script-src 'self'",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
-        "img-src 'self' data: blob:",
+        " ".join(["img-src 'self' data: blob:", *settings.MAP_TILE_HOSTS]),
         f"connect-src 'self' {socket_scheme}://{request.get_host()}",
         "worker-src 'self'",
         "manifest-src 'self'",

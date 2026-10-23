@@ -17,7 +17,7 @@ export interface MapZone {
 export interface MapTrack {
   id: string;
   name: string;
-  source: "manual" | "builtin" | "racechrono_csv" | "vbo";
+  source: "manual" | "builtin" | "racechrono_csv" | "vbo" | "drawn";
   is_builtin: boolean;
   is_archived: boolean;
   zones: MapZone[];
@@ -76,6 +76,7 @@ export const SOURCE_LABELS: Record<MapTrack["source"], string> = {
   builtin: "Built-in",
   racechrono_csv: "RaceChrono CSV",
   vbo: "Racelogic VBO",
+  drawn: "Drawn on the map",
 };
 
 /** One corner marker as the server sends and receives it */

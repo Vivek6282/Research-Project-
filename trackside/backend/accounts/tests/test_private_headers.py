@@ -3,8 +3,11 @@ Trackside — Private API answers are never stored, and the page carries a stric
 """
 
 import os
+import subprocess
+import sys
 import tempfile
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from rest_framework.test import APITestCase
@@ -80,3 +83,45 @@ class TestPageContentPolicy(SimpleTestCase):
         response = self.serve("assets/app-1.js")
         self.assertIn("immutable", response.headers["Cache-Control"])
         self.assertNotIn("Content-Security-Policy", response.headers)
+
+
+class TestMapPicturesAndReferrer(SimpleTestCase):
+    """The page may load map pictures from the configured tile host only, and tile servers see the site's address."""
+
+    def policy(self):
+        """The Content-Security-Policy of the built page."""
+        with tempfile.TemporaryDirectory() as root:
+            with open(os.path.join(root, "index.html"), "w", encoding="utf-8") as handle:
+                handle.write("x")
+            with override_settings(FRONTEND_DIST=root, ALLOWED_HOSTS=["trackside.test"]):
+                response = spa(RequestFactory().get("/", HTTP_HOST="trackside.test"), "")
+                response.close()
+                return response.headers["Content-Security-Policy"]
+
+    def test_images_come_from_the_site_data_urls_and_the_tile_host_only(self):
+        """img-src lists the OpenStreetMap tile host and no wildcard; scripts still come from the site alone."""
+        policy = self.policy()
+        self.assertIn("img-src 'self' data: blob: https://tile.openstreetmap.org;", policy)
+        self.assertNotIn("img-src *", policy)
+        self.assertIn("script-src 'self';", policy)
+
+    def test_another_tile_host_can_be_configured(self):
+        """MAP_TILE_HOSTS changes the allowed host (for satellite pictures), still https only."""
+        with override_settings(MAP_TILE_HOSTS=["https://api.maptiler.com"]):
+            policy = self.policy()
+        self.assertIn("img-src 'self' data: blob: https://api.maptiler.com;", policy)
+        self.assertNotIn("tile.openstreetmap.org", policy)
+
+    def test_bad_tile_hosts_stop_the_server_from_starting(self):
+        """A host with a path, a space, a semicolon or plain http would loosen the policy, so settings refuse it."""
+        code = "import os, django; os.environ['DJANGO_SETTINGS_MODULE']='config.settings'; django.setup(); print('started')"
+        for bad in ("http://tile.example.com", "https://x.com; script-src *", "https://x.com/path", "https://x.com img-src *", "*"):
+            done = subprocess.run([sys.executable, "-c", code], cwd=settings.BASE_DIR, capture_output=True, text=True,
+                                  env=dict(os.environ, MAP_TILE_HOSTS=bad), timeout=120)
+            self.assertNotEqual(done.returncode, 0, bad)
+            self.assertNotIn("started", done.stdout, bad)
+
+    def test_the_site_sends_its_address_but_never_a_page_path_to_other_sites(self):
+        """Referrer-Policy is strict-origin-when-cross-origin: tile servers get the origin only."""
+        response = APITestCase.client_class().get("/api/auth/csrf/")
+        self.assertEqual(response.headers["Referrer-Policy"], "strict-origin-when-cross-origin")

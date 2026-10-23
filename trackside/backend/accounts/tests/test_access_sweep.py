@@ -22,7 +22,7 @@ REFUSED = (401, 403, 404, 405)   # 405: the route has no handler for that method
 PUBLIC_ROUTES = {"api/health/", "api/auth/csrf/", "api/auth/login/"}   # open on purpose
 ADMIN_ONLY = ("api/auth/users", "api/auth/audit-logs", "api/auth/diagnostics", "api/devices/")
 COACH_MAY_READ = ("api/devices/", "api/devices/<uuid:pk>/")   # coaches see device status; only the admin changes it
-STAFF_ONLY = ("api/tracks/import/", "api/tracks/<uuid:pk>/corners/", "api/tracks/<uuid:pk>/duplicate/",
+STAFF_ONLY = ("api/tracks/import/", "api/tracks/draw/", "api/tracks/<uuid:pk>/corners/", "api/tracks/<uuid:pk>/duplicate/",
               "api/tracks/<uuid:pk>/restore/", "api/tracks/<uuid:pk>/survey/", "api/demo/", "api/laptop-link/")
 OWN_SESSION_ONLY = "api/sessions/<uuid:"
 

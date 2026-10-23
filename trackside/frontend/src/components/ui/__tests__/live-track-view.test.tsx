@@ -24,6 +24,7 @@ const mockGet = vi.mocked(api.get);
 describe("LiveTrackView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.setItem("trackside_live_map_mode", "plain");   // these tests are about the plain drawing
   });
 
   it("renders fallback when reference_line is null (track not surveyed)", async () => {

@@ -5,7 +5,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { api } from "../../../lib/api";
-import { labelError, limitError, MAX_MAP_NAME_LENGTH } from "../safe-speed";
+import { choicesForServer, saveBlocker, startingChoices } from "../wizard-blocker";
 import type { CornerChoice, ImportPreview } from "../types";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -48,13 +48,7 @@ export function useImportWizard(onSaved: () => void) {
       form.append("corner_radius_m", radius);
       const result = await api.upload<ImportPreview>("/api/tracks/import/preview/", form);
       setPreview(result);
-      setChoices(
-        result.corners.map((c) => ({
-          number: c.number,
-          label: c.suggested_name,
-          limit: String(result.limit_range_g.default),
-        })),
-      );
+      setChoices(startingChoices(result));
       setMapName((previous) => previous || result.track_name || result.session_title || "");
     } catch (e) {
       setPreview(null);
@@ -70,18 +64,7 @@ export function useImportWizard(onSaved: () => void) {
   }, []);
 
   /** First problem that stops saving, or null when everything is valid. */
-  const blocker = useMemo(() => {
-    if (!preview) return "Preview a file first.";
-    if (preview.corners.length === 0) return "No corners were found. Raise the radius and preview again.";
-    const name = mapName.trim();
-    if (!name) return "Give the map a name.";
-    if (name.length > MAX_MAP_NAME_LENGTH) return `Map name can be at most ${MAX_MAP_NAME_LENGTH} characters.`;
-    const labels = choices.map((c) => c.label.trim().toLowerCase());
-    if (new Set(labels).size !== labels.length) return "Each corner needs a different name.";
-    const { min, max } = preview.limit_range_g;
-    const bad = choices.find((c) => labelError(c.label) || limitError(c.limit, min, max));
-    return bad ? `Fix corner ${bad.number}.` : null;
-  }, [preview, mapName, choices]);
+  const blocker = useMemo(() => saveBlocker(preview, mapName, choices, "Preview a file first."), [preview, mapName, choices]);
 
   /** Save the map. The server checks everything again and answers with a clear error if needed. */
   const save = useCallback(async () => {
@@ -93,10 +76,7 @@ export function useImportWizard(onSaved: () => void) {
       form.append("file", file);
       form.append("name", mapName.trim());
       form.append("corner_radius_m", String(preview.corner_radius_m));
-      form.append(
-        "corners",
-        JSON.stringify(choices.map((c) => ({ number: c.number, label: c.label.trim(), threshold_g: Number(c.limit) }))),
-      );
+      form.append("corners", JSON.stringify(choicesForServer(choices)));
       await api.upload("/api/tracks/import/confirm/", form);
       onSaved();
     } catch (e) {

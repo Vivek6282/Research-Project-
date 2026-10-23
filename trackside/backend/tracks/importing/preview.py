@@ -6,9 +6,9 @@ from tracks.importing.safe_speed import DEFAULT_LIMIT_G, LIMIT_MAX_G, LIMIT_MIN_
 from tracks.importing.samples import ParsedTrackFile
 
 
-def build_preview(parsed: ParsedTrackFile, radius_threshold_m: float = DEFAULT_RADIUS_THRESHOLD_M) -> dict:
-    """Describe a parsed file for the preview response."""
-    outline = build_outline(parsed.samples)
+def build_preview(parsed: ParsedTrackFile, radius_threshold_m: float = DEFAULT_RADIUS_THRESHOLD_M, outline=None) -> dict:
+    """Describe a parsed file (or a drawn track, with its outline already built) for the preview response."""
+    outline = outline or build_outline(parsed.samples)
     corners = find_corners(outline, radius_threshold_m)
     return {
         "source": parsed.source,

@@ -6,6 +6,7 @@ Security defaults are production-safe; development overrides come from .env only
 """
 
 import os
+import re
 from pathlib import Path
 import environ
 
@@ -46,6 +47,13 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "te
 RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="")
 if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# Hosts the page may load map pictures (tiles) from. The default is OpenStreetMap's. For satellite or another
+# provider, list its host here (comma separated, https only) and set VITE_MAP_TILE_URL when building the frontend.
+MAP_TILE_HOSTS = env.list("MAP_TILE_HOSTS", default=["https://tile.openstreetmap.org"])
+if any(not re.fullmatch(r"https://(\*\.)?[A-Za-z0-9.-]+(:[0-9]{1,5})?", host) for host in MAP_TILE_HOSTS):
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured("MAP_TILE_HOSTS must be https hosts such as https://tile.openstreetmap.org (no paths, spaces or other text).")
 
 # Folder with the built frontend. When set, the backend serves the website itself (single-address hosting).
 FRONTEND_DIST = env("FRONTEND_DIST", default="")
@@ -223,6 +231,8 @@ REST_FRAMEWORK = {
         # C2: at most 10 track-file import previews per hour per user
         "track_import": "10/hour",
         "track_import_confirm": "10/hour",
+        # Drawing a track on the map: cheap to check, so a looser limit than file imports
+        "track_draw": "60/hour",
     },
     # JSON only — no browsable API in production
     "DEFAULT_RENDERER_CLASSES": [
@@ -254,6 +264,10 @@ if DEBUG:
 # ---------------------------------------------------------------------------
 # SESSION & COOKIE SECURITY
 # ---------------------------------------------------------------------------
+# Send only the site's address (never a path) to other sites, so map tile servers can see who is asking
+# (OpenStreetMap's rules require a Referer) without learning which page of the app is open.
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
 # Requirement #5: JSON session serializer — no pickle ever
 SESSION_SERIALIZER = "django.contrib.sessions.serializers.JSONSerializer"
 

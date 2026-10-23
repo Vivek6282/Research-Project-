@@ -32,7 +32,10 @@ function show(response: object, zoneId: string | null = null) {
 }
 
 describe("LiveTrackView schematic tag and corners", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.setItem("trackside_live_map_mode", "plain");   // these tests are about the plain drawing
+  });
 
   it("shows the Schematic map tag only when the response says is_schematic", async () => {
     show({ reference_line: square, is_schematic: true, corners: [] });

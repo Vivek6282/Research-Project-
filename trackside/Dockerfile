@@ -12,6 +12,15 @@ WORKDIR /build/frontend
 # The demo controls must never be part of a hosted build (the server refuses them anyway)
 ARG VITE_ENABLE_DEMO_TOOLS=false
 
+# Optional real-map settings (frontend/src/lib/map-tiles.ts). Empty means the free OpenStreetMap default.
+# They are set as ENV (not on the RUN line) so a map key never shows up in the build log.
+ARG VITE_MAP_TILE_URL=
+ARG VITE_MAP_ATTRIBUTION=
+ARG VITE_MAP_MAX_ZOOM=
+ENV VITE_MAP_TILE_URL=$VITE_MAP_TILE_URL
+ENV VITE_MAP_ATTRIBUTION=$VITE_MAP_ATTRIBUTION
+ENV VITE_MAP_MAX_ZOOM=$VITE_MAP_MAX_ZOOM
+
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 

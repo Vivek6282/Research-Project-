@@ -2,6 +2,7 @@
 
 from django.urls import path
 from tracks.views_corners import TrackCornersView, TrackDuplicateView
+from tracks.views_draw import TrackDrawConfirmView, TrackDrawPreviewView
 from tracks.views_import import TrackImportConfirmView, TrackImportPreviewView
 from tracks.views import (
     TrackListCreateView,
@@ -18,6 +19,8 @@ from tracks.views_survey import TrackSurveyView
 urlpatterns = [
     path("import/preview/", TrackImportPreviewView.as_view(), name="track-import-preview"),
     path("import/confirm/", TrackImportConfirmView.as_view(), name="track-import-confirm"),
+    path("draw/preview/", TrackDrawPreviewView.as_view(), name="track-draw-preview"),
+    path("draw/confirm/", TrackDrawConfirmView.as_view(), name="track-draw-confirm"),
     path("demo-circuit/", DemoCircuitView.as_view(), name="demo-circuit"),
     path("", TrackListCreateView.as_view(), name="track-list-create"),
     path("<uuid:pk>/", TrackDetailView.as_view(), name="track-detail"),
