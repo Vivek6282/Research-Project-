@@ -1,6 +1,7 @@
 """Admin Dashboard E2E Test Suite for Trackside."""
 
 import pytest
+from selenium.webdriver.common.by import By
 from e2e.pages.login_page import LoginPage
 from e2e.pages.admin_page import AdminDashboardPage
 from e2e.conftest import ADMIN_CREDENTIALS
@@ -158,11 +159,8 @@ def test_tc_admin_08_audit_log_shows_new_entry(driver, base_url, admin_login):
     assert "CREATE USER" in audit_text or driver_name in audit_text
 
 
-def test_tc_admin_09_device_diagnostic_waiting_state(driver, base_url, admin_login):
-    """TC-ADMIN-09: Device diagnostic: "Run Diagnostic" creates a pending command and UI shows waiting state."""
+def test_tc_admin_09_remote_diagnostic_is_parked_for_phase_2(driver, base_url, admin_login):
+    """TC-ADMIN-09: The remote device diagnostic is parked for Phase 2: a banner is shown and there is no Run Diagnostic button."""
     admin_page = admin_login
-    if admin_page.is_visible("admin-run-diagnostic-btn", timeout=3):
-        btn = admin_page.wait_for_element("admin-run-diagnostic-btn")
-        if btn.is_enabled():
-            admin_page.click_run_diagnostic()
-            assert admin_page.is_diagnostic_waiting(timeout=5)
+    assert admin_page.is_visible("dev-banner-phase-2", timeout=5)
+    assert not driver.find_elements(By.CSS_SELECTOR, '[data-testid="admin-run-diagnostic-btn"]')

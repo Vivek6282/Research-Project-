@@ -127,17 +127,17 @@ TEST_METADATA = {
     },
     "TC-ADMIN-09": {
         "module": "Admin Module",
-        "description": "Device diagnostic command creation and UI pending state transition",
-        "preconditions": "IoT device panel registered and online",
-        "steps": "1. Click Run Diagnostic on device card. 2. Observe button state.",
-        "expected": "Pending command issued; UI reflects WAITING FOR DEVICE state while command executes",
+        "description": "Remote device diagnostic is parked for Phase 2: a Phase 2 banner is shown and there is no Run Diagnostic button",
+        "preconditions": "Authenticated as Admin on /admin",
+        "steps": "1. Load /admin. 2. Look for the Phase 2 banner and for a Run Diagnostic button.",
+        "expected": "Phase 2 banner is visible; no Run Diagnostic button exists (driver assignment still works)",
     },
     "TC-COACH-01": {
         "module": "Coach Module",
-        "description": "Coach dashboard loads all 7 core analytical panels simultaneously",
+        "description": "Coach dashboard loads all its panels simultaneously",
         "preconditions": "Authenticated as Coach on /coach",
-        "steps": "1. Load /coach. 2. Verify visibility of all 7 dashboard panels.",
-        "expected": "Live Trajectory, Timing Tower, Corner Deltas, Biometrics, Threshold Control, Notes, and Track View render",
+        "steps": "1. Load /coach. 2. Verify visibility of the dashboard panels.",
+        "expected": "Live Trajectory, Timing Tower, Corner Deltas, Biometrics and Track View render (Session Notes is a Phase 2 banner)",
     },
     "TC-COACH-02": {
         "module": "Coach Module",
@@ -153,26 +153,12 @@ TEST_METADATA = {
         "steps": "1. Inspect header of Live Trajectory panel.",
         "expected": "Pulsing orange SIMULATED DATA badge is rendered",
     },
-    "TC-COACH-04": {
-        "module": "Coach Module",
-        "description": "Custom zone threshold slider reflects kart-class bounds (>=0.80g to 1.50g)",
-        "preconditions": "Active zone loaded in threshold control panel",
-        "steps": "1. Read min and max attributes of threshold input slider.",
-        "expected": "Bounds align with kart dynamic limits (min >= 0.80g, max >= 1.15g), not obsolete 0.60g",
-    },
     "TC-COACH-05": {
         "module": "Coach Module",
-        "description": "Save coach session note tied to active driver/zone and verify persistence",
+        "description": "Session Notes is parked for Phase 2: a Phase 2 banner is shown and there is no note box or save button",
         "preconditions": "Coach dashboard loaded",
-        "steps": "1. Type note text. 2. Click Save Note. 3. Verify entry in feed. 4. Refresh page.",
-        "expected": "Note persists in session history feed across browser reload",
-    },
-    "TC-COACH-06": {
-        "module": "Coach Module",
-        "description": "Create custom zone with corner type and verify appearance in dropdown selector",
-        "preconditions": "Session Notes panel zone selector available",
-        "steps": "1. Select + New Zone. 2. Enter name and select corner type. 3. Click Add Zone.",
-        "expected": "New zone created and immediately selectable in zone dropdown",
+        "steps": "1. Load /coach. 2. Look for the Phase 2 banner and for a note input or save button.",
+        "expected": "Phase 2 banner is visible; no note input and no save button exist",
     },
     "TC-COACH-07": {
         "module": "Coach Module",
@@ -484,7 +470,7 @@ def generate_markdown_report():
     lines.append("| :--- | :--- | :---: | :--- | :--- | :---: |")
     lines.append("| **DEF-001** | TC-AUTH-03 | Medium | `api.ts` intercepted all HTTP 401 responses and triggered `window.location.href = '/login'`, causing a hard page reload that erased login error messages. | Exempted `/api/auth/login/` and `/api/auth/me/` from automatic reload so login error state surfaces to the UI. | ✅ VERIFIED |")
     lines.append("| **DEF-002** | TC-AUTH-04..07 | High | Backend anonymous login throttle limit of 5 requests/min per IP blocked rapid sequential role testing with HTTP 429. | The login limit stays 5/min by default in every mode. Only the E2E test server is started with `LOGIN_THROTTLE_RATE=1000/min` so sequential role logins are not blocked. | ✅ VERIFIED |")
-    lines.append("| **DEF-003** | TC-COACH-05 | High | `SessionNoteSerializer` omitted `session` from `read_only_fields`, causing `POST /api/sessions/<uuid>/notes/` to reject valid notes with `{'session': ['This field is required.']}`. | Added `session` to `read_only_fields` in `SessionNoteSerializer` since it is populated from view URL kwargs. | ✅ VERIFIED |")
+    lines.append("| **DEF-003** | TC-COACH-05 (earlier run, when notes were live) | High | `SessionNoteSerializer` omitted `session` from `read_only_fields`, causing `POST /api/sessions/<uuid>/notes/` to reject valid notes with `{'session': ['This field is required.']}`. | Added `session` to `read_only_fields` in `SessionNoteSerializer` since it is populated from view URL kwargs. | ✅ VERIFIED |")
     lines.append("| **DEF-004** | TC-DRIVER-04 | Low | `dev-banner.tsx` testId slugification regex stripped decimal points (`Phase 1.5` became `dev-banner-phase-1-5`). | Updated slugification regex in `dev-banner.tsx` to preserve decimal numbers (`dev-banner-phase-1.5`). | ✅ VERIFIED |")
     lines.append("")
     lines.append("### 6.2 Active Functional Defects")
@@ -492,7 +478,7 @@ def generate_markdown_report():
     defects = [tc_id for tc_id, r in test_results.items() if r.get("status") == "FAIL"]
     if not defects:
         lines.append("> [!NOTE]")
-        lines.append("> **Zero active functional defects remain.** All 34 automated E2E test cases pass with 100% compliance across all tested modules.")
+        lines.append(f"> **Zero active functional defects remain.** All {total_tests} automated E2E test cases pass with 100% compliance across all tested modules.")
     else:
         lines.append("| Defect ID | Associated TC | Severity | Description | Steps to Reproduce | Evidence |")
         lines.append("| :--- | :--- | :--- | :--- | :--- | :--- |")
@@ -510,7 +496,7 @@ def generate_markdown_report():
     sample_evidence = [
         ("TC-AUTH-01", "Authentication & Role-Based Redirection Matrix"),
         ("TC-ADMIN-01", "Admin User Roster Provisioning & Generated Credentials"),
-        ("TC-COACH-01", "Coach Live Cockpit (7 Analytical Panels Loaded)"),
+        ("TC-COACH-01", "Coach Live Cockpit (Panels Loaded)"),
         ("TC-COACH-02", "5-Segment Glove Signal Strip Hardware Reflection"),
         ("TC-DRIVER-01", "Driver Telemetry Dashboard with Real Empty State"),
         ("TC-UI-01", "Settings Modal Font Size Dynamic Rescaling"),

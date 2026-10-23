@@ -1,6 +1,7 @@
 """Coach Dashboard E2E Test Suite for Trackside."""
 
 import pytest
+from selenium.webdriver.common.by import By
 from e2e.pages.login_page import LoginPage
 from e2e.pages.coach_page import CoachDashboardPage
 from e2e.conftest import COACH_CREDENTIALS
@@ -91,7 +92,6 @@ def test_tc_coach_08_historical_sessions_count_matches_rows(driver, base_url, co
 
 def test_tc_coach_09_no_mock_drivers_and_phase2_biometrics_and_survey(driver, base_url, coach_login):
     """TC-COACH-09: Verify no invented driver names appear, biometric cards show Phase 2 state, and survey button is disabled."""
-    from selenium.webdriver.common.by import By
 
     page_text = driver.execute_script("return document.body.innerText;")
 

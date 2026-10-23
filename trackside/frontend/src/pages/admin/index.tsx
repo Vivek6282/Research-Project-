@@ -15,6 +15,8 @@ import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../lib/auth";
 import { useAdminDashboard } from "./hooks/use-admin-dashboard";
 import { DeviceDiagnosticPanel } from "./components/device-diagnostic-panel";
+import { DevBanner } from "../../components/ui/dev-banner";
+import { Stethoscope } from "lucide-react";
 import { UserCreateForm } from "./components/user-create-form";
 import { UserManagementTable } from "./components/user-management-table";
 import { UserDeleteDialog } from "./components/user-delete-dialog";
@@ -104,6 +106,20 @@ export function AdminDashboard() {
               ))
             )}
           </div>
+
+          {/* Remote self-test of a device: parked for Phase 2 (the server side exists; the boards do not call it yet) */}
+          <DevBanner phase="Phase 2">
+            <div className="flex items-center gap-2 mb-2 font-mono">
+              <Stethoscope size={14} style={{ color: "#E8C547" }} />
+              <p className="text-xs font-mono uppercase tracking-widest text-[#E8C547] font-bold">
+                Remote Device Diagnostic
+              </p>
+            </div>
+            <p className="text-xs text-[#7C8898]">
+              Running a self-test on a glove or kart unit from here comes in Phase 2. Today the boards talk over the radio and USB, not to this server, so
+              "Online" only means a software device (the demo or laptop link) posted readings in the last 30 seconds. Driver assignment above works now.
+            </p>
+          </DevBanner>
 
           {/* Intradomain User Management Table */}
           <Panel

@@ -100,12 +100,6 @@ class AdminDashboardPage(BasePage):
         elements = self.find_elements("admin-audit-log-entry")
         return [el.text for el in elements]
 
-    def click_run_diagnostic(self):
-        self.click("admin-run-diagnostic-btn")
-
-    def is_diagnostic_waiting(self, timeout: int = 5) -> bool:
-        return self.is_visible("admin-diagnostic-waiting", timeout=timeout)
-
     def is_user_table_displayed(self) -> bool:
         return self.is_visible("admin-user-table", timeout=3)
 
