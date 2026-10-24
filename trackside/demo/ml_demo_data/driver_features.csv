@@ -1,0 +1,10 @@
+# SYNTHETIC DEMO DATA - made up by ml_demo_data.py, not real drivers
+driver_id,driver_name,mean_brake_point_m,brake_point_spread_m,mean_grip_use,grip_use_spread,corner_passes,true_style
+SYN-01,Synthetic Driver A,45.87,1.98,0.757,0.025,592,smooth_early_braker
+SYN-02,Synthetic Driver B,45.92,1.99,0.76,0.025,591,smooth_early_braker
+SYN-03,Synthetic Driver C,28.21,2.92,0.951,0.04,578,late_braker_aggressive
+SYN-04,Synthetic Driver D,27.88,2.88,0.949,0.041,587,late_braker_aggressive
+SYN-05,Synthetic Driver E,38.11,8.13,0.846,0.093,588,inconsistent_learner
+SYN-06,Synthetic Driver F,37.21,8.08,0.839,0.09,593,inconsistent_learner
+SYN-07,Synthetic Driver G,35.02,1.43,0.901,0.019,581,consistent_fast
+SYN-08,Synthetic Driver H,34.93,1.6,0.9,0.02,593,consistent_fast

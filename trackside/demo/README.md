@@ -381,3 +381,19 @@ The visualizer alert deduplication logic is tested using Node.js:
 The WebSocket replay and origin suites, the track profile loader, the physics (pace, seed, smoothness, `g,STAGE` line format) and the `.env` priority rule are tested using Python `unittest`/`pytest`:
 * **Command**: `python -m pytest tests` (run from `trackside/demo/`)
 * **Requirements**: Python environment with `websockets`, `requests`, `python-dotenv` and `pytest` installed
+
+## SYNTHETIC ML demo data (Phase 2.3)
+
+Made-up corner data to demonstrate the two ML features that need a history of real sessions:
+driving-style badges (clustering) and lap/corner anomaly flags. **It is not real driver data; never present it as such.**
+
+- `py ml_demo_data.py` writes `ml_demo_data/corner_passes.csv` (4,800 corner passes: 8 synthetic drivers x 12 weekly
+  sessions x 10 laps x 5 corners, about 2% with an injected anomaly) and `ml_demo_data/driver_features.csv`
+  (one summary row per driver). Both start with a `# SYNTHETIC DEMO DATA` line. Same seed, same files (`--seed` to change).
+- The ground truth is in the files: `true_style` (four made-up styles, two drivers each: smooth early braker, late
+  braker, inconsistent learner, consistent fast) and `true_anomaly` / `anomaly_kind` (`lockup`, `off_line`, `missed_apex`).
+  A model must not read these columns; they are only for scoring it.
+- `py ml_demo_baseline.py` runs plain-Python baselines: k-means puts each pair of same-style drivers in the same group,
+  and the anomaly flags (robust z-score against the driver's own history in that corner) score about 0.93 precision and
+  0.92 recall. Any real model should be compared against these numbers.
+- Styles, corners and anomaly sizes are in `ml_demo_styles.py`; the numbers are chosen to be explainable, not measured.
