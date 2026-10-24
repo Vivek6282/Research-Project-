@@ -9,6 +9,7 @@
  * All API calls go through this module — never use raw fetch().
  */
 
+import { messageFromErrorBody } from "./api-errors";
 import { currentArea } from "./area";
 
 /** The login request names no role yet: "auto" lets the server put the sign-in in the account's own role area. */
@@ -89,16 +90,14 @@ async function request<T>(url: string, config: RequestConfig = {}): Promise<T> {
   }
 
   if (response.status === 429) {
-    throw new ApiError("Too many requests. Please wait and try again.", 429);
+    // The sign-in lockout explains itself; other limits get the general wording
+    const errorData = url.includes(LOGIN_PATH) ? await response.json().catch(() => ({})) : {};
+    throw new ApiError(messageFromErrorBody(errorData, "Too many requests. Please wait and try again."), 429);
   }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    const message =
-      errorData.detail ||
-      errorData.message ||
-      `Request failed with status ${response.status}`;
-    throw new ApiError(message, response.status);
+    throw new ApiError(messageFromErrorBody(errorData, `Request failed with status ${response.status}`), response.status);
   }
 
   // Handle 204 No Content

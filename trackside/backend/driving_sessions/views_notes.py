@@ -59,6 +59,9 @@ class SessionNoteListCreateView(generics.ListCreateAPIView):
         target_session = get_object_or_404(Session, pk=session_id)
         if not can_access_session(self.request.user, target_session):
             raise exceptions.PermissionDenied("You are not authorized for this session.")
+        zone = serializer.validated_data.get("zone")
+        if zone is not None and zone.track_id != target_session.track_id:
+            raise exceptions.ValidationError({"zone": "This corner is not on the session's track."})
         serializer.save(
             coach=self.request.user,
             session=target_session,

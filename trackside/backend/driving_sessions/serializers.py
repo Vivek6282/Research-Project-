@@ -15,6 +15,10 @@ from driving_sessions.models import (
 )
 
 
+MAX_GOAL_LENGTH = 500
+MAX_NOTE_LENGTH = 2000
+
+
 class SessionSerializer(serializers.ModelSerializer):
     """Read/write serializer for driving sessions with computed statistics."""
 
@@ -42,6 +46,14 @@ class SessionSerializer(serializers.ModelSerializer):
             "default_suggested_threshold", "duration", "kart",
             "laps", "best_lap", "max_g", "is_demo",
         ]
+
+    goal_text = serializers.CharField(required=False, allow_blank=True, max_length=MAX_GOAL_LENGTH)
+
+    def validate_driver(self, value):
+        """A session belongs to an active driver account, never a coach or an admin."""
+        if value is not None and (value.role != "driver" or not value.is_active):
+            raise serializers.ValidationError("Choose an active driver.")
+        return value
 
     def get_driver_name(self, obj):
         return obj.driver.name if obj.driver else None
@@ -246,6 +258,18 @@ class BiometricReadingSerializer(serializers.ModelSerializer):
             "heart_rate", "spo2", "breathing_rate",
         ]
         read_only_fields = ["id", "session"]
+        # Physically possible ranges; anything outside is a sensor fault or a forged value
+        extra_kwargs = {
+            "heart_rate": {"min_value": 20, "max_value": 250},
+            "spo2": {"min_value": 50, "max_value": 100},
+            "breathing_rate": {"min_value": 3, "max_value": 80},
+        }
+
+    def validate_recorded_at(self, value):
+        """A reading cannot come from the future (5 minutes allowed for clock drift)."""
+        if value > timezone.now() + timedelta(minutes=5):
+            raise serializers.ValidationError("recorded_at cannot be more than 5 minutes in the future.")
+        return value
 
 
 class SessionNoteSerializer(serializers.ModelSerializer):
@@ -264,6 +288,7 @@ class SessionNoteSerializer(serializers.ModelSerializer):
             "zone", "zone_label", "note_text", "created_at",
         ]
         read_only_fields = ["id", "session", "coach", "coach_name", "zone_label", "created_at"]
+        extra_kwargs = {"note_text": {"max_length": MAX_NOTE_LENGTH, "allow_blank": False}}
 
     def get_coach_name(self, obj):
         return obj.coach.name if obj.coach else None

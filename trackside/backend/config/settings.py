@@ -198,11 +198,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ---------------------------------------------------------------------------
 AUTH_USER_MODEL = "accounts.User"
 
+from config.logging_config import LOGGING  # noqa: E402,F401  (sign-in events go to "trackside.security")
+
 # ---------------------------------------------------------------------------
 # PASSWORD VALIDATION
 # ---------------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    # Trackside keeps the full name in "name" (not Django's first/last name), so name it here
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+     "OPTIONS": {"user_attributes": ("name", "email", "username", "driver_code")}},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -222,9 +226,11 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ],
     # Requirement #9: login rate limiting & S4 device telemetry rate limiting
-    "DEFAULT_THROTTLE_CLASSES": [],
+    # A generous per-user cap on every endpoint that does not set its own limits (scripts, not people, reach it)
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.UserRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {
         "login": env("LOGIN_THROTTLE_RATE", default="5/min"),
+        "user": env("USER_THROTTLE_RATE", default="1200/min"),
         # Per account typed, whatever the address (see accounts/throttles.py)
         "login_account": env("LOGIN_ACCOUNT_THROTTLE_RATE", default="10/min"),
         "device_telemetry": env("DEVICE_TELEMETRY_THROTTLE_RATE", default="600/min"),
@@ -280,6 +286,10 @@ CSRF_COOKIE_HTTPONLY = False
 # Cookie SameSite policy for local dev & production cross-origin session handling
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
+
+# A sign-in lasts at most this long (default 12 hours: one academy day), then the person signs in again.
+# Shorter than Django's two weeks, so a shared trackside laptop does not stay signed in for days.
+SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=12 * 60 * 60)
 
 # Requirement #8: Django's default hasher is PBKDF2-SHA256 — don't override
 # PASSWORD_HASHERS to anything weaker. Left as default intentionally.

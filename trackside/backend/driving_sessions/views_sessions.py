@@ -55,7 +55,8 @@ class SessionListCreateView(generics.ListCreateAPIView):
         """
         acting_user = self.request.user
         if acting_user.role == "driver":
-            serializer.save(driver=acting_user)
+            # A driver's own session: they cannot pick another driver or mark their own goal as passed
+            serializer.save(driver=acting_user, goal_passed=None)
         else:
             serializer.save()
 

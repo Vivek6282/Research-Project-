@@ -72,3 +72,13 @@ Set these in the backend's environment (`.env`). With `DJANGO_ENV=production` th
 | `TRUSTED_PROXY_COUNT` | `1` | How many reverse proxies sit in front (default 1 in production, 0 otherwise). The proxy must append the real client address to `X-Forwarded-For` and must replace, not trust, any value the client sent; otherwise login limits can be dodged or shared by everyone. |
 
 Behind the proxy the backend trusts `X-Forwarded-Proto` (so HTTPS requests are not redirected again). `GET /api/health/` answers `200 {"status": "ok"}` when the database answers, otherwise `503`, and reveals nothing else; it is exempt from the HTTPS redirect so the container health check can call it.
+
+## Security hardening (sign-in, roles, input)
+
+Full matrix, field rules and test checklist: `docs/security/` (ACCESS_MATRIX.md, VALIDATION.md, TEST_CHECKLIST.md).
+Settings that can be changed through the environment (defaults in brackets):
+
+- `LOGIN_LOCKOUT_ATTEMPTS` (10) and `LOGIN_LOCKOUT_SECONDS` (900): wrong passwords before an account's sign-in is locked, and for how long.
+- `USER_THROTTLE_RATE` (`1200/min`): general cap per signed-in user on endpoints without their own limit.
+- `SESSION_COOKIE_AGE` (43200 = 12 hours): how long a sign-in lasts.
+- Sign-in events are logged to the console by the `trackside.security` logger (account id and address only).

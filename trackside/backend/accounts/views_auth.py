@@ -14,6 +14,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.login_guard import LOCKED_MESSAGE, MAX_FAILED_SIGN_INS, clear_failures, is_locked, log_event, record_failure
+from accounts.models import AuditLogEntry
 from accounts.serializers import LoginSerializer, UserSerializer
 from config.area_session import AREA_HEADER, AUTO, clean_area, cookie_name_for
 from accounts.throttles import LoginAccountThrottle, LoginRateThrottle
@@ -84,6 +86,11 @@ class LoginView(APIView):
         if not matched_user:
             matched_user = User.objects.filter(driver_code__iexact=user_identifier).first()
 
+        # Locked after too many wrong passwords: the same answer whether or not the account exists
+        if is_locked(user_identifier, matched_user):
+            log_event("login_locked", request, matched_user)
+            return Response({"detail": LOCKED_MESSAGE}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
         # Do the same password work whether or not the account exists, so the answer time does not reveal
         # which accounts exist (a missing account is checked against a fixed dummy hash).
         if matched_user is None:
@@ -93,6 +100,13 @@ class LoginView(APIView):
             password_ok = matched_user.check_password(raw_password)
 
         if not password_ok:
+            failures = record_failure(user_identifier, matched_user)
+            log_event("login_failed", request, matched_user)
+            if matched_user is not None and failures == MAX_FAILED_SIGN_INS:
+                AuditLogEntry.objects.create(
+                    actor=None, action=AuditLogEntry.Action.SIGN_IN_LOCKED, target_user_id=str(matched_user.id),
+                    target_user_name=matched_user.name,
+                    details=f"Sign-in locked for 15 minutes after {failures} wrong passwords")
             return Response(
                 {"detail": "Invalid email/username or password."},
                 status=status.HTTP_401_UNAUTHORIZED,
@@ -115,8 +129,10 @@ class LoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Create the session — sets the HttpOnly session cookie
+        # Create the session — sets the HttpOnly session cookie (Django gives it a new key, so no fixation)
         login(request, matched_user)
+        clear_failures(user_identifier, matched_user)
+        log_event("login_ok", request, matched_user)
 
         serialized_user = UserSerializer(matched_user).data
         return Response(serialized_user, status=status.HTTP_200_OK)
@@ -138,6 +154,7 @@ class LogoutView(APIView):
         Input: Authenticated HTTP POST request.
         Output: Confirmation message with 200 OK.
         """
+        log_event("logout", request, request.user)
         logout(request)
         return Response(
             {"detail": "Successfully logged out."},

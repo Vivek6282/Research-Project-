@@ -96,3 +96,34 @@ class DeviceCommandsAPITestCase(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class DeviceCommandResultLimitsTestCase(DeviceCommandsAPITestCase):
+    """A device's self-test report must be a short object, sent once."""
+
+    def complete(self, cmd, body):
+        """POST the completion as the device."""
+        url = reverse("device-commands-complete", kwargs={"pk": cmd.pk})
+        self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.device_token}")
+        return self.client.post(url, body, format="json")
+
+    def new_command(self):
+        """A pending self-test for the test device."""
+        return DeviceCommand.objects.create(device=self.test_device, command_type=DeviceCommand.CommandType.SELF_TEST,
+                                            requested_by=self.admin_user)
+
+    def test_oversized_or_non_object_result_is_refused(self):
+        """A 5 KB report or a bare list gets 400 and the command stays pending."""
+        cmd = self.new_command()
+        self.assertEqual(self.complete(cmd, {"status": "completed", "result": {"log": "x" * 5000}}).status_code, 400)
+        self.assertEqual(self.complete(cmd, {"status": "completed", "result": [1, 2, 3]}).status_code, 400)
+        cmd.refresh_from_db()
+        self.assertEqual(cmd.status, DeviceCommand.Status.PENDING)
+
+    def test_a_finished_command_cannot_be_overwritten(self):
+        """The first report counts; a second one gets 409 and changes nothing."""
+        cmd = self.new_command()
+        self.assertEqual(self.complete(cmd, {"status": "completed", "result": {"leds": "ok"}}).status_code, 200)
+        self.assertEqual(self.complete(cmd, {"status": "failed", "result": {"leds": "bad"}}).status_code, 409)
+        cmd.refresh_from_db()
+        self.assertEqual((cmd.status, cmd.result), (DeviceCommand.Status.COMPLETED, {"leds": "ok"}))

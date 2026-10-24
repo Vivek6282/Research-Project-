@@ -158,6 +158,7 @@ class AuditLogEntry(models.Model):
     Action.SIMULATOR_STOP = "SIMULATOR_STOP"
     Action.DEVICE_ASSIGNED = "DEVICE_ASSIGNED"
     Action.DEVICE_UNASSIGNED = "DEVICE_UNASSIGNED"
+    Action.SIGN_IN_LOCKED = "SIGN_IN_LOCKED"
 
 
     id = models.UUIDField(

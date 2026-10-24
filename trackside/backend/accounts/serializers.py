@@ -6,6 +6,7 @@ Requirement #8: password is never included in responses or logged.
 """
 
 from django.contrib.auth import get_user_model
+from accounts.password_rules import check_password_strength
 from rest_framework import serializers
 
 User = get_user_model()
@@ -133,6 +134,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         if role == "driver" and email == "":
             attrs["email"] = None
 
+        check_password_strength(attrs.get("password", ""), attrs.get("name", ""), attrs.get("email"))
         return attrs
 
     def create(self, validated_data):
@@ -236,6 +238,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         if role == "driver" and email == "":
             attrs["email"] = None
 
+        if attrs.get("password"):
+            check_password_strength(attrs["password"], attrs.get("name"), attrs.get("email"), existing_user=self.instance)
         return attrs
 
     def update(self, instance, validated_data):
@@ -255,35 +259,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
-class LoginSerializer(serializers.Serializer):
-    """
-    Serializer for login requests.
-
-    Validates identifier (email or Driver ID username) and password fields.
-    """
-
-    identifier = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        help_text="User's email address or Driver ID (username)",
-    )
-    email = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        help_text="Email address or Driver ID (alias)",
-    )
-    password = serializers.CharField(
-        write_only=True,
-        style={"input_type": "password"},
-        help_text="User's password — never logged",
-    )
-
-    def validate(self, attrs):
-        identifier = attrs.get("identifier") or attrs.get("email")
-        if not identifier:
-            raise serializers.ValidationError({"identifier": "Email or Driver ID is required."})
-        attrs["identifier"] = identifier
-        return attrs
+# The login serializer lives in its own file; imported here so existing imports keep working
+from accounts.serializers_login import LoginSerializer  # noqa: E402,F401
 
 
 from accounts.models import AuditLogEntry
