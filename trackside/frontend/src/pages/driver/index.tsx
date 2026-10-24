@@ -10,6 +10,7 @@
  */
 
 import { Video, Award, Play } from "lucide-react";
+import { Link } from "react-router-dom";
 import { TopBar } from "../../components/shell/top-bar";
 import { DevBanner } from "../../components/ui/dev-banner";
 import { TutorialCallout } from "../../components/ui/tutorial-callout";
@@ -46,8 +47,15 @@ export function DriverDashboard() {
 
       <main className="max-w-6xl mx-auto px-4 py-5 space-y-4 animate-fade-in">
         {user && (
-          <div data-testid="driver-header" className="text-xs font-mono font-bold text-[#E7EDF3] truncate">
-            {driverLabel(user.name, user.driver_code)}
+          <div className="flex items-center justify-between gap-2">
+            <div data-testid="driver-header" className="text-xs font-mono font-bold text-[#E7EDF3] truncate">
+              {driverLabel(user.name, user.driver_code)}
+            </div>
+            {/* Phase 2.1: open the phone sensor page on the phone fixed in the kart */}
+            <Link data-testid="driver-phone-link" to="/driver/phone"
+              className="text-xs font-bold px-3 py-2 rounded border border-[#232B35] text-[#F2A93B] hover:bg-[#161D26]">
+              Phone sensor
+            </Link>
           </div>
         )}
 

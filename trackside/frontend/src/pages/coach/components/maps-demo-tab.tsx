@@ -12,6 +12,7 @@ import type { MapTrack } from "../../maps/types";
 import { demoSwitchIsOn, useDemoRun } from "../hooks/use-demo-run";
 import { DemoStatusPanel } from "./demo-status-panel";
 import { LaptopLinkPanel } from "./laptop-link-panel";
+import { RealTimeSessionPanel } from "./real-time-session-panel";
 
 interface MapsDemoTabProps {
   /** Switch to the Live Pit-Wall Console with this driver selected */
@@ -47,6 +48,8 @@ export function MapsDemoTab({ onWatchLive }: MapsDemoTabProps) {
             onStop={demo.stop}
             onWatchLive={onWatchLive}
           />
+          {/* Phase 2.1: a real kart, fed by the driver's phone */}
+          <RealTimeSessionPanel onWatchLive={onWatchLive} />
           {/* The laptop link is only a fallback for when the Play demo is not available on this server */}
           {demo.availability !== "available" && demo.availability !== "checking" && <LaptopLinkPanel onWatchLive={onWatchLive} />}
         </MapsBrowser>

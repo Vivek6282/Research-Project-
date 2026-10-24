@@ -1,6 +1,8 @@
 """Trackside — Sessions URL routes."""
 
 from django.urls import path
+
+from driving_sessions.views_phone import PhoneCalibrationView
 from driving_sessions.views import (
     AlertSummaryView,
     RosterStatusView,
@@ -22,6 +24,7 @@ urlpatterns = [
     path("<uuid:pk>/", SessionDetailView.as_view(), name="session-detail"),
     path("<uuid:pk>/corner-deltas/", SessionCornerDeltasView.as_view(), name="session-corner-deltas"),
     path("<uuid:pk>/finish/", SessionFinishView.as_view(), name="session-finish"),
+    path("<uuid:pk>/phone-calibration/", PhoneCalibrationView.as_view(), name="session-phone-calibration"),
     path(
         "<uuid:session_pk>/telemetry/",
         TelemetryListCreateView.as_view(),

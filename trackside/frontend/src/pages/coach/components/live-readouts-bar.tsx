@@ -11,6 +11,8 @@ interface LiveReadoutsBarProps {
   currentG: number | null;
   currentLimit: number | null;
   currentSpeed: number | null;
+  /** GPS accuracy in metres when a phone sends it (Phase 2.1) */
+  gpsAccuracy?: number | null;
 }
 
 /** One labelled cell. */
@@ -24,7 +26,7 @@ function Cell({ label, testId, children }: { label: string; testId: string; chil
 }
 
 export function LiveReadoutsBar({
-  currentLap, zoneLabel, cornerType, isStraight, currentG, currentLimit, currentSpeed,
+  currentLap, zoneLabel, cornerType, isStraight, currentG, currentLimit, currentSpeed, gpsAccuracy = null,
 }: LiveReadoutsBarProps) {
   const corner = isStraight ? "Straight" : zoneLabel ? `${zoneLabel}${cornerType ? ` · ${cornerType}` : ""}` : "-";
   const hasG = currentG !== null;
@@ -38,7 +40,14 @@ export function LiveReadoutsBar({
           {currentLimit !== null ? `limit ${currentLimit.toFixed(2)} g` : hasG ? "No limit" : "-"}
         </span>
       </Cell>
-      <Cell label="Speed" testId="live-speed">{currentSpeed !== null ? `${currentSpeed} km/h` : "-"}</Cell>
+      <Cell label="Speed" testId="live-speed">
+        {currentSpeed !== null ? `${currentSpeed} km/h` : "-"}
+        {gpsAccuracy !== null && (
+          <span data-testid="live-gps-accuracy" className="ml-1 text-[10px] font-normal text-[#7C8898]">
+            GPS ±{Math.round(gpsAccuracy)} m
+          </span>
+        )}
+      </Cell>
     </div>
   );
 }

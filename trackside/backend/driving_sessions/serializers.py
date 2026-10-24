@@ -36,12 +36,24 @@ class SessionSerializer(serializers.ModelSerializer):
             "mode", "goal_text", "goal_passed", "kart_number",
             "started_at", "ended_at", "alert_count", "default_suggested_threshold",
             "duration", "kart", "laps", "best_lap", "max_g", "is_demo",
+            "data_source", "phone_calibration", "sensor_flags",
         ]
         read_only_fields = [
             "id", "driver_name", "driver_code", "track_name", "alert_count",
             "default_suggested_threshold", "duration", "kart",
-            "laps", "best_lap", "max_g", "is_demo",
+            "laps", "best_lap", "max_g", "is_demo", "phone_calibration", "sensor_flags",
         ]
+
+    def validate(self, attrs):
+        """A real-time (phone) session needs a map the server can place GPS readings on."""
+        source = attrs.get("data_source", getattr(self.instance, "data_source", Session.DataSource.SIMULATOR))
+        track = attrs.get("track", getattr(self.instance, "track", None))
+        if source == Session.DataSource.REAL_TIME and track is not None:
+            from driving_sessions.phone_placement import track_supports_phone
+            reason = track_supports_phone(track)
+            if reason:
+                raise serializers.ValidationError({"data_source": f"Real time needs a GPS map. {reason}"})
+        return attrs
 
     def get_driver_name(self, obj):
         return obj.driver.name if obj.driver else None
@@ -178,9 +190,16 @@ class TelemetrySerializer(serializers.ModelSerializer):
         fields = [
             "id", "session", "zone", "recorded_at",
             "lateral_g", "speed_kmh", "gps_lat", "gps_lng",
-            "lap_number",
+            "lap_number", "sequence", "received_at", "gps_accuracy_m",
         ]
-        read_only_fields = ["id", "session"]
+        read_only_fields = ["id", "session", "received_at"]
+        extra_kwargs = {"sequence": {"min_value": 0, "max_value": 2 ** 63 - 1}}
+
+    def validate_gps_accuracy_m(self, value):
+        """GPS accuracy radius: a finite number of metres from 0 to 1000 (optional)."""
+        if value is not None and (not math.isfinite(value) or not (0.0 <= value <= 1000.0)):
+            raise serializers.ValidationError("gps_accuracy_m must be a finite number between 0 and 1000.")
+        return value
 
     def validate_lateral_g(self, value):
         if value is None or not math.isfinite(value) or not (0.0 <= value <= 10.0):

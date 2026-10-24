@@ -19,6 +19,8 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
   const [currentGpsLng, setCurrentGpsLng] = useState<number | null>(null);
   const [currentZoneId, setCurrentZoneId] = useState<string | null>(null);
   const [currentLap, setCurrentLap] = useState<number | null>(null);
+  // Phase 2.1: GPS accuracy sent by a phone (metres); null for the simulator and older devices
+  const [currentGpsAccuracy, setCurrentGpsAccuracy] = useState<number | null>(null);
   const [wsStatus, setWsStatus] = useState<"connected" | "reconnecting" | "disconnected">("disconnected");
 
   const [actualSpeedPath, setActualSpeedPath] = useState<number[]>([]);
@@ -34,6 +36,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     setCurrentGpsLng(null);
     setCurrentZoneId(null);
     setCurrentLap(null);
+    setCurrentGpsAccuracy(null);
     setCurrentHr(selectedDriver?.baseHr ?? 0);
     setCurrentSpo2(selectedDriver?.baseSpo2 ?? 0);
     setCurrentBreathing(selectedDriver?.baseBreathing ?? 0);
@@ -67,7 +70,8 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
           try {
             const message = JSON.parse(event.data);
             if (message.type === "telemetry_reading" && message.data) {
-              const { speed_kmh, lateral_g, gps_lat, gps_lng, zone, lap_number } = message.data;
+              const { speed_kmh, lateral_g, gps_lat, gps_lng, zone, lap_number, gps_accuracy_m } = message.data;
+              setCurrentGpsAccuracy(typeof gps_accuracy_m === "number" ? gps_accuracy_m : null);
               applyReading(message.data);
               window.dispatchEvent(new CustomEvent(READING_EVENT, { detail: message.data })); // the bridge forwards the stage to the glove
               if (typeof lap_number === "number") setCurrentLap(lap_number);
@@ -142,6 +146,7 @@ export function useCoachTelemetry(selectedDriver: DriverProfile, activeSessionId
     currentGpsLng,
     currentZoneId,
     currentLap,
+    currentGpsAccuracy,
     wsStatus,
     actualSpeedPath,
   };

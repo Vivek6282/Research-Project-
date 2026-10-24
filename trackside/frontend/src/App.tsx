@@ -6,6 +6,7 @@
  * Routes are protected — unauthenticated users are redirected to /login.
  */
 
+import { PhoneSensorPage } from "./pages/driver/phone/phone-sensor-page";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { PreferencesProvider } from "./context/PreferencesContext";
@@ -123,6 +124,16 @@ function AppRoutes() {
         element={
           <ProtectedRoute role="driver">
             <DriverDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Phase 2.1: the driver's phone as a temporary kart unit */}
+      <Route
+        path="/driver/phone"
+        element={
+          <ProtectedRoute role="driver">
+            <PhoneSensorPage />
           </ProtectedRoute>
         }
       />

@@ -19,6 +19,10 @@ class Session(models.Model):
         SAFETY = "safety", "Safety"
         PERFORMANCE = "performance", "Performance"
 
+    class DataSource(models.TextChoices):
+        SIMULATOR = "simulator", "Simulator"
+        REAL_TIME = "real_time", "Real time"
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -78,6 +82,26 @@ class Session(models.Model):
     is_demo = models.BooleanField(
         default=False,
         help_text="True for runs started from the Coach Maps & Demo tab (simulated, not real driving)",
+    )
+
+    # Phase 2.1: where this session's readings come from, set by the coach
+    data_source = models.CharField(
+        max_length=12,
+        choices=DataSource.choices,
+        default=DataSource.SIMULATOR,
+        help_text="simulator: the lap simulator or a device feeds it; real_time: the driver's phone page feeds it",
+    )
+
+    phone_calibration = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="The phone's mounting found at calibration: gravity and forward directions (phone axes)",
+    )
+
+    sensor_flags = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Warnings raised by the phone during the session, e.g. sensor_disagreement, mount_moved",
     )
 
     @property

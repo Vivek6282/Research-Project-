@@ -48,7 +48,7 @@ function CoachDashboardView() {
     drivers, driversError, retryLoadDrivers, selectedDriverId, setSelectedDriverId, selectedDriver, selectedDriverTrack,
     currentThreshold,
     historicalSessions, sessionsError, retryLoadSessions, activeTrackId, activeSessionId, rosterMap,
-    currentSpeed, currentGForce, currentGpsLat, currentGpsLng, currentZoneId, currentLap,
+    currentSpeed, currentGForce, currentGpsLat, currentGpsLng, currentZoneId, currentLap, currentGpsAccuracy,
     currentLimit, currentZoneLabel, currentCornerType, isStraight, gWindow, alertLog, clearAlerts,
     wsStatus, actualSpeedPath,
   } = useCoachDashboard();
@@ -160,6 +160,7 @@ function CoachDashboardView() {
                     currentG={currentGForce}
                     currentLimit={currentLimit}
                     currentSpeed={currentSpeed}
+                    gpsAccuracy={currentGpsAccuracy}
                   />
                 }
               >

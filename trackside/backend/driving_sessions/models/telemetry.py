@@ -63,6 +63,25 @@ class Telemetry(models.Model):
         help_text="Lap number within the session",
     )
 
+    # Phase 2.1: the sender's own counter, the server's receive time, and the GPS accuracy reported by the phone
+    sequence = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text="The sender's own counter, rising by one per reading (phone page)",
+    )
+
+    received_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the server stored this reading (server clock)",
+    )
+
+    gps_accuracy_m = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="GPS accuracy radius in metres reported by the sender, if known",
+    )
+
     class Meta:
         app_label = "driving_sessions"
         db_table = "telemetry"

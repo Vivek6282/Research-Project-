@@ -55,7 +55,8 @@ class SessionListCreateView(generics.ListCreateAPIView):
         """
         acting_user = self.request.user
         if acting_user.role == "driver":
-            serializer.save(driver=acting_user)
+            # Only a coach or admin sets a session to real time (phone); a driver's own session stays simulator
+            serializer.save(driver=acting_user, data_source=Session.DataSource.SIMULATOR)
         else:
             serializer.save()
 

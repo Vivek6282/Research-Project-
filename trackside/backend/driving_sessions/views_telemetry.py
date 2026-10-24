@@ -5,6 +5,7 @@ including batch boundary enforcement, range validation, concurrency locking, and
 """
 
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import generics, status, exceptions
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -17,6 +18,8 @@ from driving_sessions.alerting import process_telemetry_alerts
 from driving_sessions.duplicates import drop_stored_duplicates
 from driving_sessions.live_fields import live_event_cache
 from driving_sessions.models import Session, Telemetry
+from driving_sessions.phone_placement import assign_positions
+from driving_sessions.phone_rules import check_phone_may_send
 from driving_sessions.serializers import TelemetrySerializer
 
 
@@ -109,11 +112,23 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        # Phase 2.1: a driver's own posts come from the phone page; they need consent and a real-time session
+        from_phone = getattr(requesting_user, "role", None) == "driver"
+        if from_phone:
+            check_phone_may_send(requesting_user, target_session)
+
         telemetry_serializer = self.get_serializer(data=request.data, many=is_batch_submission)
         telemetry_serializer.is_valid(raise_exception=True)
 
-        # A retried upload must not store the same readings twice
         posted = telemetry_serializer.validated_data if is_batch_submission else [telemetry_serializer.validated_data]
+        posted.sort(key=lambda reading: reading["recorded_at"])
+        if from_phone:
+            # The server, not the phone, decides each reading's corner and lap from its GPS position
+            if any(r.get("gps_lat") is None or r.get("gps_lng") is None for r in posted):
+                return Response({"error": "Phone readings need gps_lat and gps_lng."}, status=status.HTTP_400_BAD_REQUEST)
+            assign_positions(target_session, posted)
+
+        # A retried upload must not store the same readings twice
         fresh, skipped = drop_stored_duplicates(target_session, posted)
         if skipped and not fresh:
             return Response({"detail": "Already stored.", "duplicates_skipped": skipped}, status=status.HTTP_200_OK)
@@ -124,7 +139,7 @@ class TelemetryListCreateView(generics.ListCreateAPIView):
             # Readings are saved (and broadcast live) in recorded_at order, whatever order they were sent in
             telemetry_serializer.validated_data.sort(key=lambda reading: reading["recorded_at"])
         with live_event_cache():
-            persisted_instances = telemetry_serializer.save(session=target_session)
+            persisted_instances = telemetry_serializer.save(session=target_session, received_at=timezone.now())
         if not is_batch_submission:
             persisted_instances = [persisted_instances]
 

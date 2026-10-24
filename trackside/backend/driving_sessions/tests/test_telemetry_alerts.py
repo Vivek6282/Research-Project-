@@ -74,9 +74,13 @@ class TestTelemetryAlerts(APITestCase):
         self.raw_token = self.device.set_api_key()
         self.device.save()
 
+    def as_kart_unit(self):
+        """Send as the driver's kart unit (Phase 2.1: a driver's own sign-in is the phone page, real-time only)."""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Device-Token {self.raw_token}")
+
     def test_lap_number_stored_and_missing_recorded_at_gives_400(self):
         """lap_number is stored; a missing recorded_at gives 400; lap_number < 1 gives 400."""
-        self.client.force_authenticate(user=self.driver)
+        self.as_kart_unit()
 
         # 1. Valid telemetry with lap_number
         payload = {
@@ -137,7 +141,7 @@ class TestTelemetryAlerts(APITestCase):
         - A straight resets.
         - State carries across two requests.
         """
-        self.client.force_authenticate(user=self.driver)
+        self.as_kart_unit()
         thresh = self.zone_hairpin.threshold_g  # 1.15 -> amber at >= 0.943, red at >= 1.15
 
         # Request 1:
@@ -260,7 +264,7 @@ class TestTelemetryAlerts(APITestCase):
 
     def test_threshold_applied_is_the_zone_limit_and_per_driver_rows_are_ignored(self):
         """threshold_applied is the zone's own limit (set on the map); old per-driver rows are present but ignored."""
-        self.client.force_authenticate(user=self.driver)
+        self.as_kart_unit()
 
         # Old per-driver rows (history): an older 1.10 and a newer 1.02, both ignored now
         t1 = DriverZoneThreshold.objects.create(
@@ -344,7 +348,7 @@ class TestTelemetryAlerts(APITestCase):
 
     def test_alerts_summary_shows_per_zone_counts(self):
         """After ingestion, the driver's alerts/summary shows the per-zone counts."""
-        self.client.force_authenticate(user=self.driver)
+        self.as_kart_unit()
 
         # Ingest reading that triggers red alert in Hairpin
         self.client.post(
@@ -360,6 +364,9 @@ class TestTelemetryAlerts(APITestCase):
             format="json",
         )
 
+        # The driver reads their own summary with their own sign-in
+        self.client.credentials()
+        self.client.force_authenticate(user=self.driver)
         summary_res = self.client.get("/api/sessions/alerts/summary/")
         self.assertEqual(summary_res.status_code, status.HTTP_200_OK)
         data = summary_res.json()
