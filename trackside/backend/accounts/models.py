@@ -167,11 +167,12 @@ class AuditLogEntry(models.Model):
         DELETE_USER = "DELETE_USER", "Delete User"
 
     Action.SIMULATOR_START = "SIMULATOR_START"
+    # Phase 2.0 actions (kept apart from the lines below so branches merge cleanly)
+    Action.CONSENT_CHANGED = "CONSENT_CHANGED"
+    Action.SETTINGS_CHANGED = "SETTINGS_CHANGED"
     Action.SIMULATOR_STOP = "SIMULATOR_STOP"
     Action.DEVICE_ASSIGNED = "DEVICE_ASSIGNED"
     Action.DEVICE_UNASSIGNED = "DEVICE_UNASSIGNED"
-    Action.CONSENT_CHANGED = "CONSENT_CHANGED"
-    Action.SETTINGS_CHANGED = "SETTINGS_CHANGED"
 
 
     id = models.UUIDField(

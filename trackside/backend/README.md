@@ -55,6 +55,14 @@ Each role keeps its own session cookie: `sessionid_admin`, `sessionid_coach`, `s
 * The built-in Demo Circuit is locked; duplicate it as a custom map to change its limits.
 * **Per-driver limits are retired.** Old `DriverZoneThreshold` rows are kept as history, unused (no data was deleted or migrated). `POST /api/drivers/thresholds/` answers `410 Gone`; the list endpoints stay read-only. The Admin delete screen still counts those rows, and they are removed with the driver.
 
+## Phase 2.0 additions
+
+- `POST /api/devices/events/`: device events (`crash_suspected`, `lost_contact`, `heartbeat`, `self_test_result`, `driver_ok`). Sent by a device with its token, or by a signed-in Driver with consent recorded, for their own running session. Each event has an `event_id` made on the device: a repeat from the same sender returns the stored event (200), the same id from another sender gets 409. Payload rules: `devices/event_schemas.py` (max 8 KB, unknown fields refused). Rate limit `DEVICE_EVENTS_THROTTLE_RATE` (default `120/min`).
+- `GET/PATCH /api/academy/settings/` (Admin): `retention_months`, 1 to 120, default 12.
+- `GET/PATCH /api/academy/drivers/<id>/consent/` (Admin): `consent_recorded`, `is_under_18`. Real (non-demo) biometric readings and a driver's phone events are refused until consent is recorded.
+- `python manage.py purge_expired_data` shows what is older than the retention period; `--apply` deletes it (telemetry, device events, biometric readings; sessions, alerts, notes and the audit log are kept). Nothing schedules it: run it daily from host cron (`0 3 * * * docker compose exec -T backend python manage.py purge_expired_data --apply`) or a Render cron job.
+- Clocks: see `docs/phase2/TIME.md`.
+
 ## Production variables
 
 Set these in the backend's environment (`.env`). With `DJANGO_ENV=production` the backend refuses to start on a weak `SECRET_KEY`, on SQLite, or on an origin that does not start with `https://`.
@@ -72,11 +80,3 @@ Set these in the backend's environment (`.env`). With `DJANGO_ENV=production` th
 | `TRUSTED_PROXY_COUNT` | `1` | How many reverse proxies sit in front (default 1 in production, 0 otherwise). The proxy must append the real client address to `X-Forwarded-For` and must replace, not trust, any value the client sent; otherwise login limits can be dodged or shared by everyone. |
 
 Behind the proxy the backend trusts `X-Forwarded-Proto` (so HTTPS requests are not redirected again). `GET /api/health/` answers `200 {"status": "ok"}` when the database answers, otherwise `503`, and reveals nothing else; it is exempt from the HTTPS redirect so the container health check can call it.
-
-## Phase 2.0 additions
-
-- `POST /api/devices/events/`: device events (`crash_suspected`, `lost_contact`, `heartbeat`, `self_test_result`, `driver_ok`). Sent by a device with its token, or by a signed-in Driver with consent recorded, for their own running session. Each event has an `event_id` made on the device: a repeat from the same sender returns the stored event (200), the same id from another sender gets 409. Payload rules: `devices/event_schemas.py` (max 8 KB, unknown fields refused). Rate limit `DEVICE_EVENTS_THROTTLE_RATE` (default `120/min`).
-- `GET/PATCH /api/academy/settings/` (Admin): `retention_months`, 1 to 120, default 12.
-- `GET/PATCH /api/academy/drivers/<id>/consent/` (Admin): `consent_recorded`, `is_under_18`. Real (non-demo) biometric readings and a driver's phone events are refused until consent is recorded.
-- `python manage.py purge_expired_data` shows what is older than the retention period; `--apply` deletes it (telemetry, device events, biometric readings; sessions, alerts, notes and the audit log are kept). Nothing schedules it: run it daily from host cron (`0 3 * * * docker compose exec -T backend python manage.py purge_expired_data --apply`) or a Render cron job.
-- Clocks: see `docs/phase2/TIME.md`.
