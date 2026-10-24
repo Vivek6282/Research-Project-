@@ -28,6 +28,9 @@ class SessionSerializer(serializers.ModelSerializer):
     laps = serializers.SerializerMethodField()
     best_lap = serializers.SerializerMethodField()
     max_g = serializers.SerializerMethodField()
+    # Phase 2.1: written only by the phone calibration endpoint
+    phone_calibration = serializers.JSONField(read_only=True)
+    sensor_flags = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Session
@@ -41,19 +44,8 @@ class SessionSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "driver_name", "driver_code", "track_name", "alert_count",
             "default_suggested_threshold", "duration", "kart",
-            "laps", "best_lap", "max_g", "is_demo", "phone_calibration", "sensor_flags",
+            "laps", "best_lap", "max_g", "is_demo",
         ]
-
-    def validate(self, attrs):
-        """A real-time (phone) session needs a map the server can place GPS readings on."""
-        source = attrs.get("data_source", getattr(self.instance, "data_source", Session.DataSource.SIMULATOR))
-        track = attrs.get("track", getattr(self.instance, "track", None))
-        if source == Session.DataSource.REAL_TIME and track is not None:
-            from driving_sessions.phone_placement import track_supports_phone
-            reason = track_supports_phone(track)
-            if reason:
-                raise serializers.ValidationError({"data_source": f"Real time needs a GPS map. {reason}"})
-        return attrs
 
     def get_driver_name(self, obj):
         return obj.driver.name if obj.driver else None
@@ -63,6 +55,21 @@ class SessionSerializer(serializers.ModelSerializer):
 
     def get_track_name(self, obj):
         return obj.track.name if obj.track else None
+
+    def validate(self, attrs):
+        """Only a coach or admin sets real time (a driver's own session stays simulator), and real time needs
+        a map the server can place GPS readings on."""
+        request = self.context.get("request")
+        if request is not None and getattr(request.user, "role", None) == "driver":
+            attrs["data_source"] = Session.DataSource.SIMULATOR
+        source = attrs.get("data_source", getattr(self.instance, "data_source", Session.DataSource.SIMULATOR))
+        track = attrs.get("track", getattr(self.instance, "track", None))
+        if source == Session.DataSource.REAL_TIME and track is not None:
+            from driving_sessions.phone_placement import track_supports_phone
+            reason = track_supports_phone(track)
+            if reason:
+                raise serializers.ValidationError({"data_source": f"Real time needs a GPS map. {reason}"})
+        return attrs
 
     def get_alert_count(self, obj):
         return obj.alerts.count()
