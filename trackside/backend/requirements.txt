@@ -8,8 +8,10 @@ django-cors-headers==4.9.0
 daphne==4.2.3
 channels==4.3.2
 channels-redis>=4.2.1
-# Twisted: CVE-2026-106454 is in its IMAP mail code, which Trackside never loads (guarded by
-# accounts/tests/test_dependency_guard.py). No fixed release exists yet: upgrade as soon as one does.
+# Twisted: CVE-2026-106454, -115774, -115775, -115776, -115778 are in mail, telnet, IRC and XML-stream code
+# Trackside never loads (guarded by accounts/tests/test_dependency_guard.py). CVE-2026-115877 is in the HTTP
+# header parser Daphne uses: in production every request passes the HTTPS proxy (Caddy / Render) first.
+# Fixed only in 26.10.0rc1 so far: move to 26.10.0 as soon as the final release is out.
 Twisted>=26.4.0
 psycopg2-binary==2.9.11
 psycopg-binary==3.3.4
