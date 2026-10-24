@@ -74,6 +74,45 @@ the kart unit hardware exists.
 Done when: one slow real kart run shows the live dot and corner alerts on the
 coach screen, and the laptop's Connect bridge drives the glove from phone data.
 
+#### Workstream A2 — Crash detection and coach alert (builds on A)
+Goal: when a kart stops violently, the coach knows within seconds and sees
+where. This is an alert to the coach, not an emergency service; it never calls
+anyone automatically.
+1. **Detect on the sending device** (the phone page now, the kart unit later),
+   from the high-rate motion data, not from 1 Hz GPS alone. Raise a possible
+   crash when **all** of these hold:
+   - an impact: total acceleration above an impact limit for a short burst
+     (limit set from recorded tests, kept below the phone sensor's maximum);
+   - a sudden stop: speed falls from moving to near zero within about two
+     seconds of the impact;
+   - stillness after: little movement for a few seconds, or the device is
+     tipped far from its calibrated mounting (possible rollover).
+   All limits live in one settings file with comments and tests.
+2. **Lost contact while moving:** if readings stop suddenly while the kart was
+   above walking speed, raise a lower-level "lost contact" alert (the phone may
+   have been knocked out). Do not label this a crash.
+3. **Send the event at once**, ahead of normal readings and retried until the
+   server confirms it. Include time, last position, speed before the stop and
+   peak g. Keep the few seconds of raw readings around it for review.
+4. **Coach alert:** a full-width red banner and sound on every open coach
+   screen, with the driver's name, time, and a pin on the live map at the stop
+   position. It stays until a coach presses **Acknowledge**; the
+   acknowledgement (who and when) goes into the audit log.
+5. **Driver side:** after a detected crash the phone page shows a large
+   "I'm OK" button. Pressing it marks the event as "driver OK" for the coach;
+   it does not clear the coach's alert on its own.
+6. **Records:** a crash events list per session for coaches and admins, with
+   the raw readings window, the coach's acknowledgement and an optional note.
+   Drivers see only their own events.
+7. **Testing without crashing a kart:** recorded fixtures (hard braking, kerb
+   strikes, bumps, spins, a cushioned drop test of the mounted phone) and a
+   simulator "crash" scenario. Tests prove hard braking and kerbs do **not**
+   raise a crash, and the impact cases do.
+
+Done when: a cushioned drop test of the mounted phone raises the coach alert
+with the right map pin within a few seconds, and a lap with hard braking and
+kerb strikes raises none.
+
 #### Workstream B — Real kart hardware (FIRMWARE APPROVAL REQUIRED FIRST)
 Write a short design note and get the owner's approval before any code.
 1. **Kart unit:** ESP32 + IMU (MPU6050/9250) + GPS (NEO-6M/M8N), computing
@@ -85,10 +124,12 @@ Write a short design note and get the owner's approval before any code.
    only).
 4. **Vibration motor** on the glove (the proposal's primary alert channel),
    same stages as the LEDs.
-5. **Device authentication:** each board gets its own revocable device token;
+5. **Crash detection on the kart unit,** using the same rules and limits as
+   Workstream A2, sending the same event to the server.
+6. **Device authentication:** each board gets its own revocable device token;
    no shared passwords. Activate the parked admin "Run Diagnostic" using the
    existing `devices` command endpoints.
-6. Keep the laptop + bridge path working as a fallback.
+7. Keep the laptop + bridge path working as a fallback.
 
 Done when: a lap with no laptop near the track still lights and buzzes the
 glove, and the coach screen shows the run when signal allows.
@@ -146,7 +187,7 @@ stress label is tested against recorded readings.
 ---
 
 ## 2. Definition of done for Phase 2
-- Workstreams A and C complete and verified; B and D complete if their
+- Workstreams A, A2 and C complete and verified; B and D complete if their
   hardware is available, otherwise left behind banners with a written status.
 - At least one recorded real kart session stored and replayable.
 - A short field-test report: radio range, battery life, phone calibration
@@ -157,6 +198,8 @@ stress label is tested against recorded readings.
 - Trackside is a coaching aid, not a safety system. When data stops, the glove
   shows its waiting light (one dim blue LED); the academy decides what a driver
   does then.
+- Crash detection can miss a crash or raise a false one. Marshals and flags
+  stay the primary response; the alert only helps the coach react faster.
 - Ask the academy for consent rules if any driver is under 18, and for how long
   session and biometric data is kept. Add a retention setting.
 - Production hosting uses `docker-compose.yml` (Caddy + backend + Postgres +
