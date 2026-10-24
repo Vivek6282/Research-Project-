@@ -78,6 +78,13 @@ class TestNoteInput(InputBase):
 class TestBiometricInput(InputBase):
     """Biometric readings must be physically possible and not from the future."""
 
+    def setUp(self):
+        """Phase 2.0 adds a consent rule for real biometric readings: record consent when that field exists,
+        so these tests check only the value ranges, on main and on the Phase 2 branches alike."""
+        super().setUp()
+        if any(field.name == "consent_recorded_at" for field in User._meta.get_fields()):
+            User.objects.filter(pk=self.driver.pk).update(consent_recorded_at=timezone.now())
+
     def post_reading(self, **changes):
         """POST one reading to the session as the driver."""
         self.client.force_authenticate(self.driver)
