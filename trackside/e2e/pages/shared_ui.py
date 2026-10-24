@@ -1,5 +1,6 @@
 from selenium.webdriver.common.by import By
 from .base_page import BasePage
+from e2e.timeouts import ABSENCE_TIMEOUT_S
 
 
 class TopBar(BasePage):
@@ -21,7 +22,7 @@ class TopBar(BasePage):
 class SettingsModal(BasePage):
     """Page Object for Settings modal."""
 
-    def is_open(self, timeout: int = 3) -> bool:
+    def is_open(self, timeout: float = None) -> bool:
         return self.is_visible("settings-modal", timeout=timeout)
 
     def set_font_size(self, size: str):
@@ -41,7 +42,7 @@ class SettingsModal(BasePage):
         self.click("settings-replay-tutorial-btn")
 
     def close(self):
-        if self.is_visible("settings-done-btn", timeout=2):
+        if self.is_visible("settings-done-btn", timeout=ABSENCE_TIMEOUT_S):
             self.click("settings-done-btn")
         else:
             self.click("settings-close-btn")
@@ -51,7 +52,7 @@ class SettingsModal(BasePage):
 class TutorialCallout(BasePage):
     """Page Object for onboarding tutorial callout."""
 
-    def is_displayed(self, timeout: int = 3) -> bool:
+    def is_displayed(self, timeout: float = None) -> bool:
         return self.is_visible("tutorial-callout", timeout=timeout)
 
     def get_step_title(self) -> str:

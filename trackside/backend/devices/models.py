@@ -195,3 +195,7 @@ class Device(models.Model):
     def __str__(self):
         assigned = self.assigned_to.name if self.assigned_to else "unassigned"
         return f"{self.get_device_type_display()} ({assigned}) — {self.status}"
+
+
+# Phase 2.0: device events live in their own file and are registered here
+from devices.event_models import DeviceEvent  # noqa: E402,F401

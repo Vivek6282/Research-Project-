@@ -6,6 +6,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from e2e.timeouts import UI_TIMEOUT_S
 
 
 class BasePage:
@@ -15,7 +16,7 @@ class BasePage:
     and all synchronization uses explicit WebDriverWait with expected_conditions.
     """
 
-    def __init__(self, driver: WebDriver, base_url: str = "http://localhost:5173", default_timeout: int = 10):
+    def __init__(self, driver: WebDriver, base_url: str = "http://localhost:5173", default_timeout: float = UI_TIMEOUT_S):
         self.driver = driver
         self.base_url = base_url.rstrip("/")
         self.default_timeout = default_timeout
@@ -59,7 +60,7 @@ class BasePage:
             EC.invisibility_of_element_located(self._selector(testid))
         )
 
-    def find_elements(self, testid: str, timeout: int = 5) -> List[WebElement]:
+    def find_elements(self, testid: str, timeout: float = None) -> List[WebElement]:
         try:
             self.wait_for_element(testid, timeout=timeout)
             return self.driver.find_elements(*self._selector(testid))
@@ -88,14 +89,14 @@ class BasePage:
         element = self.wait_for_element(testid, timeout=timeout)
         return element.get_attribute(attr_name)
 
-    def is_visible(self, testid: str, timeout: int = 3) -> bool:
+    def is_visible(self, testid: str, timeout: float = None) -> bool:
         try:
             self.wait_for_visible(testid, timeout=timeout)
             return True
         except TimeoutException:
             return False
 
-    def is_present(self, testid: str, timeout: int = 3) -> bool:
+    def is_present(self, testid: str, timeout: float = None) -> bool:
         try:
             self.wait_for_element(testid, timeout=timeout)
             return True

@@ -1,6 +1,7 @@
 """Trackside — Devices URL routes."""
 
 from django.urls import path
+from devices.views_events import DeviceEventView
 from devices.views import (
     DeviceListCreateView, 
     DeviceDetailView,
@@ -11,6 +12,7 @@ from devices.views import (
 
 urlpatterns = [
     path("", DeviceListCreateView.as_view(), name="device-list-create"),
+    path("events/", DeviceEventView.as_view(), name="device-events"),
     path("<uuid:pk>/", DeviceDetailView.as_view(), name="device-detail"),
     path("<uuid:pk>/commands/", AdminDeviceCommandView.as_view(), name="device-commands"),
     path("me/commands/pending/", DevicePendingCommandsView.as_view(), name="device-commands-pending"),

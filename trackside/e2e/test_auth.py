@@ -8,6 +8,8 @@ from e2e.pages.coach_page import CoachDashboardPage
 from e2e.pages.driver_page import DriverDashboardPage
 from e2e.pages.shared_ui import TopBar
 from e2e.conftest import ADMIN_CREDENTIALS, COACH_CREDENTIALS, DRIVER1_CREDENTIALS, DRIVER2_CREDENTIALS
+from e2e.timeouts import API_TIMEOUT_S
+from e2e.timeouts import ABSENCE_TIMEOUT_S
 
 
 def test_tc_auth_01_valid_login_redirects_by_role(driver, base_url):
@@ -93,7 +95,7 @@ def test_tc_auth_03_wrong_password_shows_error(driver, base_url):
 def test_tc_auth_04_deactivated_user_cannot_login(driver, base_url, backend_url):
     """TC-AUTH-04: Deactivated user cannot log in."""
     session = requests.Session()
-    csrf_resp = session.get(f"{backend_url}/api/auth/csrf/", timeout=5)
+    csrf_resp = session.get(f"{backend_url}/api/auth/csrf/", timeout=API_TIMEOUT_S)
     csrf_token = csrf_resp.cookies.get("csrftoken", "")
 
     # Log in as admin to deactivate Driver 2
@@ -101,11 +103,11 @@ def test_tc_auth_04_deactivated_user_cannot_login(driver, base_url, backend_url)
         f"{backend_url}/api/auth/login/",
         json={"identifier": ADMIN_CREDENTIALS["identifier"], "password": ADMIN_CREDENTIALS["password"]},
         headers={"X-CSRFToken": csrf_token, "Referer": backend_url},
-        timeout=5,
+        timeout=API_TIMEOUT_S,
     )
     csrf_token = session.cookies.get("csrftoken", csrf_token)
 
-    users_res = session.get(f"{backend_url}/api/auth/users/", timeout=5).json()
+    users_res = session.get(f"{backend_url}/api/auth/users/", timeout=API_TIMEOUT_S).json()
     user_list = users_res if isinstance(users_res, list) else users_res.get("results", [])
     target_user = next((u for u in user_list if u.get("email") == DRIVER2_CREDENTIALS["identifier"]), None)
 
@@ -118,7 +120,7 @@ def test_tc_auth_04_deactivated_user_cannot_login(driver, base_url, backend_url)
             f"{backend_url}/api/auth/users/{target_id}/",
             json={"is_active": False},
             headers={"X-CSRFToken": csrf_token, "Referer": backend_url},
-            timeout=5,
+            timeout=API_TIMEOUT_S,
         )
 
         # Attempt to login in browser as deactivated driver
@@ -139,7 +141,7 @@ def test_tc_auth_04_deactivated_user_cannot_login(driver, base_url, backend_url)
             f"{backend_url}/api/auth/users/{target_id}/",
             json={"is_active": True},
             headers={"X-CSRFToken": csrf_token, "Referer": backend_url},
-            timeout=5,
+            timeout=API_TIMEOUT_S,
         )
 
 
@@ -204,7 +206,7 @@ def test_tc_auth_07_sign_out_and_back_navigation(driver, base_url):
     # Attempt browser back navigation
     driver.back()
     # Ensure back navigation does not reveal active protected dashboard
-    assert not CoachDashboardPage(driver, base_url).is_visible("coach-panel-live-trajectory", timeout=2)
+    assert not CoachDashboardPage(driver, base_url).is_visible("coach-panel-live-trajectory", timeout=ABSENCE_TIMEOUT_S)
 
     # Attempt direct navigation to protected route
     driver.get(f"{base_url}/coach")

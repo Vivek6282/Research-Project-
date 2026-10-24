@@ -76,7 +76,7 @@ class TestCornerDeltaNumbers(CornerDeltasBase):
 
     def test_one_completed_lap_gives_null_deltas_not_zeros(self):
         """With a single completed lap the best is known but every delta is null."""
-        self.add([(1, self.zone_z)] * 3 + [(2, self.zone_z)] * 2)
+        self.add([(1, self.zone_z)] * 3 + [(1, None)] * 3 + [(2, self.zone_z)] * 2)
         z = self.corner(self.get(self.coach), "Turn Z")
         self.assertEqual((z["best_s"], z["last_lap_s"], z["last_lap_delta_s"]), (1.5, 1.5, None))
         self.assertEqual([l["delta_s"] for l in z["laps"]], [None, None])

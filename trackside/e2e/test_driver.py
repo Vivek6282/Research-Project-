@@ -5,20 +5,21 @@ import requests
 from e2e.pages.login_page import LoginPage
 from e2e.pages.driver_page import DriverDashboardPage
 from e2e.conftest import DRIVER1_CREDENTIALS, DRIVER2_CREDENTIALS, ADMIN_CREDENTIALS
+from e2e.timeouts import API_TIMEOUT_S
 
 
 def test_tc_driver_01_empty_state_for_driver_without_sessions(driver, base_url, backend_url):
     """TC-DRIVER-01: Driver with no sessions sees the "No sessions recorded yet" empty state (not fake data)."""
     # Create a fresh driver account with 0 sessions via Admin API
     session = requests.Session()
-    csrf_res = session.get(f"{backend_url}/api/auth/csrf/", timeout=5)
+    csrf_res = session.get(f"{backend_url}/api/auth/csrf/", timeout=API_TIMEOUT_S)
     csrf_token = csrf_res.cookies.get("csrftoken", "")
 
     session.post(
         f"{backend_url}/api/auth/login/",
         json={"identifier": ADMIN_CREDENTIALS["identifier"], "password": ADMIN_CREDENTIALS["password"]},
         headers={"X-CSRFToken": csrf_token, "Referer": backend_url},
-        timeout=5,
+        timeout=API_TIMEOUT_S,
     )
     csrf_token = session.cookies.get("csrftoken", csrf_token)
 
@@ -28,7 +29,7 @@ def test_tc_driver_01_empty_state_for_driver_without_sessions(driver, base_url, 
         f"{backend_url}/api/auth/users/",
         json={"name": f"Fresh Driver {unique_suffix}", "role": "driver", "email": fresh_driver_email, "password": "DriverPassword123!"},
         headers={"X-CSRFToken": csrf_token, "Referer": backend_url},
-        timeout=5,
+        timeout=API_TIMEOUT_S,
     ).json()
 
     fresh_username = create_res.get("username")
@@ -79,26 +80,26 @@ def test_tc_driver_03_idor_data_isolation_between_drivers(driver, base_url, back
     session = requests.Session()
 
     # 1. Authenticate as Admin via API to provision Driver 2's session
-    csrf_res = session.get(f"{backend_url}/api/auth/csrf/", timeout=5)
+    csrf_res = session.get(f"{backend_url}/api/auth/csrf/", timeout=API_TIMEOUT_S)
     csrf_token = csrf_res.cookies.get("csrftoken", "")
 
     login_res = session.post(
         f"{backend_url}/api/auth/login/",
         json={"identifier": ADMIN_CREDENTIALS["identifier"], "password": ADMIN_CREDENTIALS["password"]},
         headers={"X-CSRFToken": csrf_token, "Referer": backend_url},
-        timeout=5,
+        timeout=API_TIMEOUT_S,
     )
     assert login_res.status_code == 200, f"Admin login failed: {login_res.text}"
     csrf_token = session.cookies.get("csrftoken", csrf_token)
 
     # 2. Retrieve Driver 2 user and active track
-    users_res = session.get(f"{backend_url}/api/auth/users/", timeout=5)
+    users_res = session.get(f"{backend_url}/api/auth/users/", timeout=API_TIMEOUT_S)
     user_list = users_res.json()
     users = user_list if isinstance(user_list, list) else user_list.get("results", [])
     driver2 = next((u for u in users if u.get("email") == DRIVER2_CREDENTIALS["identifier"]), None)
     assert driver2 is not None, "Driver 2 account not found"
 
-    tracks_res = session.get(f"{backend_url}/api/tracks/", timeout=5)
+    tracks_res = session.get(f"{backend_url}/api/tracks/", timeout=API_TIMEOUT_S)
     track_list = tracks_res.json()
     tracks = track_list if isinstance(track_list, list) else track_list.get("results", [])
     assert len(tracks) > 0, "No track found for session creation"
@@ -119,7 +120,7 @@ def test_tc_driver_03_idor_data_isolation_between_drivers(driver, base_url, back
             "goal_text": unique_goal_token,
         },
         headers={"X-CSRFToken": session.cookies.get("csrftoken", csrf_token), "Referer": backend_url},
-        timeout=5,
+        timeout=API_TIMEOUT_S,
     )
     assert create_sess.status_code in (200, 201), f"Failed to create Driver 2 session: {create_sess.text}"
     driver2_session_id = create_sess.json()["id"]

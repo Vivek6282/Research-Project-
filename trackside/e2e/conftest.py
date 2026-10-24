@@ -19,6 +19,7 @@ for p in [str(parent_dir), str(current_dir)]:
 os.environ["LOGIN_THROTTLE_RATE"] = "1000/min"
 
 from setup_helpers import ensure_track_and_zone  # noqa: E402
+from e2e.timeouts import API_TIMEOUT_S  # noqa: E402
 
 REPORTS_DIR = Path(__file__).parent / "reports"
 SCREENSHOTS_DIR = REPORTS_DIR / "screenshots"
@@ -88,7 +89,7 @@ def ensure_test_environment(backend_url):
         }
 
     # 1. Healthcheck and initial CSRF token
-    resp = session.get(f"{backend_url}/api/auth/csrf/", timeout=5)
+    resp = session.get(f"{backend_url}/api/auth/csrf/", timeout=API_TIMEOUT_S)
     assert resp.status_code == 200, f"Backend healthcheck failed: {resp.status_code}"
 
     # 2. Authenticate as admin (seed if missing on fresh DB)
@@ -96,7 +97,7 @@ def ensure_test_environment(backend_url):
         f"{backend_url}/api/auth/login/",
         json={"identifier": ADMIN_CREDENTIALS["identifier"], "password": ADMIN_CREDENTIALS["password"]},
         headers=auth_headers(),
-        timeout=5,
+        timeout=API_TIMEOUT_S,
     )
 
     if login_res.status_code != 200:
@@ -116,17 +117,17 @@ def ensure_test_environment(backend_url):
             text=True,
             check=True,
         )
-        session.get(f"{backend_url}/api/auth/csrf/", timeout=5)
+        session.get(f"{backend_url}/api/auth/csrf/", timeout=API_TIMEOUT_S)
         login_res = session.post(
             f"{backend_url}/api/auth/login/",
             json={"identifier": ADMIN_CREDENTIALS["identifier"], "password": ADMIN_CREDENTIALS["password"]},
             headers=auth_headers(),
-            timeout=5,
+            timeout=API_TIMEOUT_S,
         )
         assert login_res.status_code == 200, f"Admin login failed after seeding: {login_res.status_code} - {login_res.text}"
 
     # 3. Ensure the 3 other standard test accounts exist and are active
-    users_res = session.get(f"{backend_url}/api/auth/users/", timeout=5)
+    users_res = session.get(f"{backend_url}/api/auth/users/", timeout=API_TIMEOUT_S)
     assert users_res.status_code == 200, f"Failed to list users: {users_res.text}"
     user_list = users_res.json()
     users = user_list if isinstance(user_list, list) else user_list.get("results", [])
@@ -144,7 +145,7 @@ def ensure_test_environment(backend_url):
                 f"{backend_url}/api/auth/users/",
                 json=acc,
                 headers=auth_headers(),
-                timeout=5,
+                timeout=API_TIMEOUT_S,
             )
             assert res.status_code in (200, 201), f"Failed to create test user {acc['email']}: {res.status_code} - {res.text}"
         elif not existing.get("is_active", True):
@@ -152,12 +153,12 @@ def ensure_test_environment(backend_url):
                 f"{backend_url}/api/auth/users/{existing['id']}/",
                 json={"is_active": True},
                 headers=auth_headers(),
-                timeout=5,
+                timeout=API_TIMEOUT_S,
             )
             assert res.status_code == 200, f"Failed to reactivate test user {acc['email']}: {res.status_code} - {res.text}"
 
     # Refresh user list to include freshly created accounts
-    users_res = session.get(f"{backend_url}/api/auth/users/", timeout=5)
+    users_res = session.get(f"{backend_url}/api/auth/users/", timeout=API_TIMEOUT_S)
     assert users_res.status_code == 200
     user_list = users_res.json()
     users = user_list if isinstance(user_list, list) else user_list.get("results", [])
@@ -166,7 +167,7 @@ def ensure_test_environment(backend_url):
     track_id = ensure_track_and_zone(session, backend_url, auth_headers)
 
     # 6. Ensure at least one driving session exists for Driver 1
-    sess_res = session.get(f"{backend_url}/api/sessions/", timeout=5)
+    sess_res = session.get(f"{backend_url}/api/sessions/", timeout=API_TIMEOUT_S)
     assert sess_res.status_code == 200, f"Failed to fetch sessions: {sess_res.text}"
     s_data = sess_res.json()
     s_list = s_data if isinstance(s_data, list) else s_data.get("results", [])
@@ -185,7 +186,7 @@ def ensure_test_environment(backend_url):
                 "kart_number": "#07",
             },
             headers=auth_headers(),
-            timeout=5,
+            timeout=API_TIMEOUT_S,
         )
         assert create_sess.status_code in (200, 201), f"Failed to create session: {create_sess.status_code} - {create_sess.text}"
 

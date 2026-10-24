@@ -114,6 +114,18 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text="The admin who created this account (null for the seeded admin)",
     )
 
+    # Phase 2.0: consent for phone-sensor and biometric data (drivers only); null = not recorded
+    consent_recorded_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the academy recorded this driver's consent to phone-sensor and biometric data",
+    )
+
+    is_under_18 = models.BooleanField(
+        default=False,
+        help_text="Driver is under 18 (the academy then needs a parent's consent before recording it)",
+    )
+
     objects = UserManager()
 
     # Email is the login field, not username
@@ -158,6 +170,8 @@ class AuditLogEntry(models.Model):
     Action.SIMULATOR_STOP = "SIMULATOR_STOP"
     Action.DEVICE_ASSIGNED = "DEVICE_ASSIGNED"
     Action.DEVICE_UNASSIGNED = "DEVICE_UNASSIGNED"
+    Action.CONSENT_CHANGED = "CONSENT_CHANGED"
+    Action.SETTINGS_CHANGED = "SETTINGS_CHANGED"
 
 
     id = models.UUIDField(

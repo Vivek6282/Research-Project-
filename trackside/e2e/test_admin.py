@@ -138,10 +138,26 @@ def test_tc_admin_06_deactivate_confirm_dialog_and_reactivate(driver, base_url, 
     assert "Active" in new_status
 
 
-def test_tc_admin_07_no_delete_button_exists(driver, base_url, admin_login):
-    """TC-ADMIN-07: No "Delete" button exists anywhere (regression test for the removed hard-delete feature)."""
+def test_tc_admin_07_permanent_delete_needs_typed_confirmation(driver, base_url, admin_login):
+    """TC-ADMIN-07: Permanent delete stays locked until the exact username is typed, then removes the user."""
     admin_page = admin_login
-    assert not admin_page.has_delete_button()
+    unique_suffix = int(driver.execute_script("return Date.now();")) % 100000
+    coach_name = f"DeleteCoach {unique_suffix}"
+    admin_page.create_user(name=coach_name, role="coach", email=f"delete_{unique_suffix}@trackside.local",
+                           password="CoachPassword123!")
+    username = admin_page.get_created_success_username()
+    user_id = admin_page.find_user_id_by_name(coach_name)
+    assert user_id is not None, f"Created coach {coach_name} not found in user table"
+
+    admin_page.open_delete_dialog(user_id)
+    assert not admin_page.is_delete_confirm_enabled(), "Delete was possible before anything was typed"
+    admin_page.type_text("admin-delete-confirm-input", username + "X")
+    assert not admin_page.is_delete_confirm_enabled(), "Delete was possible with the wrong text typed"
+    admin_page.type_text("admin-delete-confirm-input", username)
+    assert admin_page.is_delete_confirm_enabled(), "Delete stayed locked with the exact username typed"
+
+    admin_page.confirm_permanent_delete()
+    assert admin_page.is_user_row_gone(user_id), "The deleted coach is still listed"
 
 
 def test_tc_admin_08_audit_log_shows_new_entry(driver, base_url, admin_login):
@@ -162,5 +178,5 @@ def test_tc_admin_08_audit_log_shows_new_entry(driver, base_url, admin_login):
 def test_tc_admin_09_remote_diagnostic_is_parked_for_phase_2(driver, base_url, admin_login):
     """TC-ADMIN-09: The remote device diagnostic is parked for Phase 2: a banner is shown and there is no Run Diagnostic button."""
     admin_page = admin_login
-    assert admin_page.is_visible("dev-banner-phase-2", timeout=5)
+    assert admin_page.is_visible("dev-banner-phase-2")
     assert not driver.find_elements(By.CSS_SELECTOR, '[data-testid="admin-run-diagnostic-btn"]')

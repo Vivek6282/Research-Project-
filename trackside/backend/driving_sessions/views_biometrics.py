@@ -9,6 +9,7 @@ from rest_framework import generics, exceptions
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 
+from academy.consent import require_consent
 from devices.authentication import DeviceTokenAuthentication
 from driving_sessions.access import sessions_visible_to, can_access_session
 from driving_sessions.models import Session, BiometricReading
@@ -47,6 +48,9 @@ class BiometricListCreateView(generics.ListCreateAPIView):
         target_session = get_object_or_404(Session, pk=self.kwargs.get("session_pk"))
         if not can_access_session(request.user, target_session):
             raise exceptions.PermissionDenied("You are not authorized for this driver's session.")
+        # Phase 2.0: real biometric data needs the driver's recorded consent (demo runs are simulated)
+        if not target_session.is_demo:
+            require_consent(target_session.driver)
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):

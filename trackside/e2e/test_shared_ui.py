@@ -5,6 +5,7 @@ from e2e.pages.login_page import LoginPage
 from e2e.pages.admin_page import AdminDashboardPage
 from e2e.pages.shared_ui import TopBar, SettingsModal, TutorialCallout
 from e2e.conftest import ADMIN_CREDENTIALS, COACH_CREDENTIALS
+from e2e.timeouts import ABSENCE_TIMEOUT_S
 
 
 def test_tc_ui_01_settings_font_size_persists_across_sessions(driver, base_url):
@@ -99,7 +100,7 @@ def test_tc_ui_03_first_login_tutorial_flow(driver, base_url):
         settings_modal.replay_tutorial()
         settings_modal.close()
 
-    assert tutorial.is_displayed(timeout=5)
+    assert tutorial.is_displayed()
     first_title = tutorial.get_step_title()
 
     # Advance step via Next button
@@ -109,9 +110,9 @@ def test_tc_ui_03_first_login_tutorial_flow(driver, base_url):
 
     # Skip tutorial
     tutorial.click_skip()
-    assert not tutorial.is_displayed(timeout=3), "Tutorial callout was not dismissed by Skip"
+    assert not tutorial.is_displayed(timeout=ABSENCE_TIMEOUT_S), "Tutorial callout was not dismissed by Skip"
 
     # Refresh page to confirm it does not reappear
     driver.refresh()
     login_page.wait_for_url_contains("/coach")
-    assert not tutorial.is_displayed(timeout=3), "Tutorial reappeared after being dismissed"
+    assert not tutorial.is_displayed(timeout=ABSENCE_TIMEOUT_S), "Tutorial reappeared after being dismissed"

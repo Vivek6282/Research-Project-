@@ -57,10 +57,10 @@ class CoachDashboardPage(BasePage):
         return self.get_signal_strip_state()["stageLabel"]
 
     def is_simulated_data_badge_visible(self) -> bool:
-        return self.is_visible("coach-simulated-data-badge", timeout=3)
+        return self.is_visible("coach-simulated-data-badge")
 
     def is_live_track_fallback_displayed(self) -> bool:
-        return self.is_visible("live-track-fallback", timeout=3)
+        return self.is_visible("live-track-fallback")
 
     def get_historical_count(self) -> int:
         text = self.get_text("coach-historical-count")

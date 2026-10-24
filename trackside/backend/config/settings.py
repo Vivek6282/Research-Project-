@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     "devices",
     "preferences",
     "demo_control",
+    "academy",
 ]
 
 
@@ -233,6 +234,8 @@ REST_FRAMEWORK = {
         "track_import_confirm": "10/hour",
         # Drawing a track on the map: cheap to check, so a looser limit than file imports
         "track_draw": "60/hour",
+        # Phase 2.0: device events (crash, lost contact, heartbeat, ...) per sending device or driver
+        "device_events": env("DEVICE_EVENTS_THROTTLE_RATE", default="120/min"),
     },
     # JSON only — no browsable API in production
     "DEFAULT_RENDERER_CLASSES": [

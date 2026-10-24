@@ -21,6 +21,12 @@ pytest e2e/ --html=e2e/reports/e2e_report.html --self-contained-html --json-repo
 python e2e/generate_report.py
 ```
 
+### Slow machines
+
+Every wait lives in `e2e/timeouts.py`. Raise them with environment variables instead of editing tests:
+`TRACKSIDE_E2E_UI_TIMEOUT` (default 10 s, waiting for something to appear), `TRACKSIDE_E2E_API_TIMEOUT`
+(default 15 s, direct API calls) and `TRACKSIDE_E2E_ABSENCE_TIMEOUT` (default 3 s, watching that something does NOT appear).
+
 ### Options
 
 - **Headed Mode (Visual Execution):**

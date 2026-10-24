@@ -35,22 +35,22 @@ class AdminDashboardPage(BasePage):
         self.fill_create_account(name=name, role=role, email=email, password=password)
         self.submit_create_account()
 
-    def get_create_error(self, timeout: int = 5) -> str:
+    def get_create_error(self, timeout: float = None) -> str:
         return self.get_text("admin-create-error", timeout=timeout)
 
-    def is_create_error_displayed(self, timeout: int = 3) -> bool:
+    def is_create_error_displayed(self, timeout: float = None) -> bool:
         return self.is_visible("admin-create-error", timeout=timeout)
 
-    def get_created_success_username(self, timeout: int = 10) -> str:
+    def get_created_success_username(self, timeout: float = None) -> str:
         return self.get_text("admin-create-success-username", timeout=timeout)
 
-    def is_create_success_displayed(self, timeout: int = 5) -> bool:
+    def is_create_success_displayed(self, timeout: float = None) -> bool:
         return self.is_visible("admin-create-success", timeout=timeout)
 
     def get_user_row_elements(self) -> List:
         return self.find_elements("admin-user-row")
 
-    def find_user_id_by_name(self, name: str, timeout: int = 10) -> Optional[str]:
+    def find_user_id_by_name(self, name: str, timeout: float = None) -> Optional[str]:
         t = timeout or self.default_timeout
         def _predicate(d):
             rows = d.find_elements(*self._selector("admin-user-row"))
@@ -88,20 +88,45 @@ class AdminDashboardPage(BasePage):
     def confirm_dialog_cancel(self):
         self.click("confirm-dialog-cancel-btn")
 
-    def is_confirm_dialog_displayed(self, timeout: int = 3) -> bool:
+    def is_confirm_dialog_displayed(self, timeout: float = None) -> bool:
         return self.is_visible("confirm-dialog", timeout=timeout)
 
-    def has_delete_button(self) -> bool:
-        """Regression test for removed hard-delete feature: ensures no delete button exists."""
-        delete_matches = self.driver.find_elements(By.CSS_SELECTOR, '[data-testid*="delete"]')
-        return len(delete_matches) > 0
+    def open_delete_dialog(self, user_id: str):
+        """Click the Delete button on one user's row and wait for the permanent-delete dialog."""
+        row = self.wait_for_element_in_row(user_id)
+        row.find_element(*self._selector("admin-delete-btn")).click()
+        self.wait_for_visible("admin-delete-confirm-input")
+
+    def wait_for_element_in_row(self, user_id: str):
+        """The visible table row of one user."""
+        def _row(d):
+            rows = d.find_elements(By.CSS_SELECTOR, f'[data-testid="admin-user-row"][data-user-id="{user_id}"]')
+            return next((r for r in rows if r.is_displayed()), False)
+        return WebDriverWait(self.driver, self.default_timeout).until(_row)
+
+    def is_delete_confirm_enabled(self) -> bool:
+        """Whether "Delete permanently" can be pressed yet."""
+        return self.wait_for_visible("admin-delete-confirm-btn").is_enabled()
+
+    def confirm_permanent_delete(self):
+        """Press "Delete permanently" and wait for the dialog to close."""
+        self.click("admin-delete-confirm-btn")
+        self.wait_for_invisible("admin-delete-dialog")
+
+    def is_user_row_gone(self, user_id: str) -> bool:
+        """True once no row for this user is left in the table."""
+        selector = (By.CSS_SELECTOR, f'[data-testid="admin-user-row"][data-user-id="{user_id}"]')
+        try:
+            return WebDriverWait(self.driver, self.default_timeout).until(lambda d: not d.find_elements(*selector))
+        except TimeoutException:
+            return False
 
     def get_audit_log_entries(self) -> List[str]:
         elements = self.find_elements("admin-audit-log-entry")
         return [el.text for el in elements]
 
     def is_user_table_displayed(self) -> bool:
-        return self.is_visible("admin-user-table", timeout=3)
+        return self.is_visible("admin-user-table")
 
     def is_user_cards_displayed(self) -> bool:
-        return self.is_visible("admin-user-cards-container", timeout=3)
+        return self.is_visible("admin-user-cards-container")

@@ -28,10 +28,10 @@ class LoginPage(BasePage):
         self.enter_password(password)
         self.submit()
 
-    def get_error_message(self, timeout: int = 5) -> str:
+    def get_error_message(self, timeout: float = None) -> str:
         return self.get_text("login-error", timeout=timeout)
 
-    def is_error_displayed(self, timeout: int = 3) -> bool:
+    def is_error_displayed(self, timeout: float = None) -> bool:
         return self.is_visible("login-error", timeout=timeout)
 
     def is_login_form_displayed(self) -> bool:

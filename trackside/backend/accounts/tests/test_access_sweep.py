@@ -25,6 +25,7 @@ COACH_MAY_READ = ("api/devices/", "api/devices/<uuid:pk>/")   # coaches see devi
 STAFF_ONLY = ("api/tracks/import/", "api/tracks/draw/", "api/tracks/<uuid:pk>/corners/", "api/tracks/<uuid:pk>/duplicate/",
               "api/tracks/<uuid:pk>/restore/", "api/tracks/<uuid:pk>/survey/", "api/demo/", "api/laptop-link/")
 OWN_SESSION_ONLY = "api/sessions/<uuid:"
+DRIVER_MAY_SEND = "api/devices/events/"   # a consenting driver's phone page posts events here (devices/tests)
 
 
 def route_templates():
@@ -114,7 +115,8 @@ class TestAccessSweep(AccessSweepBase):
     def test_a_driver_is_refused_on_admin_and_staff_routes(self):
         """A driver cannot touch user management, devices, imports, surveys, corner edits, demos or laptop links."""
         self.client.force_authenticate(self.driver_b)
-        staff = [t for t in route_templates() if t.startswith(ADMIN_ONLY + STAFF_ONLY) and t != "api/tracks/"]
+        staff = [t for t in route_templates() if t.startswith(ADMIN_ONLY + STAFF_ONLY)
+                 and t not in ("api/tracks/", DRIVER_MAY_SEND)]
         self.assertGreater(len(staff), 12)
         self.assert_refused("driver", self.client, staff)
 
@@ -192,6 +194,17 @@ class TestCsrfIsEnforced(AccessSweepBase):
         self.assertEqual(browser.post("/api/auth/users/", "{}", content_type="application/json").status_code, 403)
 
 
+class TestDeviceEventsRoute(AccessSweepBase):
+    """The one devices route a driver may use: only with consent recorded (details in devices/tests)."""
+
+    def test_driver_without_consent_and_coach_are_refused(self):
+        """Driver B (no consent) and the coach get 403 on every method; GET is not offered at all."""
+        for who, user in (("driver", self.driver_b), ("coach", self.coach)):
+            self.client.force_authenticate(user)
+            for method, code in self.statuses(self.client, DRIVER_MAY_SEND).items():
+                self.assertIn(code, REFUSED, f"{who} got {code} for {method.upper()} /{DRIVER_MAY_SEND}")
+
+
 class TestWritesToSomeoneElsesSession(AccessSweepBase):
 
     def test_driver_b_cannot_write_readings_to_driver_a(self):
@@ -212,6 +225,7 @@ class TestWritesToSomeoneElsesSession(AccessSweepBase):
 
     def test_the_owner_can_still_write_biometrics(self):
         """Driver A, the owner, still gets through to the normal validation and saving."""
+        User.objects.filter(pk=self.driver_a.pk).update(consent_recorded_at=timezone.now())   # Phase 2.0: consent needed
         self.client.force_authenticate(self.driver_a)
         body = {"recorded_at": timezone.now().isoformat(), "heart_rate": 90, "spo2": 98, "breathing_rate": 15}
         self.assertEqual(self.client.post(f"/api/sessions/{self.session.id}/biometrics/", body, format="json").status_code, 201)

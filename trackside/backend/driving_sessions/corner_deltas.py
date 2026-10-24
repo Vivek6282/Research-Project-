@@ -1,21 +1,26 @@
 """
 Trackside — Corner times and deltas of one session (K1).
 
-Time through a corner on a lap = last reading time in the corner minus first
-reading time in the corner on that lap, plus one reading interval (the median gap
-between the session's consecutive readings). Only completed laps count towards a
-corner's best; the lap in progress is listed but never becomes the best.
+Corner times are measured per crossing, not per lap number: a crossing is one
+unbroken run of readings inside the same corner, in time order. Its time is the
+last reading time minus the first, plus one reading interval (the median gap
+between the session's consecutive readings). This keeps a corner that spans the
+start/finish line in one piece. A crossing belongs to the lap it was entered on.
+Only completed laps count towards a corner's best; the lap in progress is listed
+but never becomes the best.
 """
 
 from datetime import datetime
 from statistics import median
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from django.db.models import Max, Min
-
 from driving_sessions.models import Session, Telemetry
 
 DECIMALS = 3
+# A gap longer than this between two readings ends a crossing (data loss, pit stop)
+MAX_GAP_IN_CROSSING_S = 3.0
+# Leaving a corner for at most this long and coming back counts as the same crossing (GPS flicker)
+FLICKER_MERGE_S = 1.0
 
 
 def reading_interval_s(times: Iterable[datetime]) -> float:
@@ -28,11 +33,52 @@ def reading_interval_s(times: Iterable[datetime]) -> float:
     return float(median(gaps)) if gaps else 0.0
 
 
+def split_into_crossings(readings: Iterable[Tuple[datetime, Optional[str], Optional[int]]]) -> List[dict]:
+    """Group time-ordered (time, zone id, lap) readings into crossings: unbroken runs inside one corner."""
+    crossings: List[dict] = []
+    current, previous_time = None, None
+    for moment, zone_id, lap in readings:
+        gap_too_long = previous_time is not None and (moment - previous_time).total_seconds() > MAX_GAP_IN_CROSSING_S
+        previous_time = moment
+        if current is not None and (zone_id != current["zone_id"] or gap_too_long):
+            crossings.append(current)
+            current = None
+        if zone_id is None:
+            continue
+        if current is None:
+            current = {"zone_id": zone_id, "first": moment, "last": moment, "lap": lap}
+        current["last"] = moment
+        if current["lap"] is None:
+            current["lap"] = lap
+    if current is not None:
+        crossings.append(current)
+    return merge_flicker(crossings)
+
+
+def merge_flicker(crossings: List[dict]) -> List[dict]:
+    """Join a crossing to the previous one when it is the same corner re-entered within FLICKER_MERGE_S."""
+    merged: List[dict] = []
+    for crossing in crossings:
+        before = merged[-1] if merged else None
+        if (before is not None and before["zone_id"] == crossing["zone_id"]
+                and (crossing["first"] - before["last"]).total_seconds() <= FLICKER_MERGE_S):
+            before["last"] = crossing["last"]
+            before["lap"] = before["lap"] if before["lap"] is not None else crossing["lap"]
+        else:
+            merged.append(crossing)
+    return merged
+
+
 def corner_lap_spans(session: Session) -> Dict[Tuple[str, int], Tuple[datetime, datetime]]:
-    """First and last reading time for every (zone id, lap number) in the session (readings without both are skipped)."""
-    rows = (Telemetry.objects.filter(session=session, zone__isnull=False, lap_number__isnull=False)
-            .values("zone_id", "lap_number").annotate(first=Min("recorded_at"), last=Max("recorded_at")))
-    return {(str(r["zone_id"]), r["lap_number"]): (r["first"], r["last"]) for r in rows}
+    """First and last reading time of each corner's first crossing on each lap (crossings with no lap are skipped)."""
+    readings = (Telemetry.objects.filter(session=session).order_by("recorded_at")
+                .values_list("recorded_at", "zone_id", "lap_number").iterator())
+    spans: Dict[Tuple[str, int], Tuple[datetime, datetime]] = {}
+    for crossing in split_into_crossings((t, str(z) if z else None, lap) for t, z, lap in readings):
+        key = (crossing["zone_id"], crossing["lap"])
+        if crossing["lap"] is not None and key not in spans:
+            spans[key] = (crossing["first"], crossing["last"])
+    return spans
 
 
 def completed_lap_numbers(session: Session) -> Tuple[set, set]:

@@ -113,10 +113,10 @@ TEST_METADATA = {
     },
     "TC-ADMIN-07": {
         "module": "Admin Module",
-        "description": "Verify no hard-delete button exists anywhere in user roster (regression test)",
-        "preconditions": "Admin dashboard loaded",
-        "steps": "1. Inspect all DOM buttons and actions in user management panel.",
-        "expected": "Zero delete buttons present; only soft-deactivation is permitted by design",
+        "description": "Permanent delete needs the exact username typed before it can be confirmed",
+        "preconditions": "Admin dashboard loaded; a new coach created for the test",
+        "steps": "1. Open Delete on the coach. 2. Check Delete permanently is locked. 3. Type a wrong text, then the exact username. 4. Confirm.",
+        "expected": "Locked until the exact username is typed; the coach is removed from the table after confirming",
     },
     "TC-ADMIN-08": {
         "module": "Admin Module",
