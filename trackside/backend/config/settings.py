@@ -36,9 +36,8 @@ DEBUG = env.bool("DEBUG", default=False)
 DJANGO_ENV = env("DJANGO_ENV", default="development")
 
 if DJANGO_ENV == "production":
-    if not SECRET_KEY or "replace-me" in SECRET_KEY.lower():
-        from django.core.exceptions import ImproperlyConfigured
-        raise ImproperlyConfigured("Production SECRET_KEY cannot be empty or contain placeholder 'replace-me'.")
+    from config.secret_checks import check_production_secret_key
+    check_production_secret_key(SECRET_KEY)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "testserver"])
 

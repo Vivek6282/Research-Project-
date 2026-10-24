@@ -21,6 +21,11 @@ env/
 .env.local
 .env.production
 .env.docker
+# Every other .env variant (.env.development, .env.production.local, ...) stays private too;
+# only the placeholder templates are committed
+.env.*
+!.env.example
+!.env.*.example
 radio_secrets.h
 **/radio_secrets.h
 

@@ -5,6 +5,7 @@ Demonstrates local buffer queueing (SQLite), backoff retries, and batch ingestio
 POST /api/sessions/<id>/telemetry/ using Device Token Authentication.
 """
 
+import os
 import time
 import json
 import sqlite3
@@ -13,10 +14,10 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 
-# Reference Configuration
-BACKEND_URL = "http://127.0.0.1:8000"
-DEVICE_TOKEN = "demo_device_token_xyz123"
-SESSION_ID = "00000000-0000-0000-0000-000000000000"
+# Reference Configuration: read from the environment, never written in code
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
+DEVICE_TOKEN = os.environ.get("DEVICE_TOKEN", "")
+SESSION_ID = os.environ.get("SESSION_ID", "00000000-0000-0000-0000-000000000000")
 BATCH_SIZE = 25
 
 

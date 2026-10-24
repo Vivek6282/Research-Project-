@@ -15,6 +15,8 @@ Environment variables required:
 
 import os
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
@@ -68,6 +70,12 @@ class Command(BaseCommand):
                     )
                 )
             return
+
+        # The first admin gets the same password rules as every other account
+        try:
+            validate_password(password, user=User(name=name, email=email))
+        except DjangoValidationError as error:
+            raise CommandError("ADMIN_PASSWORD is too weak: " + " ".join(error.messages))
 
         username = generate_username("admin")
         # Create the admin using the manager, which hashes the password
