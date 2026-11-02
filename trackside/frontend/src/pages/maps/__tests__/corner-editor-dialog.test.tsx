@@ -126,6 +126,33 @@ describe("CornerEditorDialog (editable map)", () => {
     expect(screen.getByTestId("editor-saved").textContent).toContain("1 hidden");
   });
 
+  it("shows a labelled Delete button per corner with a hint that Save applies it", async () => {
+    await open();
+    const button = screen.getByTestId("marker-remove-1");
+    expect(button.textContent).toContain("Delete");
+    expect(button.getAttribute("aria-label")).toBe("Remove corner 1");
+    expect(button.getAttribute("title")).toContain("Save");
+    expect(vi.mocked(api.put)).not.toHaveBeenCalled();
+  });
+
+  it("deletes all corners only after confirming, and applies it on Save", async () => {
+    vi.mocked(api.put).mockResolvedValue(makePayload({ markers: [] }));
+    const { onChanged } = await open();
+    fireEvent.click(screen.getByTestId("editor-delete-all-btn"));
+    expect(screen.getByText("Delete all corners?")).toBeTruthy();
+    expect(screen.getByTestId("corner-marker-table")).toBeTruthy();
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(screen.getByTestId("corner-marker-table")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("editor-delete-all-btn"));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm-btn"));
+    expect(screen.getByTestId("editor-no-markers")).toBeTruthy();
+    expect(screen.queryByTestId("editor-delete-all-btn")).toBeNull();
+    expect(api.put).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("editor-save-btn"));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(vi.mocked(api.put).mock.calls[0][1]).toMatchObject({ markers: [] });
+  });
+
   it("removes a marker and shows the server's error when the save is refused", async () => {
     const { onChanged } = await open();
     fireEvent.click(screen.getByTestId("marker-remove-1"));
@@ -182,6 +209,14 @@ describe("CornerEditorDialog (view-only)", () => {
     await waitFor(() => expect(screen.getByTestId("duplicate-btn")).toBeTruthy());
     fireEvent.click(screen.getByTestId("duplicate-btn"));
     await waitFor(() => expect(screen.getByTestId("duplicate-error").textContent).toContain("already exists"));
+  });
+
+  it("view-only maps have no Delete all corners button", async () => {
+    vi.mocked(api.get).mockResolvedValue(makePayload({ editable: false }));
+    render(<CornerEditorDialog map={map({ is_archived: true })} onClose={vi.fn()} onChanged={vi.fn()} />);
+    await waitFor(() => expect(screen.getByTestId("corner-marker-table")).toBeTruthy());
+    expect(screen.queryByTestId("editor-delete-all-btn")).toBeNull();
+    expect(screen.queryByTestId("marker-remove-1")).toBeNull();
   });
 
   it("archived maps are view-only without the duplicate form", async () => {

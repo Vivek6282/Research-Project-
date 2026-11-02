@@ -3,7 +3,7 @@
  * the radius at the marker and the safe corner speed at the current limit.
  */
 
-import { X } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { markerRadius } from "../corner-editor-logic";
 import { MAX_LABEL_LENGTH, limitError, parseLimit, safeSpeedKmh } from "../safe-speed";
 import type { EditorMarker, EditorPayload } from "../types";
@@ -45,7 +45,7 @@ export function CornerMarkerTable({ payload, markers, selectedKey, editable, pro
             key={m.key}
             data-testid={`marker-row-${order + 1}`}
             onClick={() => onSelect(m.key)}
-            className="grid grid-cols-[1.5rem_1fr_1fr] sm:grid-cols-[1.5rem_1.6fr_5rem_5rem_6rem_1.5rem] gap-2 items-start p-2 rounded border bg-[#161D26]"
+            className="grid grid-cols-[1.5rem_1fr_1fr] sm:grid-cols-[1.5rem_1.6fr_5rem_5rem_6rem_4.5rem] gap-2 items-start p-2 rounded border bg-[#161D26]"
             style={{ borderColor: m.key === selectedKey ? "#3FA6E0" : "#232B35" }}
           >
             <span className="text-xs font-mono font-bold text-[#F2A93B] pt-2">{order + 1}</span>
@@ -74,8 +74,10 @@ export function CornerMarkerTable({ payload, markers, selectedKey, editable, pro
             </span>
             {editable ? (
               <button aria-label={`Remove corner ${order + 1}`} data-testid={`marker-remove-${order + 1}`}
+                title="Removes this corner when you press Save corners"
                 onClick={(e) => { e.stopPropagation(); onRemove(m.key); }}
-                className="text-[#7C8898] hover:text-[#E5473C] cursor-pointer pt-1.5"><X size={14} /></button>
+                className="col-span-3 sm:col-span-1 inline-flex items-center justify-center gap-1 text-[11px] font-mono px-2 py-1.5 min-h-[32px] rounded-[2px] border border-[#232B35] text-[#7C8898] hover:text-[#E5473C] hover:border-[#E5473C] cursor-pointer">
+                <Trash2 size={13} /> Delete</button>
             ) : <span />}
             {problems[m.key] && <p className="col-span-full text-[10px] text-[#E5473C]" data-testid={`marker-problem-${order + 1}`}>{problems[m.key]}</p>}
           </div>

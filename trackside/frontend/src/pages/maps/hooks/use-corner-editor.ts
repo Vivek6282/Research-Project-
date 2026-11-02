@@ -78,6 +78,14 @@ export function useCornerEditor(trackId: string) {
     setSavedNote(null);
   }, []);
 
+  /** Remove every marker at once (applied on Save, like removing one). */
+  const removeAllMarkers = useCallback(() => {
+    setMarkers([]);
+    setSelectedKey(null);
+    setIsDirty(true);
+    setSavedNote(null);
+  }, []);
+
   // The same checks the server makes, recomputed when a marker changes
   const checks = useMemo(() => (payload ? checkMarkers(markers, payload) : { byKey: {}, first: null }), [markers, payload]);
 
@@ -110,6 +118,6 @@ export function useCornerEditor(trackId: string) {
 
   return {
     payload, markers, selectedKey, setSelectedKey, isLoading, isSaving, isDirty, error, savedNote, checks,
-    updateMarker, addMarker, removeMarker, save,
+    updateMarker, addMarker, removeMarker, removeAllMarkers, save,
   };
 }

@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react";
-import { Copy, X } from "lucide-react";
+import { Copy, Trash2, X } from "lucide-react";
 import { api } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useCornerEditor } from "../hooks/use-corner-editor";
@@ -30,6 +30,7 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
   const editor = useCornerEditor(map.id);
   const { payload } = editor;
   const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [copyName, setCopyName] = useState(`${map.name} copy`);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [isCopying, setIsCopying] = useState(false);
@@ -127,6 +128,12 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
               )}
 
               <div className="flex gap-2 justify-end">
+                {canEdit && editor.markers.length > 0 && (
+                  <button data-testid="editor-delete-all-btn" onClick={() => setConfirmClear(true)} title="Removes every corner when you press Save corners"
+                    className={`${buttonClass} mr-auto inline-flex items-center gap-1.5 border border-[#E5473C]/60 text-[#E5473C]`}>
+                    <Trash2 size={14} /> Delete all corners
+                  </button>
+                )}
                 <button onClick={requestClose} className={`${buttonClass} border border-[#232B35] text-[#7C8898]`}>Close</button>
                 {canEdit && (
                   <button data-testid="editor-save-btn" disabled={Boolean(editor.checks.first) || editor.isSaving || !editor.isDirty}
@@ -139,6 +146,9 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
           )}
         </div>
       </div>
+      <ConfirmDialog isOpen={confirmClear} title="Delete all corners?"
+        message={`All ${editor.markers.length} corners on this map will be removed when you press Save corners. Corners that already have telemetry or alerts are hidden and keep their history. Until you save, you can still close without saving.`}
+        confirmText="Delete all" variant="danger" onCancel={() => setConfirmClear(false)} onConfirm={() => { setConfirmClear(false); editor.removeAllMarkers(); }} />
       <ConfirmDialog isOpen={confirmClose} title="Discard your changes?" message="You have corner changes that are not saved."
         confirmText="Discard" variant="warning" onCancel={() => setConfirmClose(false)} onConfirm={() => { setConfirmClose(false); onClose(); }} />
     </div>
