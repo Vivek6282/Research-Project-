@@ -106,6 +106,46 @@ describe("MapsBrowser", () => {
     await waitFor(() => expect(screen.getByTestId("maps-notice").textContent).toContain("archived"));
   });
 
+  it("asks with the new Delete wording before deleting or archiving", async () => {
+    render(<MapsBrowser canManage />);
+    await waitFor(() => expect(screen.getByTestId("archive-Kari").textContent).toContain("Delete"));
+    fireEvent.click(screen.getByTestId("archive-Kari"));
+    expect(screen.getByText("Delete this map?")).toBeTruthy();
+    expect(screen.getByText(/If it has sessions or driver limits it is archived and its history is kept\. A map that was never used is deleted for good\./)).toBeTruthy();
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
+  /** Open the Archived tab with one archived map called Old. */
+  async function openArchived() {
+    mockGet.mockResolvedValue({ results: [{ id: "a", name: "Old", source: "vbo", is_builtin: false, is_archived: true, zones: [] }] });
+    render(<MapsBrowser canManage />);
+    fireEvent.click(screen.getByTestId("maps-tab-archived"));
+    await waitFor(() => expect(screen.getByTestId("delete-forever-Old")).toBeTruthy());
+  }
+
+  it("deletes an archived map forever only after a danger confirmation", async () => {
+    vi.mocked(api.delete).mockResolvedValueOnce(undefined);
+    await openArchived();
+    fireEvent.click(screen.getByTestId("delete-forever-Old"));
+    expect(screen.getByText("Delete this map forever?")).toBeTruthy();
+    expect(api.delete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm-btn"));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/api/tracks/a/?permanent=true"));
+    await waitFor(() => expect(screen.getByTestId("maps-notice").textContent).toContain("deleted for good"));
+  });
+
+  it("does not delete forever when the user cancels, and shows the server's refusal", async () => {
+    await openArchived();
+    fireEvent.click(screen.getByTestId("delete-forever-Old"));
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(api.delete).not.toHaveBeenCalled();
+    vi.mocked(api.delete).mockRejectedValueOnce(new Error("This map has driving sessions."));
+    fireEvent.click(screen.getByTestId("delete-forever-Old"));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm-btn"));
+    await waitFor(() => expect(screen.getByTestId("maps-error").textContent).toContain("driving sessions"));
+  });
+
   it("restores an archived map", async () => {
     mockGet.mockResolvedValue({ results: [{ id: "a", name: "Old", source: "vbo", is_builtin: false, is_archived: true, zones: [] }] });
     render(<MapsBrowser canManage />);

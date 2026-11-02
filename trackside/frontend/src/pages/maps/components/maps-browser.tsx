@@ -1,6 +1,6 @@
 /**
  * Trackside Maps — the map browser: Active/Archived filter, map cards, Add track wizard and
- * archive confirmation. One component, used by the Coach "Maps & Demo" tab and the /maps page,
+ * delete confirmations. One component, used by the Coach "Maps & Demo" tab and the /maps page,
  * so both always behave the same.
  */
 
@@ -20,7 +20,7 @@ const VIEW_TABS: { id: MapView; label: string }[] = [
 ];
 
 export interface MapsBrowserProps {
-  /** Coach and Admin: add, archive and restore maps */
+  /** Coach and Admin: add, delete and restore maps */
   canManage: boolean;
   /** Called with a map when its Play demo button is pressed; leave out to hide the button */
   onPlay?: (map: MapTrack) => void;
@@ -41,6 +41,7 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorn
   const [showWizard, setShowWizard] = useState(false);
   const [showDrawing, setShowDrawing] = useState(false);
   const [toArchive, setToArchive] = useState<MapTrack | null>(null);
+  const [toDeleteForever, setToDeleteForever] = useState<MapTrack | null>(null);
 
   return (
     <div className="flex flex-col gap-3" data-testid="maps-browser">
@@ -97,6 +98,7 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorn
           onEditCorners={canEditCorners ? setEditing : undefined}
           onArchive={setToArchive}
           onRestore={maps.restoreMap}
+          onDeleteForever={setToDeleteForever}
         />
       )}
 
@@ -130,14 +132,26 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorn
       )}
       <ConfirmDialog
         isOpen={toArchive !== null}
-        title="Archive this map?"
-        message={`"${toArchive?.name ?? ""}": if it has sessions or driver limits it is archived and its history is kept. A map that was never used is deleted for good.`}
-        confirmText="Archive"
+        title="Delete this map?"
+        message={`"${toArchive?.name ?? ""}": If it has sessions or driver limits it is archived and its history is kept. A map that was never used is deleted for good.`}
+        confirmText="Delete"
         variant="warning"
         onCancel={() => setToArchive(null)}
         onConfirm={() => {
           if (toArchive) maps.archiveMap(toArchive);
           setToArchive(null);
+        }}
+      />
+      <ConfirmDialog
+        isOpen={toDeleteForever !== null}
+        title="Delete this map forever?"
+        message={`"${toDeleteForever?.name ?? ""}" and its corners will be removed for good. This cannot be undone. A map that still has sessions cannot be deleted and stays archived.`}
+        confirmText="Delete forever"
+        variant="danger"
+        onCancel={() => setToDeleteForever(null)}
+        onConfirm={() => {
+          if (toDeleteForever) maps.deleteForever(toDeleteForever);
+          setToDeleteForever(null);
         }}
       />
     </div>

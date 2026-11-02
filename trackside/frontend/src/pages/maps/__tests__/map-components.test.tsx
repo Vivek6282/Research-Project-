@@ -85,9 +85,28 @@ describe("MapCardGrid", () => {
     expect(screen.getAllByTestId("outline-thumbnail-empty")).toHaveLength(1);
   });
 
-  it("offers Archive on active maps and Restore on archived maps", () => {
+  it("offers Delete forever only on archived, non-built-in maps, and only when the caller allows it", () => {
+    const onDeleteForever = vi.fn();
+    const archivedDemo = map({ id: "3", name: "Demo Circuit", is_builtin: true, is_archived: true });
+    render(<MapCardGrid maps={[map({ name: "A" }), map({ id: "2", name: "B", is_archived: true }), archivedDemo]} canArchive onDeleteForever={onDeleteForever} {...handlers} />);
+    expect(screen.queryByTestId("delete-forever-A")).toBeNull();
+    expect(screen.queryByTestId("delete-forever-Demo Circuit")).toBeNull();
+    fireEvent.click(screen.getByTestId("delete-forever-B"));
+    expect(onDeleteForever).toHaveBeenCalledWith(expect.objectContaining({ id: "2" }));
+  });
+
+  it("hides Delete forever without permission or without a handler", () => {
+    const archived = map({ id: "2", name: "B", is_archived: true });
+    const { unmount } = render(<MapCardGrid maps={[archived]} canArchive={false} onDeleteForever={vi.fn()} {...handlers} />);
+    expect(screen.queryByTestId("delete-forever-B")).toBeNull();
+    unmount();
+    render(<MapCardGrid maps={[archived]} canArchive {...handlers} />);
+    expect(screen.queryByTestId("delete-forever-B")).toBeNull();
+  });
+
+  it("offers Delete on active maps and Restore on archived maps", () => {
     render(<MapCardGrid maps={[map({ name: "A" }), map({ id: "2", name: "B", is_archived: true })]} canArchive {...handlers} />);
-    expect(screen.getByTestId("archive-A")).toBeTruthy();
+    expect(screen.getByTestId("archive-A").textContent).toContain("Delete");
     expect(screen.getByTestId("restore-B")).toBeTruthy();
     expect(screen.getByTestId("map-card-B").textContent).toContain("Archived");
     fireEvent.click(screen.getByTestId("restore-B"));

@@ -1,5 +1,5 @@
 /**
- * Trackside Maps — loads the map list (active or archived) and archives/restores maps.
+ * Trackside Maps — loads the map list (active or archived) and archives/deletes/restores maps.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -58,7 +58,22 @@ export function useMaps(ensureDemoCircuit = false, reloadKey = 0) {
         setNotice(res.detail ?? `"${map.name}" was deleted (it had no sessions).`);
         await load();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not archive the map.");
+        setError(e instanceof Error ? e.message : "Could not delete the map.");
+      }
+    },
+    [load],
+  );
+
+  /** Delete an archived map for good; the server refuses (and says why) when it still has sessions. */
+  const deleteForever = useCallback(
+    async (map: MapTrack) => {
+      setNotice(null);
+      try {
+        await api.delete(`/api/tracks/${map.id}/?permanent=true`);
+        setNotice(`"${map.name}" was deleted for good.`);
+        await load();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not delete the map.");
       }
     },
     [load],
@@ -82,5 +97,5 @@ export function useMaps(ensureDemoCircuit = false, reloadKey = 0) {
   /** Show a message above the list (used after duplicating a map). */
   const announce = useCallback((message: string) => setNotice(message), []);
 
-  return { announce, view, setView, maps, isLoading, error, notice, reload: load, archiveMap, restoreMap };
+  return { announce, view, setView, maps, isLoading, error, notice, reload: load, archiveMap, deleteForever, restoreMap };
 }

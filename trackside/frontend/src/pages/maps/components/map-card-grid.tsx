@@ -3,13 +3,13 @@
  * Which buttons appear depends on what the caller allows; the server checks every action again.
  */
 
-import { Archive, Pencil, Play, RotateCcw } from "lucide-react";
+import { Pencil, Play, RotateCcw, Trash2 } from "lucide-react";
 import { Chip } from "../../../components/ui/chip";
 import { SOURCE_LABELS, type MapTrack } from "../types";
 import { OutlineThumbnail } from "./outline-thumbnail";
 
 export interface MapCardActions {
-  /** Show Archive / Restore buttons */
+  /** Show Delete / Restore / Delete forever buttons */
   canArchive: boolean;
   /** Opens the corner editor; the button is hidden when this is missing */
   onEditCorners?: (map: MapTrack) => void;
@@ -17,8 +17,11 @@ export interface MapCardActions {
   onPlay?: (map: MapTrack) => void;
   /** Why Play is switched off right now (for example a demo is running) */
   playDisabledReason?: string | null;
+  /** Delete: the server archives a map with history and removes an unused one */
   onArchive: (map: MapTrack) => void;
   onRestore: (map: MapTrack) => void;
+  /** Delete an archived map for good; the button is hidden when this is missing */
+  onDeleteForever?: (map: MapTrack) => void;
 }
 
 interface MapCardGridProps extends MapCardActions {
@@ -68,13 +71,18 @@ function MapCard({ map, actions }: { map: MapTrack; actions: MapCardActions }) {
           </button>
         )}
         {actions.canArchive && !map.is_builtin && !map.is_archived && (
-          <button className={buttonClass} data-testid={`archive-${map.name}`} onClick={() => actions.onArchive(map)}>
-            <Archive size={13} /> Archive
+          <button className={buttonClass} data-testid={`archive-${map.name}`} title="Delete this map" onClick={() => actions.onArchive(map)}>
+            <Trash2 size={13} /> Delete
           </button>
         )}
         {actions.canArchive && !map.is_builtin && map.is_archived && (
           <button className={buttonClass} data-testid={`restore-${map.name}`} onClick={() => actions.onRestore(map)}>
             <RotateCcw size={13} /> Restore
+          </button>
+        )}
+        {actions.canArchive && actions.onDeleteForever && !map.is_builtin && map.is_archived && (
+          <button className={`${buttonClass} hover:!text-[#E5473C] hover:!border-[#E5473C]`} data-testid={`delete-forever-${map.name}`} onClick={() => actions.onDeleteForever?.(map)}>
+            <Trash2 size={13} /> Delete forever
           </button>
         )}
       </div>
