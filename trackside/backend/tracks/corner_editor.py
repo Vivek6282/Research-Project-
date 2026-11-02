@@ -128,6 +128,7 @@ def zone_to_marker(zone: Zone, editor: EditorOutline) -> dict:
         "id": str(zone.id),
         "label": zone.label,
         "threshold_g": zone.threshold_g,
+        "corner_type": zone.corner_type or Zone.CornerType.OTHER,
         "center_index": center,
         "length_m": length,
         "radius_m": round(marker_radius(center, length, editor), 1) if center is not None else None,
@@ -188,7 +189,10 @@ def validate_markers(track: Track, editor: EditorOutline, raw_markers) -> List[d
             if index in covered and covered[index] != label:
                 raise CornerEditError(f"'{label}' overlaps '{covered[index]}'. Shorten a zone or move a marker.")
             covered[index] = label
-        cleaned.append({"id": zone_id, "label": label, "threshold_g": round(float(limit), 3),
+        corner_type = item.get("corner_type", None)
+        if corner_type is not None and corner_type not in Zone.CornerType.values:
+            raise CornerEditError(f"'{label}': the corner type must be one of {', '.join(Zone.CornerType.values)}.")
+        cleaned.append({"id": zone_id, "label": label, "corner_type": corner_type, "threshold_g": round(float(limit), 3),
                         "length_m": round(float(length), 1), "center_index": center})
     return cleaned
 
@@ -216,13 +220,15 @@ def save_markers(track: Track, editor: EditorOutline, user, cleaned: List[dict])
         shape = gps_range_for(marker, editor)
         if zone is None:
             created = Zone.objects.create(track=track, label=marker["label"], threshold_g=marker["threshold_g"],
-                                          corner_type=Zone.CornerType.OTHER, gps_range=shape)
+                                          corner_type=marker.get("corner_type") or Zone.CornerType.OTHER, gps_range=shape)
             record_initial_limit(created, user)
             counts["created"] += 1
             continue
         kept.add(marker["id"])
         zone.label, zone.gps_range = marker["label"], shape
-        zone.save(update_fields=["label", "gps_range"])
+        if marker.get("corner_type"):
+            zone.corner_type = marker["corner_type"]
+        zone.save(update_fields=["label", "gps_range", "corner_type"])
         set_zone_limit(zone, marker["threshold_g"], user)
         counts["updated"] += 1
     for zone_id, zone in existing.items():

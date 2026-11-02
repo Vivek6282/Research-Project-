@@ -7,6 +7,7 @@ Track and Zone CRUD with role-based access:
 """
 
 from django.db import transaction
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
@@ -61,7 +62,7 @@ class TrackListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         """Active tracks by default (archived ones are hidden from pickers); see ?archived."""
-        queryset = Track.objects.prefetch_related("zones")
+        queryset = Track.objects.prefetch_related("zones").annotate(session_count=Count("sessions", distinct=True)).order_by("name")
         archived = self.request.query_params.get("archived")
         if archived == "only":
             return queryset.filter(is_archived=True)
@@ -97,7 +98,7 @@ class TrackDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         """Return all tracks (archived too) with zones prefetched."""
-        return Track.objects.prefetch_related("zones").all()
+        return Track.objects.prefetch_related("zones").annotate(session_count=Count("sessions", distinct=True)).order_by("name")
 
     def update(self, request, *args, **kwargs):
         """Refuse edits to the built-in track."""

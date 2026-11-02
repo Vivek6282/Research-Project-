@@ -80,6 +80,29 @@ class TrackSerializer(serializers.ModelSerializer):
     min_threshold_g = serializers.ReadOnlyField()
     schematic_outline = serializers.SerializerMethodField()
     is_schematic = serializers.SerializerMethodField()
+    session_count = serializers.IntegerField(read_only=True, default=0)
+
+    def validate_name(self, value):
+        """Name: not blank, at most 150 characters, and not used by another map (archived ones count)."""
+        value = " ".join(value.split())
+        if not value:
+            raise serializers.ValidationError("Map name is required.")
+        taken = Track.objects.filter(name__iexact=value)
+        if self.instance is not None:
+            taken = taken.exclude(pk=self.instance.pk)
+        if taken.exists():
+            raise serializers.ValidationError("A map with this name already exists. Choose a different name.")
+        return value
+
+    def validate_kart_class(self, value):
+        """A class change is refused when it would leave a corner limit above the new class ceiling."""
+        if self.instance is not None and value != self.instance.kart_class:
+            ceiling = Track.KART_CLASS_CEILING[value]
+            too_high = [z.label for z in self.instance.zones.filter(is_active=True, threshold_g__gt=ceiling)]
+            if too_high:
+                raise serializers.ValidationError(
+                    f"Corner limits above {ceiling} g do not fit this kart class: {', '.join(too_high)}. Lower them first.")
+        return value
 
     def get_schematic_outline(self, obj):
         """The built-in map's drawn-shape outline for thumbnails; None for every other map."""
@@ -98,7 +121,7 @@ class TrackSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "reference_line", "kart_class", "min_threshold_g",
             "surveyed_at", "created_by", "zones", "is_builtin", "is_archived", "source",
-            "schematic_outline", "is_schematic",
+            "schematic_outline", "is_schematic", "session_count",
         ]
         read_only_fields = [
             "id", "created_by", "min_threshold_g", "is_builtin", "is_archived", "source",
