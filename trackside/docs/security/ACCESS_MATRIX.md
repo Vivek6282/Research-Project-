@@ -35,6 +35,7 @@ server; the frontend only hides buttons.
 | | create | ✓ | — | — | — |
 | | edit | ✓ | — | — | — |
 | | archive/delete, restore, duplicate | ✓ | ✓ | — | — |
+| | delete forever (`DELETE tracks/<id>/?permanent=true`; archived, non-built-in maps with no sessions only, else 409) | ✓ | ✓ | — | — |
 | Map import / draw / demo circuit / survey | create | ✓ | ✓ | — | — |
 | Corners (zones) | read | ✓ | ✓ | ✓ | — |
 | | add, corner editor save | ✓ | ✓ | — | — |
