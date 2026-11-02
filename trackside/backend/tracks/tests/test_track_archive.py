@@ -119,3 +119,73 @@ class TestTrackArchive(APITestCase):
         """Unknown id gives 404."""
         self.client.force_authenticate(self.coach)
         self.assertEqual(self.client.post("/api/tracks/00000000-0000-0000-0000-000000000000/restore/").status_code, 404)
+
+
+class TestTrackPermanentDelete(APITestCase):
+    """DELETE ?permanent=true removes an archived track for good, but never one with sessions."""
+
+    def setUp(self):
+        """Create the users and tracks this test class needs."""
+        super().setUp()
+        make = User.objects.create_user
+        self.admin = make(email="perm_admin@trackside.local", name="A", password="AdminPassword123!", role="admin")
+        self.coach = make(email="perm_coach@trackside.local", name="C", password="CoachPassword123!", role="coach")
+        self.driver = make(email="perm_driver@trackside.local", name="D", password="DriverPassword123!", role="driver")
+        self.archived = Track.objects.create(name="Old Track", is_archived=True)
+        self.zone = Zone.objects.create(track=self.archived, label="Z1", threshold_g=1.2)
+
+    def delete_forever(self, track, user):
+        """DELETE a track with ?permanent=true as the given user."""
+        self.client.force_authenticate(user)
+        return self.client.delete(f"/api/tracks/{track.id}/?permanent=true")
+
+    def test_coach_and_admin_can_delete_an_archived_track_for_good(self):
+        """204; the track and its corners are gone. Leftover driver limits go too when there are no sessions."""
+        DriverZoneThreshold.objects.create(driver=self.driver, zone=self.zone, custom_threshold_g=1.1, set_by=self.coach)
+        self.assertEqual(self.delete_forever(self.archived, self.coach).status_code, 204)
+        self.assertFalse(Track.objects.filter(pk=self.archived.pk).exists())
+        self.assertFalse(Zone.objects.filter(pk=self.zone.pk).exists())
+        self.assertFalse(DriverZoneThreshold.objects.filter(driver=self.driver).exists())
+        other = Track.objects.create(name="Other Old", is_archived=True)
+        self.assertEqual(self.delete_forever(other, self.admin).status_code, 204)
+
+    def test_archived_track_with_sessions_is_refused_and_kept(self):
+        """409 with a clear message; the track, zone and session all remain."""
+        Session.objects.create(driver=self.driver, track=self.archived, started_at=timezone.now())
+        response = self.delete_forever(self.archived, self.admin)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("sessions", response.data["detail"])
+        self.assertTrue(Track.objects.filter(pk=self.archived.pk, is_archived=True).exists())
+        self.assertEqual(Session.objects.filter(track=self.archived).count(), 1)
+        self.assertTrue(Zone.objects.filter(pk=self.zone.pk).exists())
+
+    def test_active_track_is_refused(self):
+        """409: only archived maps can be deleted forever, and the track is untouched."""
+        active = Track.objects.create(name="Active Track")
+        response = self.delete_forever(active, self.coach)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("archived", response.data["detail"])
+        self.assertTrue(Track.objects.filter(pk=active.pk).exists())
+
+    def test_builtin_track_is_refused_even_if_flagged_archived(self):
+        """409 with the Demo Circuit lock message."""
+        builtin = Track.objects.create(name="Demo Circuit", is_builtin=True, is_archived=True, source="builtin")
+        response = self.delete_forever(builtin, self.admin)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("Demo Circuit is locked", response.data["detail"])
+        self.assertTrue(Track.objects.filter(pk=builtin.pk).exists())
+
+    def test_driver_gets_403_and_anonymous_gets_401(self):
+        """Drivers cannot delete forever; nothing is removed."""
+        self.assertEqual(self.delete_forever(self.archived, self.driver).status_code, 403)
+        self.client.force_authenticate(None)
+        self.assertIn(self.client.delete(f"/api/tracks/{self.archived.id}/?permanent=true").status_code, (401, 403))
+        self.assertTrue(Track.objects.filter(pk=self.archived.pk).exists())
+
+    def test_plain_delete_still_archives_not_deletes(self):
+        """Without ?permanent=true the old behaviour is unchanged."""
+        Session.objects.create(driver=self.driver, track=self.archived, started_at=timezone.now())
+        active = Track.objects.create(name="Used")
+        Session.objects.create(driver=self.driver, track=active, started_at=timezone.now())
+        self.client.force_authenticate(self.coach)
+        self.assertEqual(self.client.delete(f"/api/tracks/{active.id}/?permanent=false").data["status"], "archived")

@@ -80,6 +80,8 @@ class TrackDetailView(generics.RetrieveUpdateDestroyAPIView):
     PUT/PATCH /api/tracks/<uuid>/ — update a track (Admin only)
     DELETE /api/tracks/<uuid>/ — Admin or Coach. A track with sessions (or driver
         thresholds) is archived and keeps its history; a never-used track is deleted.
+    DELETE /api/tracks/<uuid>/?permanent=true — Admin or Coach. Deletes an archived track for good;
+        409 when it is not archived or still has sessions.
     The built-in track answers 409 to every change. Archived tracks can still be read.
     """
 
@@ -105,10 +107,21 @@ class TrackDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
-        """Archive a track that has history, delete one that never was used, refuse the built-in."""
+        """Archive a track that has history, delete one that never was used, refuse the built-in.
+
+        With ?permanent=true an archived track is deleted for good, but only when it has no sessions
+        (Session.track cascades, so deleting would erase that history); leftover driver limits go with it.
+        """
         track = self.get_object()
         if track.is_builtin:
             return builtin_locked_response()
+        if request.query_params.get("permanent") == "true":
+            if not track.is_archived:
+                return Response({"detail": "Only an archived map can be deleted forever. Delete it first to archive it."}, status=409)
+            if track.sessions.exists():
+                return Response({"detail": "This map has driving sessions. Deleting it would erase their history, so it stays archived."}, status=409)
+            track.delete()
+            return Response(status=204)
         if track_has_history(track):
             track.is_archived = True
             track.save(update_fields=["is_archived"])
