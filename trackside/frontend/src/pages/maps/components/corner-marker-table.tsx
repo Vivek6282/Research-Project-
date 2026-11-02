@@ -3,10 +3,10 @@
  * the radius at the marker and the safe corner speed at the current limit.
  */
 
-import { Trash2 } from "lucide-react";
+import { History, Trash2 } from "lucide-react";
 import { markerRadius } from "../corner-editor-logic";
 import { MAX_LABEL_LENGTH, limitError, parseLimit, safeSpeedKmh } from "../safe-speed";
-import type { EditorMarker, EditorPayload } from "../types";
+import { CORNER_TYPES, type EditorMarker, type EditorPayload } from "../types";
 
 interface CornerMarkerTableProps {
   payload: EditorPayload;
@@ -17,13 +17,15 @@ interface CornerMarkerTableProps {
   onSelect: (key: string) => void;
   onChange: (key: string, patch: Partial<EditorMarker>) => void;
   onRemove: (key: string) => void;
+  /** Opens the limit history of a saved corner; the button is hidden when this is missing */
+  onHistory?: (marker: EditorMarker) => void;
 }
 
 const inputClass =
   "w-full min-w-0 bg-[#0A0E13] border border-[#232B35] rounded-[2px] px-2 py-1.5 text-xs font-mono text-[#E7EDF3] focus:border-[#3FA6E0] outline-none";
 
 /** One editable (or read-only) row per marker. */
-export function CornerMarkerTable({ payload, markers, selectedKey, editable, problems, onSelect, onChange, onRemove }: CornerMarkerTableProps) {
+export function CornerMarkerTable({ payload, markers, selectedKey, editable, problems, onSelect, onChange, onRemove, onHistory }: CornerMarkerTableProps) {
   if (markers.length === 0) {
     return (
       <p data-testid="editor-no-markers" className="text-xs font-mono text-[#7C8898] p-3 border border-dashed border-[#232B35] rounded">
@@ -79,6 +81,23 @@ export function CornerMarkerTable({ payload, markers, selectedKey, editable, pro
                 className="col-span-3 sm:col-span-1 inline-flex items-center justify-center gap-1 text-[11px] font-mono px-2 py-1.5 min-h-[32px] rounded-[2px] border border-[#232B35] text-[#7C8898] hover:text-[#E5473C] hover:border-[#E5473C] cursor-pointer">
                 <Trash2 size={13} /> Delete</button>
             ) : <span />}
+            <div className="col-span-full flex flex-wrap items-center gap-2 pl-8 text-[11px] font-mono text-[#7C8898]">
+              {editable ? (
+                <label className="flex items-center gap-1.5">Type
+                  <select data-testid={`marker-type-${order + 1}`} aria-label={`Corner ${order + 1} type`} value={m.cornerType}
+                    onClick={(e) => e.stopPropagation()} onChange={(e) => onChange(m.key, { cornerType: e.target.value })}
+                    className="bg-[#0A0E13] border border-[#232B35] rounded-[2px] px-1.5 py-1 text-[#E7EDF3] capitalize">
+                    {CORNER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </label>
+              ) : <span className="capitalize" data-testid={`marker-type-${order + 1}`}>Type: {m.cornerType}</span>}
+              {onHistory && m.id && (
+                <button data-testid={`marker-history-${order + 1}`} onClick={(e) => { e.stopPropagation(); onHistory(m); }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-[2px] border border-[#232B35] hover:text-[#3FA6E0] hover:border-[#3FA6E0] cursor-pointer">
+                  <History size={12} /> Limit history
+                </button>
+              )}
+            </div>
             {problems[m.key] && <p className="col-span-full text-[10px] text-[#E5473C]" data-testid={`marker-problem-${order + 1}`}>{problems[m.key]}</p>}
           </div>
         );

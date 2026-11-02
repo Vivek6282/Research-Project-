@@ -120,10 +120,41 @@ describe("CornerEditorDialog (editable map)", () => {
     expect(url).toBe("/api/tracks/t1/corners/");
     expect(body.outline_version).toBe("v1");
     expect(body.markers).toEqual([
-      { id: "z1", label: "Big Hairpin", threshold_g: 1.2, center_index: 15, length_m: 30 },
-      { id: null, label: "Turn 2", threshold_g: 1.25, center_index: 80, length_m: 30 },
+      { id: "z1", label: "Big Hairpin", threshold_g: 1.2, corner_type: "other", center_index: 15, length_m: 30 },
+      { id: null, label: "Turn 2", threshold_g: 1.25, corner_type: "other", center_index: 80, length_m: 30 },
     ]);
     expect(screen.getByTestId("editor-saved").textContent).toContain("1 hidden");
+  });
+
+  it("changes a corner's type and sends it on Save", async () => {
+    vi.mocked(api.put).mockResolvedValue(makePayload());
+    await open();
+    fireEvent.change(screen.getByTestId("marker-type-1"), { target: { value: "hairpin" } });
+    fireEvent.click(screen.getByTestId("editor-save-btn"));
+    await waitFor(() => expect(api.put).toHaveBeenCalled());
+    expect((vi.mocked(api.put).mock.calls[0][1] as { markers: { corner_type: string }[] }).markers[0].corner_type).toBe("hairpin");
+  });
+
+  it("opens the limit history of a saved corner and lists the changes", async () => {
+    await open();
+    expect(screen.queryByTestId("marker-history-2")).toBeNull();
+    vi.mocked(api.get).mockResolvedValueOnce({ results: [{ id: "h1", old_g: 1.1, new_g: 1.2, changed_by_name: "Coach Kim", changed_at: "2026-05-01T10:00:00Z" }] });
+    fireEvent.click(screen.getByTestId("marker-history-1"));
+    await waitFor(() => expect(screen.getByTestId("history-list").textContent).toContain("Coach Kim"));
+    expect(api.get).toHaveBeenCalledWith("/api/tracks/t1/zones/z1/limit-history/");
+    fireEvent.click(screen.getByLabelText("Close history"));
+    expect(screen.queryByTestId("limit-history-dialog")).toBeNull();
+  });
+
+  it("says so when a corner has no history, and shows an error when loading fails", async () => {
+    await open();
+    vi.mocked(api.get).mockResolvedValueOnce([]);
+    fireEvent.click(screen.getByTestId("marker-history-1"));
+    await waitFor(() => expect(screen.getByTestId("history-empty")).toBeTruthy());
+    fireEvent.click(screen.getByLabelText("Close history"));
+    vi.mocked(api.get).mockRejectedValueOnce(new Error("Not allowed"));
+    fireEvent.click(screen.getByTestId("marker-history-1"));
+    await waitFor(() => expect(screen.getByTestId("history-error").textContent).toContain("Not allowed"));
   });
 
   it("shows a labelled Delete button per corner with a hint that Save applies it", async () => {

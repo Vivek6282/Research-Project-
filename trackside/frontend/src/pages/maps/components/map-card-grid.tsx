@@ -3,7 +3,7 @@
  * Which buttons appear depends on what the caller allows; the server checks every action again.
  */
 
-import { Pencil, Play, RotateCcw, Trash2 } from "lucide-react";
+import { Copy, Pencil, Play, RotateCcw, Settings2, Trash2 } from "lucide-react";
 import { Chip } from "../../../components/ui/chip";
 import { SOURCE_LABELS, type MapTrack } from "../types";
 import { OutlineThumbnail } from "./outline-thumbnail";
@@ -22,6 +22,10 @@ export interface MapCardActions {
   onRestore: (map: MapTrack) => void;
   /** Delete an archived map for good; the button is hidden when this is missing */
   onDeleteForever?: (map: MapTrack) => void;
+  /** Rename the map / change its kart class (Admin only); the button is hidden when this is missing */
+  onEditDetails?: (map: MapTrack) => void;
+  /** Make an editable copy; the button is hidden when this is missing */
+  onDuplicate?: (map: MapTrack) => void;
 }
 
 interface MapCardGridProps extends MapCardActions {
@@ -46,6 +50,11 @@ function MapCard({ map, actions }: { map: MapTrack; actions: MapCardActions }) {
         <p data-testid={`map-card-corners-${map.name}`} className="text-[11px] font-mono text-[#7C8898]">
           {corners} alert {corners === 1 ? "corner" : "corners"} · {SOURCE_LABELS[map.source]}
         </p>
+        {map.is_archived && typeof map.session_count === "number" && (
+          <p data-testid={`map-card-sessions-${map.name}`} className="text-[11px] font-mono text-[#7C8898]">
+            {map.session_count === 0 ? "No sessions" : `${map.session_count} ${map.session_count === 1 ? "session" : "sessions"} (history kept)`}
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap gap-1.5 min-h-[22px]">
         {map.is_builtin && <Chip color="#3FA6E0">Built-in</Chip>}
@@ -70,6 +79,16 @@ function MapCard({ map, actions }: { map: MapTrack; actions: MapCardActions }) {
             <Pencil size={13} /> {map.is_builtin || map.is_archived ? "View corners" : "Edit corners"}
           </button>
         )}
+        {actions.onEditDetails && !map.is_builtin && (
+          <button className={buttonClass} data-testid={`edit-details-${map.name}`} onClick={() => actions.onEditDetails?.(map)}>
+            <Settings2 size={13} /> Edit details
+          </button>
+        )}
+        {actions.onDuplicate && (
+          <button className={buttonClass} data-testid={`duplicate-${map.name}`} title="Make an editable copy of this map" onClick={() => actions.onDuplicate?.(map)}>
+            <Copy size={13} /> Duplicate
+          </button>
+        )}
         {actions.canArchive && !map.is_builtin && !map.is_archived && (
           <button className={buttonClass} data-testid={`archive-${map.name}`} title="Delete this map" onClick={() => actions.onArchive(map)}>
             <Trash2 size={13} /> Delete
@@ -81,7 +100,10 @@ function MapCard({ map, actions }: { map: MapTrack; actions: MapCardActions }) {
           </button>
         )}
         {actions.canArchive && actions.onDeleteForever && !map.is_builtin && map.is_archived && (
-          <button className={`${buttonClass} hover:!text-[#E5473C] hover:!border-[#E5473C]`} data-testid={`delete-forever-${map.name}`} onClick={() => actions.onDeleteForever?.(map)}>
+          <button className={`${buttonClass} hover:!text-[#E5473C] hover:!border-[#E5473C]`} data-testid={`delete-forever-${map.name}`}
+            disabled={(map.session_count ?? 0) > 0}
+            title={(map.session_count ?? 0) > 0 ? "This map has sessions, so its history is kept. It cannot be deleted forever." : "Delete this map for good"}
+            onClick={() => actions.onDeleteForever?.(map)}>
             <Trash2 size={13} /> Delete forever
           </button>
         )}

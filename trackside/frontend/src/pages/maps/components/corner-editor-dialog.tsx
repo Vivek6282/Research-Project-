@@ -14,6 +14,7 @@ import { useCornerEditor } from "../hooks/use-corner-editor";
 import type { MapTrack } from "../types";
 import { CornerEditorCanvas } from "./corner-editor-canvas";
 import { CornerMarkerTable } from "./corner-marker-table";
+import { LimitHistoryDialog } from "./limit-history-dialog";
 
 interface CornerEditorDialogProps {
   map: MapTrack;
@@ -31,6 +32,7 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
   const { payload } = editor;
   const [confirmClose, setConfirmClose] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [historyOf, setHistoryOf] = useState<{ id: string; label: string } | null>(null);
   const [copyName, setCopyName] = useState(`${map.name} copy`);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [isCopying, setIsCopying] = useState(false);
@@ -101,6 +103,7 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
                   payload={payload} markers={editor.markers} selectedKey={editor.selectedKey} editable={canEdit}
                   problems={editor.checks.byKey} onSelect={editor.setSelectedKey}
                   onChange={editor.updateMarker} onRemove={editor.removeMarker}
+                  onHistory={(m) => m.id && setHistoryOf({ id: m.id, label: m.label })}
                 />
               </div>
               {canEdit && (
@@ -146,6 +149,7 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
           )}
         </div>
       </div>
+      {historyOf && <LimitHistoryDialog trackId={map.id} zoneId={historyOf.id} label={historyOf.label} onClose={() => setHistoryOf(null)} />}
       <ConfirmDialog isOpen={confirmClear} title="Delete all corners?"
         message={`All ${editor.markers.length} corners on this map will be removed when you press Save corners. Corners that already have telemetry or alerts are hidden and keep their history. Until you save, you can still close without saving.`}
         confirmText="Delete all" variant="danger" onCancel={() => setConfirmClear(false)} onConfirm={() => { setConfirmClear(false); editor.removeAllMarkers(); }} />

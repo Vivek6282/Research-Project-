@@ -41,6 +41,7 @@ export function toEditorMarker(marker: ServerMarker, serial: number): EditorMark
     label: marker.label,
     limit: String(marker.threshold_g),
     length: String(marker.length_m),
+    cornerType: marker.corner_type ?? "other",
     centerIndex: marker.center_index,
   };
 }
@@ -51,6 +52,7 @@ export function toServerMarkers(markers: EditorMarker[]): Record<string, unknown
     id: m.id,
     label: m.label.trim(),
     threshold_g: Number(m.limit),
+    corner_type: m.cornerType,
     center_index: m.centerIndex,
     length_m: Number(m.length),
   }));

@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
-vi.mock("../../../lib/api", () => ({ api: { get: vi.fn(), delete: vi.fn(), post: vi.fn(), upload: vi.fn() } }));
+vi.mock("../../../lib/api", () => ({ api: { get: vi.fn(), delete: vi.fn(), post: vi.fn(), patch: vi.fn(), upload: vi.fn() } }));
 vi.mock("../../../components/shell/top-bar", () => ({ TopBar: () => <div data-testid="topbar" /> }));
 const authState: { user: { role: string } | null } = { user: { role: "admin" } };
 vi.mock("../../../lib/auth", () => ({ useAuth: () => authState }));
@@ -144,6 +144,51 @@ describe("MapsBrowser", () => {
     fireEvent.click(screen.getByTestId("delete-forever-Old"));
     fireEvent.click(screen.getByTestId("confirm-dialog-confirm-btn"));
     await waitFor(() => expect(screen.getByTestId("maps-error").textContent).toContain("driving sessions"));
+  });
+
+  it("renames a map and changes its kart class (Admin), then reloads", async () => {
+    vi.mocked(api.patch).mockResolvedValueOnce({});
+    render(<MapsBrowser canManage canEditDetails />);
+    await waitFor(() => expect(screen.getByTestId("edit-details-Kari")).toBeTruthy());
+    fireEvent.click(screen.getByTestId("edit-details-Kari"));
+    fireEvent.change(screen.getByTestId("map-name-input"), { target: { value: "  Kari Speedway " } });
+    fireEvent.change(screen.getByTestId("map-kart-class"), { target: { value: "rental" } });
+    fireEvent.click(screen.getByTestId("map-name-submit"));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/tracks/k/", { name: "Kari Speedway", kart_class: "rental" }));
+    await waitFor(() => expect(screen.getByTestId("maps-notice").textContent).toContain("Kari Speedway"));
+    expect(screen.queryByTestId("map-name-dialog")).toBeNull();
+  });
+
+  it("keeps the details dialog open with the server's message when the rename is refused, and blocks a blank name", async () => {
+    vi.mocked(api.patch).mockRejectedValueOnce(new Error("A map with this name already exists."));
+    render(<MapsBrowser canManage canEditDetails />);
+    await waitFor(() => expect(screen.getByTestId("edit-details-Kari")).toBeTruthy());
+    fireEvent.click(screen.getByTestId("edit-details-Kari"));
+    fireEvent.change(screen.getByTestId("map-name-input"), { target: { value: "   " } });
+    expect((screen.getByTestId("map-name-submit") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByTestId("map-name-input"), { target: { value: "Taken" } });
+    fireEvent.click(screen.getByTestId("map-name-submit"));
+    await waitFor(() => expect(screen.getByTestId("map-name-error").textContent).toContain("already exists"));
+    expect(screen.getByTestId("map-name-dialog")).toBeTruthy();
+  });
+
+  it("has no Edit details button unless the caller allows it (Coach)", async () => {
+    render(<MapsBrowser canManage />);
+    await waitFor(() => expect(screen.getByTestId("archive-Kari")).toBeTruthy());
+    expect(screen.queryByTestId("edit-details-Kari")).toBeNull();
+  });
+
+  it("duplicates any map (the Demo Circuit too) under a new name and reports clamped limits", async () => {
+    mockPost.mockImplementation(async (url: string) => (url.includes("duplicate") ? { clamped: [{ label: "Sweeper", from_g: 1.55, to_g: 1.5 }] } : {}));
+    render(<MapsBrowser canManage />);
+    await waitFor(() => expect(screen.getByTestId("duplicate-Demo Circuit")).toBeTruthy());
+    fireEvent.click(screen.getByTestId("duplicate-Demo Circuit"));
+    expect((screen.getByTestId("map-name-input") as HTMLInputElement).value).toBe("Demo Circuit copy");
+    expect(screen.queryByTestId("map-kart-class")).toBeNull();
+    fireEvent.change(screen.getByTestId("map-name-input"), { target: { value: "My copy" } });
+    fireEvent.click(screen.getByTestId("map-name-submit"));
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith("/api/tracks/d/duplicate/", { name: "My copy" }));
+    await waitFor(() => expect(screen.getByTestId("maps-notice").textContent).toContain("Sweeper limit 1.55 g became 1.5 g"));
   });
 
   it("restores an archived map", async () => {

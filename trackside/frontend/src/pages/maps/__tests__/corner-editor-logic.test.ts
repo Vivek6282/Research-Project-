@@ -13,7 +13,7 @@ const payload = {
 
 /** A marker with sensible defaults. */
 function marker(patch: Partial<EditorMarker> & { key: string }): EditorMarker {
-  return { id: null, label: patch.key, limit: "1.25", length: "30", centerIndex: 50, ...patch };
+  return { id: null, label: patch.key, limit: "1.25", length: "30", cornerType: "other", centerIndex: 50, ...patch };
 }
 
 describe("zone segments", () => {
@@ -52,7 +52,7 @@ describe("naming and conversion", () => {
 
   it("sends trimmed names and numbers to the server", () => {
     const sent = toServerMarkers([marker({ key: "a", id: "z1", label: "  Hairpin ", limit: "1.3", length: "40", centerIndex: 9 })]);
-    expect(sent).toEqual([{ id: "z1", label: "Hairpin", threshold_g: 1.3, center_index: 9, length_m: 40 }]);
+    expect(sent).toEqual([{ id: "z1", label: "Hairpin", threshold_g: 1.3, corner_type: "other", center_index: 9, length_m: 40 }]);
   });
 });
 

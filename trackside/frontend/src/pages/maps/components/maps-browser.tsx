@@ -7,12 +7,14 @@
 import { useState, type ReactNode } from "react";
 import { MapPinned, Plus } from "lucide-react";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
+import { api } from "../../../lib/api";
 import { useMaps, type MapView } from "../hooks/use-maps";
 import type { MapTrack } from "../types";
 import { AddMapWizard } from "./add-map-wizard";
 import { DrawMapWizard } from "./draw-map-wizard";
 import { CornerEditorDialog } from "./corner-editor-dialog";
 import { MapCardGrid } from "./map-card-grid";
+import { MapNameDialog } from "./map-name-dialog";
 
 const VIEW_TABS: { id: MapView; label: string }[] = [
   { id: "active", label: "Active" },
@@ -28,6 +30,8 @@ export interface MapsBrowserProps {
   playDisabledReason?: string | null;
   /** Coach and Admin: show Edit corners (the built-in and archived maps open view-only) */
   canEditCorners?: boolean;
+  /** Admin only: rename a map and change its kart class */
+  canEditDetails?: boolean;
   /** Bump this number to make the list reload (for example after the corner editor saves) */
   reloadKey?: number;
   /** Extra content shown above the cards (for example the demo status panel) */
@@ -35,13 +39,15 @@ export interface MapsBrowserProps {
 }
 
 /** The browser itself. */
-export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorners = false, reloadKey = 0, children }: MapsBrowserProps) {
+export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorners = false, canEditDetails = false, reloadKey = 0, children }: MapsBrowserProps) {
   const maps = useMaps(canManage, reloadKey);
   const [editing, setEditing] = useState<MapTrack | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [showDrawing, setShowDrawing] = useState(false);
   const [toArchive, setToArchive] = useState<MapTrack | null>(null);
   const [toDeleteForever, setToDeleteForever] = useState<MapTrack | null>(null);
+  const [detailsOf, setDetailsOf] = useState<MapTrack | null>(null);
+  const [copyOf, setCopyOf] = useState<MapTrack | null>(null);
 
   return (
     <div className="flex flex-col gap-3" data-testid="maps-browser">
@@ -99,6 +105,8 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorn
           onArchive={setToArchive}
           onRestore={maps.restoreMap}
           onDeleteForever={setToDeleteForever}
+          onEditDetails={canEditDetails ? setDetailsOf : undefined}
+          onDuplicate={canManage ? setCopyOf : undefined}
         />
       )}
 
@@ -127,6 +135,31 @@ export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorn
           onChanged={(message) => {
             maps.reload();
             if (message) maps.announce(message);
+          }}
+        />
+      )}
+      {detailsOf && (
+        <MapNameDialog
+          title="Edit map details" initialName={detailsOf.name} initialKartClass={detailsOf.kart_class ?? "sprint"} submitText="Save"
+          onClose={() => setDetailsOf(null)}
+          onSubmit={async ({ name, kartClass }) => {
+            await api.patch(`/api/tracks/${detailsOf.id}/`, { name, kart_class: kartClass });
+            setDetailsOf(null);
+            maps.announce(`"${name}" was updated.`);
+            await maps.reload();
+          }}
+        />
+      )}
+      {copyOf && (
+        <MapNameDialog
+          title={`Duplicate ${copyOf.name}`} initialName={`${copyOf.name} copy`} submitText="Duplicate"
+          onClose={() => setCopyOf(null)}
+          onSubmit={async ({ name }) => {
+            const res = await api.post<{ clamped?: { label: string; from_g: number; to_g: number }[] }>(`/api/tracks/${copyOf.id}/duplicate/`, { name });
+            const note = (res.clamped ?? []).map((c) => `${c.label} limit ${c.from_g} g became ${c.to_g} g (the allowed maximum)`).join("; ");
+            setCopyOf(null);
+            maps.announce(`Created "${name}".${note ? ` ${note}.` : ""}`);
+            await maps.reload();
           }}
         />
       )}

@@ -95,6 +95,31 @@ describe("MapCardGrid", () => {
     expect(onDeleteForever).toHaveBeenCalledWith(expect.objectContaining({ id: "2" }));
   });
 
+  it("shows the session count on archived maps and disables Delete forever when sessions exist", () => {
+    const onDeleteForever = vi.fn();
+    render(<MapCardGrid maps={[map({ name: "Used", is_archived: true, session_count: 3 }), map({ id: "2", name: "Free", is_archived: true, session_count: 0 })]} canArchive onDeleteForever={onDeleteForever} {...handlers} />);
+    expect(screen.getByTestId("map-card-sessions-Used").textContent).toContain("3 sessions");
+    expect(screen.getByTestId("map-card-sessions-Free").textContent).toContain("No sessions");
+    expect((screen.getByTestId("delete-forever-Used") as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId("delete-forever-Free") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("offers Edit details (not on the built-in) and Duplicate (also on the built-in) only when handlers are given", () => {
+    const onEditDetails = vi.fn();
+    const onDuplicate = vi.fn();
+    const demo = map({ id: "3", name: "Demo Circuit", is_builtin: true });
+    const { unmount } = render(<MapCardGrid maps={[map({ name: "A" }), demo]} canArchive {...handlers} />);
+    expect(screen.queryByTestId("edit-details-A")).toBeNull();
+    expect(screen.queryByTestId("duplicate-A")).toBeNull();
+    unmount();
+    render(<MapCardGrid maps={[map({ name: "A" }), demo]} canArchive onEditDetails={onEditDetails} onDuplicate={onDuplicate} {...handlers} />);
+    expect(screen.queryByTestId("edit-details-Demo Circuit")).toBeNull();
+    fireEvent.click(screen.getByTestId("edit-details-A"));
+    fireEvent.click(screen.getByTestId("duplicate-Demo Circuit"));
+    expect(onEditDetails).toHaveBeenCalledWith(expect.objectContaining({ name: "A" }));
+    expect(onDuplicate).toHaveBeenCalledWith(expect.objectContaining({ name: "Demo Circuit" }));
+  });
+
   it("hides Delete forever without permission or without a handler", () => {
     const archived = map({ id: "2", name: "B", is_archived: true });
     const { unmount } = render(<MapCardGrid maps={[archived]} canArchive={false} onDeleteForever={vi.fn()} {...handlers} />);

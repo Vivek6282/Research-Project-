@@ -33,7 +33,7 @@ export function MapsPage() {
           <h1 className="text-sm font-mono uppercase tracking-widest text-[#E7EDF3]">Maps</h1>
         </div>
         <Panel title="Track maps">
-          <MapsBrowser canManage={canManage} canEditCorners={canManage} />
+          <MapsBrowser canManage={canManage} canEditCorners={canManage} canEditDetails={canManage} />
         </Panel>
       </main>
     </div>

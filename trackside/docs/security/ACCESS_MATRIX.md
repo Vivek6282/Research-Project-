@@ -33,12 +33,12 @@ server; the frontend only hides buttons.
 | Audit log, diagnostics | read | ✓ | — | — | — |
 | Tracks `tracks/` | list, read, reference line | ✓ | ✓ | ✓ | — |
 | | create | ✓ | — | — | — |
-| | edit | ✓ | — | — | — |
+| | edit (rename, kart class; name must be unique, class change refused if a corner limit no longer fits) | ✓ | — | — | — |
 | | archive/delete, restore, duplicate | ✓ | ✓ | — | — |
 | | delete forever (`DELETE tracks/<id>/?permanent=true`; archived, non-built-in maps with no sessions only, else 409) | ✓ | ✓ | — | — |
 | Map import / draw / demo circuit / survey | create | ✓ | ✓ | — | — |
 | Corners (zones) | read | ✓ | ✓ | ✓ | — |
-| | add, corner editor save | ✓ | ✓ | — | — |
+| | add, corner editor save (name, limit, length, type) | ✓ | ✓ | — | — |
 | | edit/retire one zone | ✓ | — | — | — |
 | | limit history | ✓ | ✓ | — | — |
 | Sessions `sessions/` | list, read | ✓ | ✓ | own | assigned driver's |

@@ -61,6 +61,7 @@ export function useCornerEditor(trackId: string) {
             ? suggestion.suggested_name : nextTurnName(current),
           limit: String(payload.limit_range_g.default),
           length: String(payload.zone_length_m.default),
+          cornerType: "other",
         },
       ]);
       setSelectedKey(key);

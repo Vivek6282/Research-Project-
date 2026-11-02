@@ -20,6 +20,9 @@ export interface MapTrack {
   source: "manual" | "builtin" | "racechrono_csv" | "vbo" | "drawn";
   is_builtin: boolean;
   is_archived: boolean;
+  kart_class?: string;
+  /** How many driving sessions used this map (history that blocks Delete forever) */
+  session_count?: number;
   zones: MapZone[];
   /** The stored GPS outline (custom maps) */
   reference_line?: LatLng[] | null;
@@ -84,6 +87,7 @@ export interface ServerMarker {
   id: string | null;
   label: string;
   threshold_g: number;
+  corner_type?: string;
   center_index: number | null;
   length_m: number;
   radius_m?: number | null;
@@ -124,5 +128,8 @@ export interface EditorMarker {
   label: string;
   limit: string;
   length: string;
+  cornerType: string;
   centerIndex: number | null;
 }
+
+export const CORNER_TYPES = ["hairpin", "sweeper", "chicane", "straight", "other"] as const;
