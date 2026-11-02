@@ -12,6 +12,7 @@ from rest_framework.test import APITestCase
 from demo_control.demo_run import DEMO_DEVICE_NAME
 from demo_control.simulator import reset_state_for_testing
 from devices.models import Device
+from tracks.models import Track, Zone
 from tracks.tests.track_factory import make_imported_track
 
 User = get_user_model()
@@ -29,7 +30,7 @@ def fake_process(pid=4242):
 
 
 class DemoRunBase(APITestCase):
-    """A coach, two drivers, a custom four-corner map and the built-in map."""
+    """A coach, two drivers and a custom four-corner map."""
 
     def setUp(self):
         """Create users and maps, point profile files at a temp folder, and enable demo tools."""
@@ -54,6 +55,13 @@ class DemoRunBase(APITestCase):
         self.addCleanup(self.popen.stop)
         self.proc = fake_process()
         self.popen_mock.return_value = self.proc
+
+    def sim_map(self):
+        """A map with the three corners the laptop simulator labels its readings with."""
+        track = Track.objects.create(name="Sim Map", kart_class="sprint", reference_line=[{"lat": 10.0, "lng": 76.0}] * 3)
+        for label, limit in (("Hairpin", 1.15), ("Sweeper", 1.4), ("Chicane", 1.3)):
+            Zone.objects.create(track=track, label=label, threshold_g=limit)
+        return track
 
     def start(self, **override):
         """POST a start request for the custom map and Ana, 2 laps, edge pace."""

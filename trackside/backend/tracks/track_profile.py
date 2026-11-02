@@ -89,9 +89,7 @@ def locate_corner(zone: Zone, frame: LocalFrame, points: List[Point], radii: Lis
 
 
 def build_track_profile(track: Track, driver=None) -> dict:
-    """Make the profile dict for an active, non-built-in track. Each corner carries the map's limit; driver is accepted but no longer changes it."""
-    if track.is_builtin:
-        raise ProfileError("The built-in Demo Circuit uses the simulator's own track and has no profile.")
+    """Make the profile dict for an active track. Each corner carries the map's limit; driver is accepted but no longer changes it."""
     if track.is_archived:
         raise ProfileError("This map is archived. Restore it first.")
     frame, points, loop_length = load_outline(track)

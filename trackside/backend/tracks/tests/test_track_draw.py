@@ -137,7 +137,7 @@ class TestConfirmEndpoint(DrawBase):
         response = self.confirm()
         self.assertEqual(response.status_code, 201, response.content)
         track = Track.objects.get(name="Drawn Test Track")
-        self.assertEqual((track.source, track.is_builtin, track.created_by), ("drawn", False, self.coach))
+        self.assertEqual((track.source, track.created_by), ("drawn", self.coach))
         self.assertGreater(len(track.reference_line), 300)
         zones = list(Zone.objects.filter(track=track))
         self.assertEqual(len(zones), 2)
@@ -173,7 +173,7 @@ class TestConfirmEndpoint(DrawBase):
         response = self.client.get(f"/api/tracks/{track.id}/corners/")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual((len(data["markers"]), data["editable"], data["is_schematic"]), (2, True, False))
+        self.assertEqual((len(data["markers"]), data["editable"]), (2, True))
         self.assertGreater(len(data["outline"]), 300)
 
 

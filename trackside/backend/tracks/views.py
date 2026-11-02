@@ -16,24 +16,13 @@ from rest_framework.response import Response
 from accounts.permissions import IsAdmin, IsAdminOrCoach
 from drivers.models import DriverZoneThreshold
 from tracks.models import Track, Zone, ZoneThresholdHistory
-from tracks.demo_circuit_setup import ensure_demo_circuit
 from tracks.limit_history import record_initial_limit
-from tracks.outline_gps import schematic_corner_segments, schematic_reference_line, stored_corner_segments
+from tracks.outline_gps import stored_corner_segments
 from tracks.zone_retirement import DEACTIVATED, retire_zone
 from tracks.serializers import TrackSerializer, ZoneSerializer, ZoneThresholdHistorySerializer
 
-BUILTIN_LOCKED_MESSAGE = "The built-in Demo Circuit is locked: it cannot be edited, archived or deleted."
-
-
-def builtin_locked_response():
-    """The 409 answer for any change to the built-in track."""
-    return Response({"detail": BUILTIN_LOCKED_MESSAGE}, status=409)
-
-
 def track_lock_response(track: Track):
-    """A 409 Response when the track's corners must not change (built-in or archived), else None."""
-    if track.is_builtin:
-        return builtin_locked_response()
+    """A 409 Response when the track's corners must not change (archived), else None."""
     if track.is_archived:
         return Response({"detail": "This map is archived. Restore it before changing its corners."}, status=409)
     return None
@@ -100,22 +89,14 @@ class TrackDetailView(generics.RetrieveUpdateDestroyAPIView):
         """Return all tracks (archived too) with zones prefetched."""
         return Track.objects.prefetch_related("zones").annotate(session_count=Count("sessions", distinct=True)).order_by("name")
 
-    def update(self, request, *args, **kwargs):
-        """Refuse edits to the built-in track."""
-        if self.get_object().is_builtin:
-            return builtin_locked_response()
-        return super().update(request, *args, **kwargs)
-
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
-        """Archive a track that has history, delete one that never was used, refuse the built-in.
+        """Archive a track that has history, delete one that never was used.
 
         With ?permanent=true an archived track is deleted for good, but only when it has no sessions
         (Session.track cascades, so deleting would erase that history); leftover driver limits go with it.
         """
         track = self.get_object()
-        if track.is_builtin:
-            return builtin_locked_response()
         if request.query_params.get("permanent") == "true":
             if not track.is_archived:
                 return Response({"detail": "Only an archived map can be deleted forever. Delete it first to archive it."}, status=409)
@@ -139,10 +120,8 @@ class TrackRestoreView(generics.GenericAPIView):
     queryset = Track.objects.all()
 
     def post(self, request, pk=None):
-        """Clear the archived flag; the built-in track and active tracks are refused."""
+        """Clear the archived flag; active tracks are refused."""
         track = self.get_object()
-        if track.is_builtin:
-            return builtin_locked_response()
         if not track.is_archived:
             return Response({"detail": "This map is not archived."}, status=400)
         track.is_archived = False
@@ -239,40 +218,24 @@ class ZoneLimitHistoryView(generics.ListAPIView):
         ).select_related("changed_by")
 
 
-class DemoCircuitView(generics.GenericAPIView):
-    """POST /api/tracks/demo-circuit/ — make sure the built-in Demo Circuit exists, then return it (Admin/Coach)."""
-
-    permission_classes = [IsAdminOrCoach]
-    serializer_class = TrackSerializer
-
-    def post(self, request):
-        """Create the Demo Circuit and its three corners if missing (safe to call any number of times)."""
-        return Response(TrackSerializer(ensure_demo_circuit()).data)
-
-
 class TrackReferenceLineView(generics.GenericAPIView):
     """
     GET /api/tracks/<uuid>/reference-line/ — the outline the Live Track View draws.
 
-    Other maps: their stored reference_line (null when never surveyed), unchanged.
-    Built-in Demo Circuit: a schematic outline turned into pseudo lat/lng when asked
-    (never stored) and marked is_schematic. Active corners are returned as outline segments.
+    The stored reference_line (null when never surveyed), unchanged, and the active corners
+    as outline segments.
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk=None):
-        """Return the outline, the is_schematic flag and the corner segments of the track."""
+        """Return the outline and the corner segments of the track."""
         track = get_object_or_404(Track, pk=pk)
         zones = list(track.zones.filter(is_active=True))
-        if track.is_builtin:
-            line, corners = schematic_reference_line(), schematic_corner_segments(zones)
-        else:
-            line, corners = track.reference_line, stored_corner_segments(zones)
+        line, corners = track.reference_line, stored_corner_segments(zones)
         return Response({
             "track_id": str(track.id),
             "track_name": track.name,
             "reference_line": line,
-            "is_schematic": bool(track.is_builtin),
             "corners": corners,
         })

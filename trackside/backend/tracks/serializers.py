@@ -6,7 +6,6 @@ Zone data is nested inside Track responses for convenience.
 """
 
 from rest_framework import serializers
-from tracks.demo_circuit import schematic_outline_json
 from tracks.limit_history import set_zone_limit
 from tracks.models import Track, Zone, ZoneThresholdHistory
 from tracks.zone_rules import gps_range_problem, label_problem
@@ -78,8 +77,6 @@ class TrackSerializer(serializers.ModelSerializer):
 
     zones = serializers.SerializerMethodField()
     min_threshold_g = serializers.ReadOnlyField()
-    schematic_outline = serializers.SerializerMethodField()
-    is_schematic = serializers.SerializerMethodField()
     session_count = serializers.IntegerField(read_only=True, default=0)
 
     def validate_name(self, value):
@@ -104,14 +101,6 @@ class TrackSerializer(serializers.ModelSerializer):
                     f"Corner limits above {ceiling} g do not fit this kart class: {', '.join(too_high)}. Lower them first.")
         return value
 
-    def get_schematic_outline(self, obj):
-        """The built-in map's drawn-shape outline for thumbnails; None for every other map."""
-        return schematic_outline_json() if obj.is_builtin and not obj.reference_line else None
-
-    def get_is_schematic(self, obj):
-        """True when the outline shown for this map is a schematic picture, not a GPS survey."""
-        return bool(obj.is_builtin and not obj.reference_line)
-
     def get_zones(self, obj):
         """Active zones only; corners removed from a track keep their history but are hidden here."""
         return ZoneSerializer([z for z in obj.zones.all() if z.is_active], many=True, context=self.context).data
@@ -120,11 +109,10 @@ class TrackSerializer(serializers.ModelSerializer):
         model = Track
         fields = [
             "id", "name", "reference_line", "kart_class", "min_threshold_g",
-            "surveyed_at", "created_by", "zones", "is_builtin", "is_archived", "source",
-            "schematic_outline", "is_schematic", "session_count",
+            "surveyed_at", "created_by", "zones", "is_archived", "source",
+            "session_count",
         ]
         read_only_fields = [
-            "id", "created_by", "min_threshold_g", "is_builtin", "is_archived", "source",
-            "schematic_outline", "is_schematic",
+            "id", "created_by", "min_threshold_g", "is_archived", "source",
         ]
 

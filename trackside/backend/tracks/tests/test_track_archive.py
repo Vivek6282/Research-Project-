@@ -1,5 +1,5 @@
 """
-Trackside — Tests for archive instead of delete, restore, and the built-in lock (C7).
+Trackside — Tests for archive instead of delete, restore, and permanent delete (C7).
 """
 
 from django.contrib.auth import get_user_model
@@ -14,7 +14,7 @@ User = get_user_model()
 
 
 class TestTrackArchive(APITestCase):
-    """DELETE archives a used track, deletes an unused one, and never touches the built-in."""
+    """DELETE archives a used track, deletes an unused one, a map called Demo Circuit is an ordinary map."""
 
     def setUp(self):
         """Create the users and data this test class needs."""
@@ -23,7 +23,6 @@ class TestTrackArchive(APITestCase):
         self.admin = make(email="arch_admin@trackside.local", name="A", password="AdminPassword123!", role="admin")
         self.coach = make(email="arch_coach@trackside.local", name="C", password="CoachPassword123!", role="coach")
         self.driver = make(email="arch_driver@trackside.local", name="D", password="DriverPassword123!", role="driver")
-        self.builtin = Track.objects.create(name="Demo Circuit", is_builtin=True, source="builtin")
         self.used = Track.objects.create(name="Used Track")
         self.used_zone = Zone.objects.create(track=self.used, label="Z1", threshold_g=1.2)
         Session.objects.create(driver=self.driver, track=self.used, started_at=timezone.now())
@@ -59,18 +58,15 @@ class TestTrackArchive(APITestCase):
         self.assertFalse(Track.objects.filter(pk=self.unused.pk).exists())
         self.assertFalse(Zone.objects.filter(track_id=self.unused.pk).exists())
 
-    def test_builtin_track_cannot_be_deleted_archived_or_edited(self):
-        """409 with a clear message for DELETE, PATCH, PUT and restore; nothing changes."""
-        response = self.delete(self.builtin, self.admin)
-        self.assertEqual(response.status_code, 409)
-        self.assertIn("Demo Circuit is locked", response.data["detail"])
+    def test_a_map_called_demo_circuit_is_an_ordinary_map(self):
+        """There is no locked built-in map any more: a map with that name can be renamed and deleted like any other."""
+        old = Track.objects.create(name="Demo Circuit")
         self.client.force_authenticate(self.admin)
-        url = f"/api/tracks/{self.builtin.id}/"
-        self.assertEqual(self.client.patch(url, {"name": "Hacked"}, format="json").status_code, 409)
-        self.assertEqual(self.client.put(url, {"name": "Hacked"}, format="json").status_code, 409)
-        self.assertEqual(self.client.post(url + "restore/").status_code, 409)
-        self.builtin.refresh_from_db()
-        self.assertEqual((self.builtin.name, self.builtin.is_archived), ("Demo Circuit", False))
+        url = f"/api/tracks/{old.id}/"
+        self.assertEqual(self.client.patch(url, {"name": "Test Map"}, format="json").status_code, 200)
+        self.assertEqual(self.client.delete(url).status_code, 204)
+        self.assertFalse(Track.objects.filter(pk=old.pk).exists())
+        self.assertEqual(self.client.post("/api/tracks/demo-circuit/").status_code, 404)
 
     def test_driver_cannot_archive_delete_or_restore(self):
         """Drivers get 403 on DELETE and restore."""
@@ -95,9 +91,9 @@ class TestTrackArchive(APITestCase):
             """Track names returned by the list endpoint."""
             return {t["name"] for t in self.client.get("/api/tracks/" + query).data["results"]}
 
-        self.assertEqual(names(), {"Demo Circuit", "Unused Track"})
+        self.assertEqual(names(), {"Unused Track"})
         self.assertEqual(names("?archived=only"), {"Used Track"})
-        self.assertEqual(names("?archived=all"), {"Demo Circuit", "Used Track", "Unused Track"})
+        self.assertEqual(names("?archived=all"), {"Used Track", "Unused Track"})
 
     def test_archived_track_can_still_be_read_for_history(self):
         """GET by id and reference-line keep working for an archived track."""
@@ -166,14 +162,6 @@ class TestTrackPermanentDelete(APITestCase):
         self.assertEqual(response.status_code, 409)
         self.assertIn("archived", response.data["detail"])
         self.assertTrue(Track.objects.filter(pk=active.pk).exists())
-
-    def test_builtin_track_is_refused_even_if_flagged_archived(self):
-        """409 with the Demo Circuit lock message."""
-        builtin = Track.objects.create(name="Demo Circuit", is_builtin=True, is_archived=True, source="builtin")
-        response = self.delete_forever(builtin, self.admin)
-        self.assertEqual(response.status_code, 409)
-        self.assertIn("Demo Circuit is locked", response.data["detail"])
-        self.assertTrue(Track.objects.filter(pk=builtin.pk).exists())
 
     def test_driver_gets_403_and_anonymous_gets_401(self):
         """Drivers cannot delete forever; nothing is removed."""

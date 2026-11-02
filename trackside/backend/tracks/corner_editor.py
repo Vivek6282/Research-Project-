@@ -14,7 +14,6 @@ from typing import Dict, List, Optional
 
 from django.db import transaction
 
-from tracks.demo_circuit import ORIGIN_LAT, ORIGIN_LNG, schematic_points_m, simulator_corner_markers
 from tracks.importing.corners import find_corners, radius_profile, sustained_radius
 from tracks.importing.geometry import LocalFrame, Point, distance
 from tracks.importing.outline import Outline
@@ -48,7 +47,6 @@ class EditorOutline:
     points: List[Point]
     spacing_m: float
     radii: List[float]
-    is_schematic: bool
 
     @property
     def count(self) -> int:
@@ -68,19 +66,15 @@ class EditorOutline:
 
 
 def editor_outline(track: Track) -> EditorOutline:
-    """Build the editor outline: the schematic for the built-in map, otherwise the stored outline."""
-    if track.is_builtin:
-        points = schematic_points_m()
-        frame, spacing, schematic = LocalFrame(ORIGIN_LAT, ORIGIN_LNG), 2.0, True
-    else:
-        try:
-            frame, points, loop_length = load_outline(track)
-        except ProfileError as error:
-            raise CornerEditError(str(error), 409)
-        spacing, schematic = loop_length / len(points), False
+    """Build the editor outline from the map's stored outline."""
+    try:
+        frame, points, loop_length = load_outline(track)
+    except ProfileError as error:
+        raise CornerEditError(str(error), 409)
+    spacing = loop_length / len(points)
     radii = radius_profile(points, spacing)
     sustained = [min(sustained_radius(radii, i), NO_CURVE_RADIUS_M) for i in range(len(points))]
-    return EditorOutline(frame=frame, points=points, spacing_m=spacing, radii=sustained, is_schematic=schematic)
+    return EditorOutline(frame=frame, points=points, spacing_m=spacing, radii=sustained)
 
 
 def segment_indexes(center: int, length_m: float, editor: EditorOutline) -> List[int]:
@@ -106,10 +100,6 @@ def zone_position(zone: Zone, editor: EditorOutline):
     """Work out (center_index, length_m) of a stored zone, or (None, default length) if it cannot be placed."""
     box = zone.gps_range if isinstance(zone.gps_range, dict) else {}
     try:
-        if editor.is_schematic:
-            known = {m["label"].lower(): m for m in simulator_corner_markers()}
-            marker = known.get(zone.label.lower())
-            return (marker["center_index"], marker["length_m"]) if marker else (None, ZONE_LENGTH_DEFAULT_M)
         start = snap_to_outline(editor, float(box["start"]["lat"]), float(box["start"]["lng"]))
         end = snap_to_outline(editor, float(box["end"]["lat"]), float(box["end"]["lng"]))
     except (KeyError, TypeError, ValueError):

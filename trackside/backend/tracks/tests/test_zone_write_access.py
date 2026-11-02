@@ -25,10 +25,9 @@ class ZoneWriteBase(APITestCase):
         self.coach = make(email="zw_coach@trackside.local", name="C", password="CoachPassword123!", role="coach")
         self.driver = make(email="zw_driver@trackside.local", name="D", password="DriverPassword123!", role="driver")
         self.track = Track.objects.create(name="Write Track", kart_class="sprint")
-        self.builtin = Track.objects.create(name="Demo Circuit", is_builtin=True, kart_class="sprint")
         self.archived = Track.objects.create(name="Old Track", is_archived=True, kart_class="sprint")
         self.zones = {t.name: Zone.objects.create(track=t, label="Turn", threshold_g=1.3, gps_range=RANGE)
-                      for t in (self.track, self.builtin, self.archived)}
+                      for t in (self.track, self.archived)}
 
     def url(self, track):
         """The detail URL of the track's zone."""
@@ -51,10 +50,10 @@ class TestZoneDetailWrites(ZoneWriteBase):
         zone.refresh_from_db()
         self.assertEqual(zone.threshold_g, 1.3)
 
-    def test_built_in_and_archived_tracks_refuse_every_write(self):
+    def test_archived_tracks_refuse_every_write(self):
         """Even an Admin gets 409 and the zone is untouched."""
         self.client.force_authenticate(self.admin)
-        for track in (self.builtin, self.archived):
+        for track in (self.archived,):
             for verb, body in (("patch", {"threshold_g": 1.1}), ("put", {"label": "X", "threshold_g": 1.1, "gps_range": RANGE}), ("delete", None)):
                 response = getattr(self.client, verb)(self.url(track), body, format="json") if body else self.client.delete(self.url(track))
                 self.assertEqual(response.status_code, 409, f"{track.name} {verb}")

@@ -73,7 +73,7 @@ class SimulatorStartView(BaseDemoControlView):
             actor=request.user,
             action=AuditLogEntry.Action.SIMULATOR_START,
             details=(f"Started demo on '{started['track_name']}' for {started['driver_name']}: "
-                     f"{started['laps']} laps, pace {started['pace'] if started['pace_applied'] else 'n/a (built-in map)'}"),
+                     f"{started['laps']} laps, pace {started['pace']}"),
         )
         return Response(started, status=status.HTTP_200_OK)
 

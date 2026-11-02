@@ -2,7 +2,7 @@
 Trackside — Tests for the corner marker editor, suggestions and duplicate (H3).
 
 Uses the synthetic rounded-rectangle track (corner radii 20, 12, 30 and 25 m)
-and a hand-made built-in Demo Circuit with the simulator's three corners.
+
 """
 
 import math
@@ -56,7 +56,6 @@ class TestEditorRead(EditorBase):
         """Outline, per-point radii, four placed markers, four suggestions and the limit ranges."""
         data = self.load()
         self.assertTrue(data["editable"])
-        self.assertFalse(data["is_schematic"])
         self.assertLessEqual(len(data["outline"]), 2000)
         self.assertEqual(len(data["radii"]), len(data["outline"]))
         self.assertEqual(len(data["markers"]), 4)
@@ -216,63 +215,40 @@ class TestEditorSave(EditorBase):
         self.assertFalse(self.client.get(self.url).data["editable"])
 
 
-class TestBuiltinAndDuplicate(EditorBase):
-    """The Demo Circuit is view-only; duplicating makes an editable copy."""
+class TestDuplicate(EditorBase):
+    """Duplicating a map makes an editable copy of its outline and corners."""
 
-    def setUp(self):
-        """Add a built-in Demo Circuit like seed_demo makes it."""
-        super().setUp()
-        self.demo = Track.objects.create(name="Demo Circuit", is_builtin=True, source="builtin", kart_class="sprint")
-        placeholder = {"start": {"lat": 12.9716, "lng": 77.5946}, "end": {"lat": 12.972, "lng": 77.595}}
-        for label, limit, kind in (("Hairpin", 1.15, "hairpin"), ("Sweeper", 1.55, "sweeper"), ("Chicane", 1.30, "chicane")):
-            Zone.objects.create(track=self.demo, label=label, threshold_g=limit, corner_type=kind, gps_range=placeholder)
-
-    def test_builtin_is_view_only_with_a_schematic_outline(self):
-        """GET works and is marked schematic and not editable; PUT is 409; no suggestions."""
-        data = self.client.get(f"/api/tracks/{self.demo.id}/corners/").data
-        self.assertFalse(data["editable"])
-        self.assertTrue(data["is_schematic"])
-        self.assertEqual(len(data["outline"]), 400)
-        self.assertEqual([m["label"] for m in data["markers"]], ["Hairpin", "Sweeper", "Chicane"])
-        self.assertTrue(all(m["center_index"] is not None for m in data["markers"]))
-        self.assertEqual(data["suggestions"], [])
-        response = self.client.put(f"/api/tracks/{self.demo.id}/corners/", {"outline_version": data["outline_version"], "markers": []}, format="json")
-        self.assertEqual(response.status_code, 409)
-        self.assertEqual(self.demo.zones.count(), 3)
-
-    def test_track_serializer_gives_the_schematic_to_builtin_only(self):
-        """The built-in map carries a schematic outline for thumbnails; custom maps do not."""
-        rows = {t["name"]: t for t in self.client.get("/api/tracks/").data["results"]}
-        self.assertTrue(rows["Demo Circuit"]["is_schematic"])
-        self.assertEqual(len(rows["Demo Circuit"]["schematic_outline"]), 400)
-        self.assertFalse(rows["Editor Track"]["is_schematic"])
-        self.assertIsNone(rows["Editor Track"]["schematic_outline"])
-
-    def test_duplicate_builtin_makes_an_editable_custom_map(self):
-        """The copy has the outline and three corners; the Sweeper's 1.55 g is brought to 1.5 and reported."""
-        response = self.client.post(f"/api/tracks/{self.demo.id}/duplicate/", {"name": "My Demo Copy"}, format="json")
+    def test_duplicate_makes_an_editable_copy_and_leaves_the_original_alone(self):
+        """The copy has the outline and all four corners with the same limits; the original is unchanged."""
+        response = self.client.post(f"/api/tracks/{self.track.id}/duplicate/", {"name": "My Copy"}, format="json")
         self.assertEqual(response.status_code, 201, response.data)
-        copy = Track.objects.get(name="My Demo Copy")
-        self.assertFalse(copy.is_builtin)
+        copy = Track.objects.get(name="My Copy")
         self.assertEqual(copy.source, "manual")
-        self.assertEqual(len(copy.reference_line), 400)
-        limits = {z.label: z.threshold_g for z in copy.zones.all()}
-        self.assertEqual(limits, {"Hairpin": 1.15, "Sweeper": 1.5, "Chicane": 1.3})
-        self.assertEqual(response.data["clamped"], [{"label": "Sweeper", "from_g": 1.55, "to_g": 1.5}])
-        self.assertEqual(self.demo.zones.get(label="Sweeper").threshold_g, 1.55)
+        self.assertAlmostEqual(len(copy.reference_line), len(self.track.reference_line), delta=10)
+        self.assertEqual({z.threshold_g for z in copy.zones.all()}, {1.2})
+        self.assertEqual(response.data["clamped"], [])
+        self.assertEqual(self.track.zones.count(), 4)
         editable = self.client.get(f"/api/tracks/{copy.id}/corners/").data
         self.assertTrue(editable["editable"])
-        self.assertEqual(len(editable["markers"]), 3)
+        self.assertEqual(len(editable["markers"]), 4)
         self.assertTrue(all(m["center_index"] is not None for m in editable["markers"]))
 
+    def test_duplicate_keeps_corner_types(self):
+        """A corner's type is copied along with its name and limit."""
+        Zone.objects.filter(track=self.track, label="Corner 1").update(corner_type="hairpin")
+        self.client.post(f"/api/tracks/{self.track.id}/duplicate/", {"name": "Typed Copy"}, format="json")
+        self.assertEqual(Zone.objects.get(track__name="Typed Copy", label="Corner 1").corner_type, "hairpin")
+
     def test_duplicate_rules(self):
-        """Name is required and unique; drivers cannot duplicate; the copy of a custom map works too."""
-        url = f"/api/tracks/{self.demo.id}/duplicate/"
+        """Name is required and unique (any case); drivers cannot duplicate; an archived map can be copied."""
+        url = f"/api/tracks/{self.track.id}/duplicate/"
         self.assertEqual(self.client.post(url, {}, format="json").status_code, 400)
-        self.assertEqual(self.client.post(url, {"name": "demo circuit"}, format="json").status_code, 409)
+        self.assertEqual(self.client.post(url, {"name": "editor track"}, format="json").status_code, 409)
         self.client.force_authenticate(self.driver)
         self.assertEqual(self.client.post(url, {"name": "X"}, format="json").status_code, 403)
         self.client.force_authenticate(self.coach)
-        copy = self.client.post(f"/api/tracks/{self.track.id}/duplicate/", {"name": "Editor Copy"}, format="json")
+        Track.objects.filter(pk=self.track.pk).update(is_archived=True)
+        copy = self.client.post(url, {"name": "Editor Copy"}, format="json")
         self.assertEqual(copy.status_code, 201, copy.data)
         self.assertEqual(Track.objects.get(name="Editor Copy").zones.count(), 4)
+        self.assertFalse(Track.objects.get(name="Editor Copy").is_archived)

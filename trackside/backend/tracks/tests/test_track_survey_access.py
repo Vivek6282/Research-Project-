@@ -2,7 +2,7 @@
 Trackside — Tests for who may use the track survey endpoint (C8).
 
 The survey endpoint overwrites a track's outline and survey time, so drivers
-and anonymous callers must be refused, and the built-in track stays locked.
+and anonymous callers must be refused.
 """
 
 from django.contrib.auth import get_user_model
@@ -52,12 +52,3 @@ class TestTrackSurveyAccess(APITestCase):
         self.track.refresh_from_db()
         self.assertEqual(len(self.track.reference_line), 4)
         self.assertIsNotNone(self.track.surveyed_at)
-
-    def test_builtin_track_cannot_be_surveyed(self):
-        """The built-in track answers 409 and keeps its outline."""
-        builtin = Track.objects.create(name="Demo Circuit", is_builtin=True, reference_line=[{"lat": 2, "lng": 2}])
-        self.client.force_authenticate(self.admin)
-        response = self.client.post(f"/api/tracks/{builtin.id}/survey/", POINTS, format="json")
-        self.assertEqual(response.status_code, 409)
-        builtin.refresh_from_db()
-        self.assertEqual(builtin.reference_line, [{"lat": 2, "lng": 2}])

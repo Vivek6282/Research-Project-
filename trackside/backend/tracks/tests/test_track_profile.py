@@ -60,12 +60,9 @@ class TestTrackProfile(APITestCase):
         self.assertEqual(profile["skipped_corners"], ["Corner 1"])
         self.assertEqual(len(profile["corners"]), 3)
 
-    def test_refuses_builtin_archived_unfinished_and_open_outlines(self):
+    def test_refuses_archived_unfinished_and_open_outlines(self):
         """Each bad case gives a clear ProfileError."""
-        Track.objects.filter(pk=self.track.pk).update(is_builtin=True)
-        with self.assertRaisesRegex(ProfileError, "built-in"):
-            build_track_profile(Track.objects.get(pk=self.track.pk))
-        Track.objects.filter(pk=self.track.pk).update(is_builtin=False, is_archived=True)
+        Track.objects.filter(pk=self.track.pk).update(is_archived=True)
         with self.assertRaisesRegex(ProfileError, "archived"):
             build_track_profile(Track.objects.get(pk=self.track.pk))
         with self.assertRaisesRegex(ProfileError, "no outline"):
@@ -110,15 +107,12 @@ class TestExportTrackCommand(APITestCase):
                 self.assertEqual(len(json.load(handle)["corners"]), 4)
 
     def test_bad_ids_and_locked_tracks_are_refused(self):
-        """A non-UUID, an unknown id, the built-in and an archived track all raise CommandError."""
+        """A non-UUID, an unknown id and an archived track all raise CommandError."""
         with tempfile.TemporaryDirectory() as folder:
             target = os.path.join(folder, "p.json")
             for bad in ("not-a-uuid", "00000000-0000-0000-0000-000000000000"):
                 with self.assertRaises(CommandError):
                     self.run_command(bad, "--out", target)
-            builtin = Track.objects.create(name="Demo Circuit", is_builtin=True)
-            with self.assertRaises(CommandError):
-                self.run_command(str(builtin.id), "--out", target)
             Track.objects.filter(pk=self.track.pk).update(is_archived=True)
             with self.assertRaises(CommandError):
                 self.run_command(str(self.track.id), "--out", target)

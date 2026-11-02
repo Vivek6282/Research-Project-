@@ -19,19 +19,17 @@ from tracks.duplicate import duplicate_track
 from tracks.importing.safe_speed import DEFAULT_LIMIT_G
 from tracks.models import Track
 from tracks.serializers import TrackSerializer
-from tracks.views import builtin_locked_response
 
 
 def editor_payload(track: Track) -> dict:
     """Everything the corner editor needs to draw and edit one map."""
     editor = editor_outline(track)
     markers = markers_for_track(track, editor)
-    editable = not track.is_builtin and not track.is_archived
+    editable = not track.is_archived
     return {
         "track_id": str(track.id),
         "track_name": track.name,
         "editable": editable,
-        "is_schematic": editor.is_schematic,
         "outline_version": editor.version,
         "spacing_m": round(editor.spacing_m, 3),
         "outline": [editor.lat_lng(i) for i in range(editor.count)],
@@ -52,7 +50,7 @@ class TrackCornersView(GenericAPIView):
     serializer_class = TrackSerializer
 
     def get(self, request, pk=None):
-        """Return the editor payload (view-only for the built-in and archived maps)."""
+        """Return the editor payload (view-only for archived maps)."""
         track = get_object_or_404(Track, pk=pk)
         try:
             return Response(editor_payload(track))
@@ -62,8 +60,6 @@ class TrackCornersView(GenericAPIView):
     def put(self, request, pk=None):
         """Save the markers: new ones become zones, removed ones are deleted or deactivated."""
         track = get_object_or_404(Track, pk=pk)
-        if track.is_builtin:
-            return builtin_locked_response()
         if track.is_archived:
             return Response({"detail": "This map is archived. Restore it before editing its corners."}, status=409)
         try:

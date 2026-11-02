@@ -15,7 +15,6 @@ from demo_control.simulator import reset_state_for_testing
 from demo_control.tests.demo_run_base import START, DemoRunBase
 from devices.models import Device
 from driving_sessions.models import Session
-from tracks.demo_circuit_setup import ensure_demo_circuit
 from tracks.models import Track
 
 class TestStartCustomMap(DemoRunBase):
@@ -30,7 +29,6 @@ class TestStartCustomMap(DemoRunBase):
         self.assertIsNone(session.ended_at)
         device = self.demo_device()
         self.assertEqual((device.device_type, device.assigned_to), ("kart_unit", self.ana))
-        self.assertEqual(response.data["pace_applied"], True)
 
     def test_command_line_is_fixed_and_holds_no_secret(self):
         """argv is exactly python -u simulator --laps 2 --track-file <uuid>.json --pace edge, no shell, no token."""
@@ -85,31 +83,12 @@ class TestStartCustomMap(DemoRunBase):
             self.assertIn(word, entry.details)
 
 
-class TestStartBuiltin(DemoRunBase):
-    """The Demo Circuit keeps its own simulation."""
-
-    def test_builtin_run_has_no_track_file_or_pace_and_maps_the_three_corners(self):
-        """argv is --laps and --gps-file (no track file); DEMO_ZONES has Hairpin, Sweeper, Chicane; pace is reported as not applied."""
-        demo = ensure_demo_circuit()
-        response = self.client.post(START, {"track_id": str(demo.id), "driver_id": str(self.ana.id), "laps": 3, "pace": "over"}, format="json")
-        self.assertEqual(response.status_code, 200, response.data)
-        args, kwargs = self.popen_mock.call_args
-        gps_path = os.path.join(self.profile_dir, f"{demo.id}.gps.json")
-        self.assertEqual(args[0][3:], ["--laps", "3", "--gps-file", gps_path, "--post-batch", "1"])
-        with open(gps_path, encoding="utf-8") as handle:
-            self.assertEqual(len(json.load(handle)["points"]), 400)
-        self.assertEqual(set(json.loads(kwargs["env"]["DEMO_ZONES"])), {"Hairpin", "Sweeper", "Chicane"})
-        self.assertFalse(response.data["pace_applied"])
-        self.assertFalse(os.path.exists(os.path.join(self.profile_dir, f"{demo.id}.json")))
-
-
 class TestHostedRun(DemoRunBase):
     """On a hosted server the run has no serial port (the browser forwards the stages to the bridge)."""
 
     def test_hosted_production_run_adds_dry_run_and_a_local_run_does_not(self):
         """HOSTED_DEMO_ENABLED + production: argv ends with --dry-run; a normal local run has no --dry-run."""
-        demo = ensure_demo_circuit()
-        body = {"track_id": str(demo.id), "driver_id": str(self.ana.id), "laps": 1}
+        body = {"track_id": str(self.track.id), "driver_id": str(self.ana.id), "laps": 1}
         with patch.dict(os.environ, {"HOSTED_DEMO_ENABLED": "true", "DJANGO_ENV": "production"}):
             self.assertEqual(self.client.post(START, body, format="json").status_code, 200)
         self.assertIn("--dry-run", self.popen_mock.call_args[0][0])
@@ -123,9 +102,8 @@ class TestOpenLaptopLink(DemoRunBase):
 
     def test_play_demo_ends_an_open_laptop_link_for_the_same_driver(self):
         """Ana holds the laptop-link device; starting a Play demo for Ana still works and the link session is closed."""
-        link = self.client.post("/api/laptop-link/start/", {"driver_id": str(self.ana.id)}, format="json").json()
-        demo = ensure_demo_circuit()
-        response = self.client.post(START, {"track_id": str(demo.id), "driver_id": str(self.ana.id), "laps": 1}, format="json")
+        link = self.client.post("/api/laptop-link/start/", {"driver_id": str(self.ana.id), "track_id": str(self.sim_map().id)}, format="json").json()
+        response = self.client.post(START, {"track_id": str(self.track.id), "driver_id": str(self.ana.id), "laps": 1}, format="json")
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIsNotNone(Session.objects.get(pk=link["session_id"]).ended_at)
 

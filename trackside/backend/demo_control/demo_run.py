@@ -20,10 +20,8 @@ from devices.models import Device
 from devices.serializers import DeviceSerializer
 from driving_sessions.models import Session
 from driving_sessions.session_close import close_session_if_open
-from tracks.demo_circuit_setup import ensure_demo_circuit
 from tracks.models import Track
 from demo_control.run_limits import run_limits
-from tracks.outline_gps import write_schematic_gps_file
 from tracks.track_profile import ProfileError, write_track_profile
 
 DEMO_DEVICE_NAME = "Demo kart unit"
@@ -158,16 +156,11 @@ def start_demo_run(request) -> dict:
     chosen = parse_start_request(request.data)
     track, driver, laps, pace = chosen["track"], chosen["driver"], chosen["laps"], chosen["pace"]
 
-    if track.is_builtin:
-        track = ensure_demo_circuit()
-        gps_path = write_schematic_gps_file(profile_directory(), track.id)
-        extra_args = ["--laps", str(laps), "--gps-file", gps_path] + POST_BATCH_ARGS
-    else:
-        try:
-            profile_path = write_track_profile(track, profile_directory(), driver)
-        except ProfileError as error:
-            raise DemoRunError(str(error))
-        extra_args = ["--laps", str(laps), "--track-file", profile_path, "--pace", pace] + POST_BATCH_ARGS
+    try:
+        profile_path = write_track_profile(track, profile_directory(), driver)
+    except ProfileError as error:
+        raise DemoRunError(str(error))
+    extra_args = ["--laps", str(laps), "--track-file", profile_path, "--pace", pace] + POST_BATCH_ARGS
     if is_production_environment() and is_hosted_demo_enabled():
         extra_args.append("--dry-run")  # a hosted server has no bridge: the Coach's browser forwards the stages to it
     zones = zone_map_for(track)
@@ -192,7 +185,7 @@ def start_demo_run(request) -> dict:
     run_info = {
         "session_id": str(session.id), "device_id": str(device.id), "driver_id": str(driver.id),
         "driver_name": driver.name, "track_id": str(track.id), "track_name": track.name, "laps": laps,
-        "pace": pace, "pace_applied": not track.is_builtin, "built_in": track.is_builtin, "limits": limits,
+        "pace": pace, "limits": limits,
         "finalized": False,
     }
     try:

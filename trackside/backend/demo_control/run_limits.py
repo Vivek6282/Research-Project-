@@ -2,8 +2,7 @@
 Trackside — Corner limits a demo run uses.
 
 The map is the only place that sets g-force limits, so a run uses each corner's own limit
-(zone.threshold_g, set on the Maps screen). The built-in Demo Circuit run uses the simulator's
-own track and fixed defaults, so no --limit arguments are passed for it.
+(zone.threshold_g, set on the Maps screen).
 """
 
 from typing import Dict

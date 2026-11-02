@@ -59,7 +59,6 @@ class TestTrackImportConfirm(APITestCase):
         track = Track.objects.get(name="Test Circuit")
         self.assertEqual(track.source, "racechrono_csv")
         self.assertEqual(track.kart_class, Track.KartClass.SPRINT)
-        self.assertFalse(track.is_builtin)
         self.assertFalse(track.is_archived)
         self.assertEqual(track.created_by, self.coach)
         self.assertGreater(len(track.reference_line), 250)
@@ -71,12 +70,12 @@ class TestTrackImportConfirm(APITestCase):
         self.assertEqual(zones[0].min_threshold_g, 0.3)
 
     def test_browser_supplied_geometry_is_ignored(self):
-        """Extra fields such as reference_line or is_builtin do not reach the saved track."""
+        """Extra fields such as reference_line or is_archived do not reach the saved track."""
         fake = json.dumps([{"lat": 1, "lng": 1}])
-        self.confirm(extra={"reference_line": fake, "is_builtin": "true", "source": "vbo"})
+        self.confirm(extra={"reference_line": fake, "is_archived": "true", "source": "vbo"})
         track = Track.objects.get(name="Test Circuit")
         self.assertNotEqual(track.reference_line[0], {"lat": 1, "lng": 1})
-        self.assertFalse(track.is_builtin)
+        self.assertFalse(track.is_archived)
         self.assertEqual(track.source, "racechrono_csv")
 
     def test_driver_is_refused_and_nothing_saved(self):

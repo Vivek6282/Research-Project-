@@ -3,7 +3,7 @@ Trackside — Laptop link (a laptop's simulator feeds a hosted session).
 
 The glove only talks to the bridge on a laptop, so on a hosted site the laptop's simulator does both
 jobs: it drives the glove and posts its readings to the server. This module prepares that: it creates
-a live sample session on the built-in Demo Circuit for a chosen driver, assigns a dedicated
+a live sample session on a chosen map for a chosen driver, assigns a dedicated
 "Laptop link unit" device and returns its access token ONCE. The token is the device's token: it can
 only post readings and finish sessions of the driver the device is assigned to, and it is invalidated
 when the link ends. Coach and Admin only. The server never runs the simulator.
@@ -16,7 +16,6 @@ from demo_control.demo_run import DemoRunError, assign_device, check_driver_has_
 from devices.models import Device
 from driving_sessions.models import Session, Telemetry
 from driving_sessions.session_close import close_session_if_open
-from tracks.demo_circuit_setup import ensure_demo_circuit
 
 LAPTOP_DEVICE_NAME = "Laptop link unit"
 LAPTOP_KART = "Laptop"
@@ -47,15 +46,20 @@ def end_link(request) -> None:
     Device.objects.filter(pk=device.pk).update(api_key_hash="")
 
 
-def start_link(request, driver) -> dict:
+def start_link(request, driver, track) -> dict:
     """Create the live session and the one-time token for this driver; returns what the laptop needs."""
     if driver is None or driver.role != "driver":
         raise DemoRunError("Choose a driver.")
     if not driver.is_active:
         raise DemoRunError(f"{driver.name} is deactivated. Choose an active driver.")
-    end_link(request)  # one link at a time
-    track = ensure_demo_circuit()
+    if track is None:
+        raise DemoRunError("Choose a map.")
+    if track.is_archived:
+        raise DemoRunError("That map is archived. Restore it first.")
     zones = {z.label: str(z.id) for z in track.zones.filter(is_active=True)}
+    if not zones:
+        raise DemoRunError("This map has no corners yet. Open 'Edit corners' and add some first.")
+    end_link(request)  # one link at a time
     with transaction.atomic():
         device = laptop_device()
         check_driver_has_no_other_kart_unit(driver, device)
@@ -68,6 +72,7 @@ def start_link(request, driver) -> dict:
         )
     return {
         "session_id": str(session.id), "driver_id": str(driver.id), "driver_name": driver.name,
+        "track_id": str(track.id), "track_name": track.name,
         "backend_url": f"{request.scheme}://{request.get_host()}", "device_token": raw_token, "zones": zones,
     }
 

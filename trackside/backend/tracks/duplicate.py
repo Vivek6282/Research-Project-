@@ -29,7 +29,6 @@ def duplicate_track(source: Track, user, raw_name) -> Dict[str, object]:
         reference_line=[editor.lat_lng(i) for i in range(editor.count)],
         kart_class=Track.KartClass.SPRINT,
         source=Track.Source.MANUAL,
-        is_builtin=False,
         surveyed_at=timezone.now(),
         created_by=user,
     )

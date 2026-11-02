@@ -23,17 +23,16 @@ def zone_body(**change):
 
 
 class ZoneCreateBase(APITestCase):
-    """Users and a custom, a built-in and an archived track."""
+    """Users and a custom and an archived track."""
 
     def setUp(self):
-        """Create one user per role and the three kinds of track."""
+        """Create one user per role and the kinds of track."""
         super().setUp()
         make = User.objects.create_user
         self.admin = make(email="zc_admin@trackside.local", name="A", password="AdminPassword123!", role="admin")
         self.coach = make(email="zc_coach@trackside.local", name="C", password="CoachPassword123!", role="coach")
         self.driver = make(email="zc_driver@trackside.local", name="D", password="DriverPassword123!", role="driver")
         self.track = Track.objects.create(name="Zone Track", kart_class="sprint")
-        self.builtin = Track.objects.create(name="Demo Circuit", is_builtin=True, kart_class="sprint")
         self.archived = Track.objects.create(name="Old Track", is_archived=True, kart_class="sprint")
 
     def post(self, track=None, user=None, **change):
@@ -74,14 +73,7 @@ class TestWhoMayCreate(ZoneCreateBase):
 
 
 class TestLockedTracks(ZoneCreateBase):
-    """Built-in and archived tracks refuse new zones."""
-
-    def test_built_in_track_is_409_with_the_lock_message(self):
-        """Even an Admin cannot add a corner to the Demo Circuit."""
-        response = self.post(track=self.builtin, user=self.admin)
-        self.assertEqual(response.status_code, 409)
-        self.assertIn("Demo Circuit is locked", response.data["detail"])
-        self.assertEqual(self.builtin.zones.count(), 0)
+    """Archived tracks refuse new zones."""
 
     def test_archived_track_is_409(self):
         """An archived map says to restore it first."""
@@ -92,7 +84,7 @@ class TestLockedTracks(ZoneCreateBase):
 
     def test_lock_is_checked_before_the_data(self):
         """Bad data on a locked track is still the 409, not a 400."""
-        self.assertEqual(self.post(track=self.builtin, label="").status_code, 409)
+        self.assertEqual(self.post(track=self.archived, label="").status_code, 409)
 
 
 class TestZoneChecks(ZoneCreateBase):

@@ -10,6 +10,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from devices.models import Device
 from driving_sessions.models import Session, Telemetry
+from tracks.models import Track, Zone
 
 User = get_user_model()
 START, STOP, STATUS = "/api/laptop-link/start/", "/api/laptop-link/stop/", "/api/laptop-link/status/"
@@ -25,11 +26,15 @@ class LaptopLinkTests(APITestCase):
         self.coach = make("ll_coach@example.com", "coach", "Coach")
         self.admin = make("ll_admin@example.com", "admin", "Admin")
         self.driver = make("ll_driver@example.com", "driver", "Ana Driver")
+        self.track = Track.objects.create(name="Sim Map", kart_class="sprint", reference_line=[{"lat": 10.0, "lng": 76.0}] * 3)
+        for label, limit in (("Hairpin", 1.15), ("Sweeper", 1.4), ("Chicane", 1.3)):
+            Zone.objects.create(track=self.track, label=label, threshold_g=limit)
         self.client.force_authenticate(self.coach)
 
-    def start(self):
-        """Start a link for the driver; returns the response."""
-        return self.client.post(START, {"driver_id": str(self.driver.id)}, format="json")
+    def start(self, track=None, driver=None):
+        """Start a link for the driver on the map; returns the response."""
+        body = {"driver_id": str((driver or self.driver).id), "track_id": str((track or self.track).id)}
+        return self.client.post(START, body, format="json")
 
     def device_client(self, token):
         """A client that authenticates like the laptop's simulator."""
@@ -45,21 +50,21 @@ class LaptopLinkTests(APITestCase):
     def test_only_coach_and_admin_may_use_it(self):
         """A driver gets 403 and a signed-out caller is refused; an admin may start a link."""
         self.client.force_authenticate(self.driver)
-        self.assertEqual(self.client.post(START, {"driver_id": str(self.driver.id)}, format="json").status_code, 403)
+        self.assertEqual(self.start().status_code, 403)
         self.client.force_authenticate(None)
         self.assertIn(self.client.get(STATUS).status_code, (401, 403))
         self.client.force_authenticate(self.admin)
         self.assertEqual(self.start().status_code, 200)
 
     def test_start_returns_session_token_zones_and_marks_the_run_as_demo(self):
-        """The response has what the laptop needs; the session is open, on the Demo Circuit and marked demo."""
+        """The response has what the laptop needs; the session is open, on the chosen map and marked demo."""
         body = self.start().json()
         self.assertTrue(body["device_token"].startswith("dt_"))
         self.assertEqual(set(body["zones"]), {"Hairpin", "Sweeper", "Chicane"})
         self.assertTrue(body["backend_url"].startswith("http"))
         session = Session.objects.get(pk=body["session_id"])
         self.assertEqual((session.driver_id, session.is_demo, session.ended_at, session.track.name),
-                         (self.driver.id, True, None, "Demo Circuit"))
+                         (self.driver.id, True, None, "Sim Map"))
         self.assertEqual(self.client.get(STATUS).json()["state"], "waiting")
 
     def test_the_token_posts_readings_then_finishing_ends_the_link_and_kills_the_token(self):
@@ -99,10 +104,23 @@ class LaptopLinkTests(APITestCase):
 
     def test_bad_drivers_are_refused_with_a_clear_message(self):
         """A coach, a missing id and a deactivated driver are 400; a driver holding another kart unit is 409."""
-        self.assertEqual(self.client.post(START, {"driver_id": str(self.coach.id)}, format="json").status_code, 400)
-        self.assertEqual(self.client.post(START, {}, format="json").status_code, 400)
+        self.assertEqual(self.start(driver=self.coach).status_code, 400)
+        self.assertEqual(self.client.post(START, {"track_id": str(self.track.id)}, format="json").status_code, 400)
         User.objects.filter(pk=self.driver.pk).update(is_active=False)
         self.assertEqual(self.start().status_code, 400)
         User.objects.filter(pk=self.driver.pk).update(is_active=True)
         Device.objects.create(name="Real kart", device_type=Device.DeviceType.KART_UNIT, assigned_to=self.driver)
         self.assertEqual(self.start().status_code, 409)
+
+    def test_bad_maps_are_refused_with_a_clear_message(self):
+        """A missing or unknown map is 400, an archived map or one with no corners is 400, and nothing is started."""
+        self.assertEqual(self.client.post(START, {"driver_id": str(self.driver.id)}, format="json").status_code, 400)
+        unknown = "00000000-0000-0000-0000-000000000000"
+        self.assertEqual(self.client.post(START, {"driver_id": str(self.driver.id), "track_id": unknown}, format="json").status_code, 400)
+        empty = Track.objects.create(name="Empty Map")
+        response = self.start(track=empty)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("no corners", response.json()["detail"])
+        Track.objects.filter(pk=self.track.pk).update(is_archived=True)
+        self.assertIn("archived", self.start().json()["detail"])
+        self.assertEqual(Session.objects.count(), 0)

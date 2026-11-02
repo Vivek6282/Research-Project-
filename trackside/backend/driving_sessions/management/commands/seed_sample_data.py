@@ -2,14 +2,16 @@
 Trackside — seed_sample_data management command.
 
 Adds ONE finished sample session (labelled DEMO) so a hosted site has something to show: a sample
-driver on the built-in Demo Circuit with 5 laps of readings and the alerts they cause. It is safe to
+driver on a map you choose (--track-name) with 5 laps of readings and the alerts they cause. It is safe to
 run any number of times (it does nothing when the sample session already exists), never touches real
 data, and creates no login: the sample driver has no usable password.
 
 To remove it later: Admin screen, delete the "Sample Driver" (its sessions go with it).
 
 Usage:
-    python manage.py seed_sample_data
+    python manage.py seed_sample_data --track-name "My Track"
+
+The map needs corners called Hairpin, Sweeper and Chicane, and a drawn or imported outline.
 """
 
 import math
@@ -17,14 +19,13 @@ import random
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
 from driving_sessions.alerting import process_telemetry_alerts
 from driving_sessions.models import Session, Telemetry
-from tracks.demo_circuit_setup import ensure_demo_circuit
-from tracks.outline_gps import schematic_gps_pairs
+from driving_sessions.management.commands._demo_map import add_track_argument, find_map
 
 User = get_user_model()
 
@@ -50,9 +51,13 @@ LAP_PEAK_SHARES = [
 class Command(BaseCommand):
     help = "Add one finished sample (DEMO) session with readings and alerts. Safe to run repeatedly."
 
+    def add_arguments(self, parser):
+        add_track_argument(parser)
+
     def handle(self, *args, **options):
-        track = ensure_demo_circuit()
-        zones = {z.label: z for z in track.zones.filter(is_active=True)}
+        track, zones = find_map(options["track_name"])
+        if not track.reference_line or len(track.reference_line) < 3:
+            raise CommandError(f"Map '{track.name}' has no outline yet, so the sample readings have no route.")
         driver = self.sample_driver()
 
         if Session.objects.filter(driver=driver, track=track, is_demo=True, kart_number=SAMPLE_KART).exists():
@@ -80,7 +85,7 @@ class Command(BaseCommand):
         """Create the finished session and its readings (5 laps, 48 readings each, evenly spaced)."""
         rng = random.Random(2026)
         readings_per_lap = sum(count for _, count in LAP_PATTERN)
-        gps_points = schematic_gps_pairs()
+        gps_points = [(p["lat"], p["lng"]) for p in track.reference_line]
         total_seconds = sum(readings_per_lap * READING_SPACING_S * pace for pace in LAP_PACE)
         started = timezone.now() - timedelta(hours=2)
         session = Session.objects.create(

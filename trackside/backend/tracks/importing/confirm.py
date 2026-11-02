@@ -85,7 +85,6 @@ def save_imported_track(user, name: str, parsed: ParsedTrackFile, outline: Outli
         reference_line=outline.as_lat_lng(),
         kart_class=Track.KartClass.SPRINT,
         source=parsed.source,
-        is_builtin=False,
         surveyed_at=timezone.now(),
         created_by=user,
     )

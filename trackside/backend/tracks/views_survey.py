@@ -31,12 +31,6 @@ class TrackSurveyView(generics.GenericAPIView):
         from tracks.models import Track
 
         track = get_object_or_404(Track, pk=pk)
-        if track.is_builtin:
-            return Response(
-                {"detail": "The built-in Demo Circuit is locked: it cannot be edited, archived or deleted."},
-                status=status.HTTP_409_CONFLICT,
-            )
-
         payload = request.data
         if isinstance(payload, list):
             laps = [payload]

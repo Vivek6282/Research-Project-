@@ -10,7 +10,6 @@ from tracks.views import (
     ZoneListCreateView,
     ZoneDetailView,
     TrackReferenceLineView,
-    DemoCircuitView,
     TrackRestoreView,
     ZoneLimitHistoryView,
 )
@@ -21,7 +20,6 @@ urlpatterns = [
     path("import/confirm/", TrackImportConfirmView.as_view(), name="track-import-confirm"),
     path("draw/preview/", TrackDrawPreviewView.as_view(), name="track-draw-preview"),
     path("draw/confirm/", TrackDrawConfirmView.as_view(), name="track-draw-confirm"),
-    path("demo-circuit/", DemoCircuitView.as_view(), name="demo-circuit"),
     path("", TrackListCreateView.as_view(), name="track-list-create"),
     path("<uuid:pk>/", TrackDetailView.as_view(), name="track-detail"),
     path("<uuid:pk>/corners/", TrackCornersView.as_view(), name="track-corners"),

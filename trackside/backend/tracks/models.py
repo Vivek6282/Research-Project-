@@ -25,7 +25,6 @@ class Track(models.Model):
 
     class Source(models.TextChoices):
         MANUAL = "manual", "Added by hand"
-        BUILTIN = "builtin", "Built-in"
         RACECHRONO_CSV = "racechrono_csv", "RaceChrono CSV"
         VBO = "vbo", "Racelogic VBO"
         DRAWN = "drawn", "Drawn on the map"
@@ -64,11 +63,6 @@ class Track(models.Model):
         choices=KartClass.choices,
         default=KartClass.RENTAL,
         help_text="Type of karts used on this track — affects threshold calibration",
-    )
-
-    is_builtin = models.BooleanField(
-        default=False,
-        help_text="Built-in tracks (the Demo Circuit) are locked: no edit, archive or delete",
     )
 
     is_archived = models.BooleanField(

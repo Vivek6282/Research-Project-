@@ -27,11 +27,18 @@ class TestSeedDemoCommand(APITestCase):
             role="driver",
             password="DriverPassword123!",
         )
+        self.track = Track.objects.create(name="Seed Map", kart_class=Track.KartClass.SPRINT)
+        for label, limit in (("Hairpin", 1.15), ("Sweeper", 1.4), ("Chicane", 1.3)):
+            Zone.objects.create(track=self.track, label=label, threshold_g=limit)
+
+    def seed(self, out=None, **extra):
+        """Run seed_demo on the test map."""
+        return call_command("seed_demo", driver_email=self.driver.email, track_name="Seed Map", stdout=out or io.StringIO(), **extra)
 
     def test_seed_demo_creates_objects_and_prints_lines(self):
-        """seed_demo creates track, zones, device, session and prints ready-to-paste lines."""
+        """seed_demo creates a device and a session on the chosen map and prints ready-to-paste lines."""
         out = io.StringIO()
-        call_command("seed_demo", driver_email=self.driver.email, stdout=out)
+        self.seed(out)
         output = out.getvalue()
 
         # Check stdout lines
@@ -40,21 +47,10 @@ class TestSeedDemoCommand(APITestCase):
         self.assertIn("DEVICE_TOKEN=dt_", output)
         self.assertIn('DEMO_ZONES={"Hairpin":', output)
 
-        # Check track and zones
-        track = Track.objects.get(name="Demo Circuit")
-        self.assertEqual(track.kart_class, Track.KartClass.SPRINT)
-
-        hairpin = Zone.objects.get(track=track, label="Hairpin")
-        self.assertEqual(hairpin.threshold_g, 1.15)
-        self.assertEqual(hairpin.corner_type, Zone.CornerType.HAIRPIN)
-
-        sweeper = Zone.objects.get(track=track, label="Sweeper")
-        self.assertEqual(sweeper.threshold_g, 1.55)
-        self.assertEqual(sweeper.corner_type, Zone.CornerType.SWEEPER)
-
-        chicane = Zone.objects.get(track=track, label="Chicane")
-        self.assertEqual(chicane.threshold_g, 1.30)
-        self.assertEqual(chicane.corner_type, Zone.CornerType.CHICANE)
+        # The map's corners are used as they are
+        track = self.track
+        self.assertEqual({z.label: z.threshold_g for z in track.zones.all()}, {"Hairpin": 1.15, "Sweeper": 1.4, "Chicane": 1.3})
+        self.assertEqual(Track.objects.count(), 1)
 
         # Check device
         device = Device.objects.get(device_type=Device.DeviceType.KART_UNIT, assigned_to=self.driver)
@@ -69,18 +65,18 @@ class TestSeedDemoCommand(APITestCase):
     def test_seed_demo_is_idempotent_and_reuses_objects(self):
         """Running seed_demo twice reuses track, zones and device, while creating a new session."""
         out1 = io.StringIO()
-        call_command("seed_demo", driver_email=self.driver.email, stdout=out1)
-        tracks_count1 = Track.objects.filter(name="Demo Circuit").count()
-        zones_count1 = Zone.objects.filter(track__name="Demo Circuit").count()
+        self.seed(out1)
+        tracks_count1 = Track.objects.count()
+        zones_count1 = Zone.objects.count()
         devices_count1 = Device.objects.filter(assigned_to=self.driver).count()
         sessions_count1 = Session.objects.filter(driver=self.driver).count()
 
         out2 = io.StringIO()
-        call_command("seed_demo", driver_email=self.driver.email, stdout=out2)
+        self.seed(out2)
         output2 = out2.getvalue()
 
-        self.assertEqual(Track.objects.filter(name="Demo Circuit").count(), tracks_count1)
-        self.assertEqual(Zone.objects.filter(track__name="Demo Circuit").count(), zones_count1)
+        self.assertEqual(Track.objects.count(), tracks_count1)
+        self.assertEqual(Zone.objects.count(), zones_count1)
         self.assertEqual(Device.objects.filter(assigned_to=self.driver).count(), devices_count1)
         self.assertEqual(Session.objects.filter(driver=self.driver).count(), sessions_count1 + 1)
 
@@ -89,12 +85,25 @@ class TestSeedDemoCommand(APITestCase):
 
         # When --new-token is passed, token IS regenerated
         out3 = io.StringIO()
-        call_command("seed_demo", driver_email=self.driver.email, new_token=True, stdout=out3)
+        self.seed(out3, new_token=True)
         self.assertIn("DEVICE_TOKEN=dt_", out3.getvalue())
 
     def test_seed_demo_refuses_in_production(self):
         """seed_demo refuses to run when DJANGO_ENV is production."""
         with patch.dict(os.environ, {"DJANGO_ENV": "production"}):
             with self.assertRaises(CommandError) as ctx:
-                call_command("seed_demo", driver_email=self.driver.email)
+                self.seed()
             self.assertIn("cannot be run in production", str(ctx.exception))
+
+    def test_seed_demo_needs_an_existing_map_with_the_three_corners(self):
+        """An unknown or archived map, and a map missing a corner, give a clear error and create nothing."""
+        with self.assertRaisesRegex(CommandError, "No active map called 'Nope'"):
+            call_command("seed_demo", driver_email=self.driver.email, track_name="Nope", stdout=io.StringIO())
+        Zone.objects.filter(track=self.track, label="Chicane").delete()
+        with self.assertRaisesRegex(CommandError, "no corner called Chicane"):
+            self.seed()
+        Track.objects.filter(pk=self.track.pk).update(is_archived=True)
+        with self.assertRaisesRegex(CommandError, "No active map"):
+            self.seed()
+        self.assertEqual(Session.objects.count(), 0)
+        self.assertEqual(Track.objects.count(), 1)
