@@ -63,7 +63,7 @@ export function DemoStatusPanel({ availability, status, actionError, onStop, onW
       </div>
       {run && (
         <p data-testid="demo-run-facts" className="text-[11px] font-mono text-[#7C8898]">
-          {run.track_name} · {run.driver_name} · {run.laps} {run.laps === 1 ? "lap" : "laps"} · {run.pace_applied ? `pace ${run.pace}` : "fixed demo pattern"}
+          {run.track_name} · {run.driver_name} · {run.laps} {run.laps === 1 ? "lap" : "laps"} · pace {run.pace}
         </p>
       )}
       {run && limitsText(status?.limits) && (

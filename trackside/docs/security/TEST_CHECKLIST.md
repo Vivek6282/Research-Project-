@@ -41,8 +41,8 @@ backend suite with `python manage.py test` in `backend/`; the Selenium suite wit
 | Device overwrites a result or sends a huge one | 409 / 400 | `devices/tests/test_commands.py::DeviceCommandResultLimitsTestCase` |
 | Forged or wrong device token | 401/403 | `devices/tests/test_device_authentication.py` |
 | Bad or oversized map files | 4xx, nothing stored | `tracks/tests/test_track_import_upload.py` |
-| Built-in Demo Circuit changed | 409 | `tracks/tests/test_track_archive.py`, `test_corner_editor.py` |
-| Delete forever on a map that is active, built-in or has sessions | 409 | `tracks/tests/test_track_archive.py` |
+| Laptop link on an unknown, archived or corner-less map | 400, nothing started | `demo_control/tests/test_laptop_link.py` |
+| Delete forever on a map that is active or has sessions | 409 | `tracks/tests/test_track_archive.py` |
 | Private answers cached by a browser or proxy | `Cache-Control: no-store` | `accounts/tests/test_private_headers.py` |
 | Admin deletes without typing the confirmation | 400, nothing deleted | `accounts/tests/test_deactivation.py::test_delete_user_needs_the_typed_confirmation`; Selenium `TC-ADMIN-07` |
 

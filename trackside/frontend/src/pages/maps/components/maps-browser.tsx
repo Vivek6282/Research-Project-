@@ -40,7 +40,7 @@ export interface MapsBrowserProps {
 
 /** The browser itself. */
 export function MapsBrowser({ canManage, onPlay, playDisabledReason, canEditCorners = false, canEditDetails = false, reloadKey = 0, children }: MapsBrowserProps) {
-  const maps = useMaps(canManage, reloadKey);
+  const maps = useMaps(reloadKey);
   const [editing, setEditing] = useState<MapTrack | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [showDrawing, setShowDrawing] = useState(false);

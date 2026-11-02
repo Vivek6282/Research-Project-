@@ -37,7 +37,7 @@ const buttonClass =
 
 /** One card: thumbnail, name, badges, corner count and the allowed buttons. */
 function MapCard({ map, actions }: { map: MapTrack; actions: MapCardActions }) {
-  const outline = map.reference_line && map.reference_line.length > 2 ? map.reference_line : map.schematic_outline;
+  const outline = map.reference_line && map.reference_line.length > 2 ? map.reference_line : null;
   const corners = map.zones.length;
   return (
     <li
@@ -57,9 +57,6 @@ function MapCard({ map, actions }: { map: MapTrack; actions: MapCardActions }) {
         )}
       </div>
       <div className="flex flex-wrap gap-1.5 min-h-[22px]">
-        {map.is_builtin && <Chip color="#3FA6E0">Built-in</Chip>}
-        {map.is_builtin && <Chip color="#33D17E">Simulator map</Chip>}
-        {map.is_schematic && <Chip color="#7C8898">Schematic</Chip>}
         {map.is_archived && <Chip color="#F2A93B">Archived</Chip>}
       </div>
       <div className="flex flex-wrap gap-1.5 mt-auto">
@@ -76,10 +73,10 @@ function MapCard({ map, actions }: { map: MapTrack; actions: MapCardActions }) {
         )}
         {actions.onEditCorners && (
           <button className={buttonClass} data-testid={`edit-corners-${map.name}`} onClick={() => actions.onEditCorners?.(map)}>
-            <Pencil size={13} /> {map.is_builtin || map.is_archived ? "View corners" : "Edit corners"}
+            <Pencil size={13} /> {map.is_archived ? "View corners" : "Edit corners"}
           </button>
         )}
-        {actions.onEditDetails && !map.is_builtin && (
+        {actions.onEditDetails && (
           <button className={buttonClass} data-testid={`edit-details-${map.name}`} onClick={() => actions.onEditDetails?.(map)}>
             <Settings2 size={13} /> Edit details
           </button>
@@ -89,17 +86,17 @@ function MapCard({ map, actions }: { map: MapTrack; actions: MapCardActions }) {
             <Copy size={13} /> Duplicate
           </button>
         )}
-        {actions.canArchive && !map.is_builtin && !map.is_archived && (
+        {actions.canArchive && !map.is_archived && (
           <button className={buttonClass} data-testid={`archive-${map.name}`} title="Delete this map" onClick={() => actions.onArchive(map)}>
             <Trash2 size={13} /> Delete
           </button>
         )}
-        {actions.canArchive && !map.is_builtin && map.is_archived && (
+        {actions.canArchive && map.is_archived && (
           <button className={buttonClass} data-testid={`restore-${map.name}`} onClick={() => actions.onRestore(map)}>
             <RotateCcw size={13} /> Restore
           </button>
         )}
-        {actions.canArchive && actions.onDeleteForever && !map.is_builtin && map.is_archived && (
+        {actions.canArchive && actions.onDeleteForever && map.is_archived && (
           <button className={`${buttonClass} hover:!text-[#E5473C] hover:!border-[#E5473C]`} data-testid={`delete-forever-${map.name}`}
             disabled={(map.session_count ?? 0) > 0}
             title={(map.session_count ?? 0) > 0 ? "This map has sessions, so its history is kept. It cannot be deleted forever." : "Delete this map for good"}

@@ -17,8 +17,7 @@ export interface MapZone {
 export interface MapTrack {
   id: string;
   name: string;
-  source: "manual" | "builtin" | "racechrono_csv" | "vbo" | "drawn";
-  is_builtin: boolean;
+  source: "manual" | "racechrono_csv" | "vbo" | "drawn";
   is_archived: boolean;
   kart_class?: string;
   /** How many driving sessions used this map (history that blocks Delete forever) */
@@ -26,9 +25,6 @@ export interface MapTrack {
   zones: MapZone[];
   /** The stored GPS outline (custom maps) */
   reference_line?: LatLng[] | null;
-  /** The built-in map's drawn-shape outline: a schematic picture, not a survey */
-  schematic_outline?: LatLng[] | null;
-  is_schematic?: boolean;
 }
 
 /** One corner found in an uploaded file (from the import preview) */
@@ -76,7 +72,6 @@ export interface CornerChoice {
 
 export const SOURCE_LABELS: Record<MapTrack["source"], string> = {
   manual: "Added by hand",
-  builtin: "Built-in",
   racechrono_csv: "RaceChrono CSV",
   vbo: "Racelogic VBO",
   drawn: "Drawn on the map",
@@ -108,7 +103,6 @@ export interface EditorPayload {
   track_id: string;
   track_name: string;
   editable: boolean;
-  is_schematic: boolean;
   outline_version: string;
   spacing_m: number;
   outline: LatLng[];

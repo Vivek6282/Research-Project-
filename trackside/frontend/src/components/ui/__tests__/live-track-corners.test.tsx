@@ -1,5 +1,5 @@
 /**
- * Trackside — Live Track View: schematic tag and corner segments (Prompt 13, L3/L4)
+ * Trackside — Live Track View: corner segments (Prompt 13, L3/L4)
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -31,25 +31,14 @@ function show(response: object, zoneId: string | null = null) {
   render(<LiveTrackView trackId="t" gpsLat={null} gpsLng={null} currentG={0.5} threshold={1.2} zoneId={zoneId} />);
 }
 
-describe("LiveTrackView schematic tag and corners", () => {
+describe("LiveTrackView corners", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.setItem("trackside_live_map_mode", "plain");   // these tests are about the plain drawing
   });
 
-  it("shows the Schematic map tag only when the response says is_schematic", async () => {
-    show({ reference_line: square, is_schematic: true, corners: [] });
-    await waitFor(() => expect(screen.getByTestId("schematic-tag").textContent).toBe("Schematic map"));
-  });
-
-  it("shows no tag for a surveyed custom map", async () => {
-    show({ reference_line: square, is_schematic: false, corners });
-    await waitFor(() => expect(screen.getByTestId("live-track-svg")).toBeDefined());
-    expect(screen.queryByTestId("schematic-tag")).toBeNull();
-  });
-
   it("draws every corner with its name and highlights only the one the kart is in", async () => {
-    show({ reference_line: square, is_schematic: false, corners }, "z2");
+    show({ reference_line: square, corners }, "z2");
     await waitFor(() => expect(screen.getByTestId("live-track-corner-Hairpin")).toBeDefined());
     expect(screen.getByText("Hairpin")).toBeDefined();
     expect(screen.getByText("Sweeper")).toBeDefined();
@@ -58,8 +47,7 @@ describe("LiveTrackView schematic tag and corners", () => {
   });
 
   it("keeps the 'not surveyed' message for a custom map without an outline", async () => {
-    show({ reference_line: null, is_schematic: false, corners: [] });
+    show({ reference_line: null, corners: [] });
     await waitFor(() => expect(screen.getByText(/hasn't been surveyed yet/i)).toBeDefined());
-    expect(screen.queryByTestId("schematic-tag")).toBeNull();
   });
 });

@@ -61,13 +61,13 @@ describe("Top bar Maps link", () => {
 
 describe("MapsDemoTab", () => {
   beforeEach(() => {
-    vi.mocked(api.get).mockResolvedValue({ results: [{ id: "d", name: "Demo Circuit", source: "builtin", is_builtin: true, is_archived: false, zones: [] }] });
+    vi.mocked(api.get).mockResolvedValue({ results: [{ id: "k", name: "Kari", source: "vbo", is_archived: false, zones: [] }] });
     vi.mocked(api.post).mockResolvedValue({});
   });
 
   it("shows the maps with Add track for a coach", async () => {
     render(<MemoryRouter><MapsDemoTab onWatchLive={vi.fn()} /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId("map-card-Demo Circuit")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("map-card-Kari")).toBeTruthy());
     expect(screen.getByTestId("add-map-btn").textContent).toContain("Add track");
   });
 });

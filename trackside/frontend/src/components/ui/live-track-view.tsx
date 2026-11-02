@@ -55,7 +55,6 @@ export function LiveTrackView({
   children,
 }: LiveTrackViewProps) {
   const [referenceLine, setReferenceLine] = useState<GpsPoint[] | null>(null);
-  const [isSchematic, setIsSchematic] = useState(false);
   const [corners, setCorners] = useState<TrackCorner[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -68,7 +67,6 @@ export function LiveTrackView({
     setCarSample(null);
     if (!trackId) {
       setReferenceLine(null);
-      setIsSchematic(false);
       setCorners([]);
       return;
     }
@@ -81,7 +79,6 @@ export function LiveTrackView({
       .get<{
         track_id: string;
         reference_line: GpsPoint[] | null;
-        is_schematic?: boolean;
         corners?: TrackCorner[];
       }>(
         `/api/tracks/${trackId}/reference-line/`,
@@ -89,7 +86,6 @@ export function LiveTrackView({
       .then((res) => {
         if (!cancelled) {
           setReferenceLine(res.reference_line);
-          setIsSchematic(res.is_schematic === true);
           setCorners(res.corners ?? []);
           setLoading(false);
         }
@@ -175,14 +171,6 @@ export function LiveTrackView({
           <span className="text-xs text-[#7C8898]">
             {referenceLine.length} survey points
           </span>
-          {isSchematic && (
-            <span
-              data-testid="schematic-tag"
-              className="text-[10px] uppercase tracking-wider text-[#E0A93F] border border-[#E0A93F]/40 px-1.5 py-0.5 rounded-[2px]"
-            >
-              Schematic map
-            </span>
-          )}
         </div>
         {/* Live stage indicator */}
         <div className="flex items-center gap-2">
@@ -201,8 +189,8 @@ export function LiveTrackView({
 
       {readouts}
 
-      {/* The track: on a real map when it has real coordinates (and the map view is chosen), otherwise the plain drawing */}
-      {!isSchematic && (
+      {/* The track: on a real map (when the map view is chosen), otherwise the plain drawing */}
+      {(
         <div className="flex justify-end gap-1 mb-1" role="group" aria-label="Track view">
           {(["map", "plain"] as MapMode[]).map((mode) => (
             <button
@@ -219,7 +207,7 @@ export function LiveTrackView({
           ))}
         </div>
       )}
-      {!isSchematic && mapMode === "map" ? (
+      {mapMode === "map" ? (
         <Suspense fallback={<div className="h-[300px] flex items-center justify-center text-[10px] font-mono text-[#7C8898] border border-[#232B35]">Loading map…</div>}>
           <GpsMapCanvas
             line={referenceLine}

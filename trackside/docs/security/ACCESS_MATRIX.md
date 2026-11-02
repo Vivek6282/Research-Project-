@@ -35,8 +35,8 @@ server; the frontend only hides buttons.
 | | create | ✓ | — | — | — |
 | | edit (rename, kart class; name must be unique, class change refused if a corner limit no longer fits) | ✓ | — | — | — |
 | | archive/delete, restore, duplicate | ✓ | ✓ | — | — |
-| | delete forever (`DELETE tracks/<id>/?permanent=true`; archived, non-built-in maps with no sessions only, else 409) | ✓ | ✓ | — | — |
-| Map import / draw / demo circuit / survey | create | ✓ | ✓ | — | — |
+| | delete forever (`DELETE tracks/<id>/?permanent=true`; archived maps with no sessions only, else 409) | ✓ | ✓ | — | — |
+| Map import / draw / survey, laptop link (needs a chosen map) | create | ✓ | ✓ | — | — |
 | Corners (zones) | read | ✓ | ✓ | ✓ | — |
 | | add, corner editor save (name, limit, length, type) | ✓ | ✓ | — | — |
 | | edit/retire one zone | ✓ | — | — | — |
@@ -73,7 +73,7 @@ Ownership is decided on the server from the signed-in account (`driving_sessions
 | Signed in, wrong role | 403 |
 | A user, device, track or session that does not exist, or a device/driver record you may not know about | 404 (same body as missing) |
 | Invalid input | 400 with a message per field |
-| Conflicts (ended session, finished command, built-in map) | 409 |
+| Conflicts (ended session, finished command) | 409 |
 | Too many requests or locked sign-in | 429 |
 
 Known, accepted difference: a driver reaching another driver's **session-scoped** route (telemetry, biometrics,

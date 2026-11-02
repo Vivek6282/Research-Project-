@@ -19,7 +19,7 @@ const projected = projectOutline(outline, 800, 520, 40).points;
 /** The editor payload the server would send for a custom map with one corner and two suggestions. */
 function makePayload(patch: Partial<EditorPayload> = {}): EditorPayload {
   return {
-    track_id: "t1", track_name: "Kari", editable: true, is_schematic: false, outline_version: "v1", spacing_m: 2, outline, radii,
+    track_id: "t1", track_name: "Kari", editable: true, outline_version: "v1", spacing_m: 2, outline, radii,
     markers: [{ id: "z1", label: "Hairpin", threshold_g: 1.2, center_index: 15, length_m: 30, radius_m: 12 }],
     suggestions: [
       { center_index: 15, radius_m: 12, suggested_name: "Turn 1", start_index: 8, end_index: 22, already_marked: true },
@@ -28,7 +28,7 @@ function makePayload(patch: Partial<EditorPayload> = {}): EditorPayload {
     limit_range_g: { min: 0.3, max: 1.5, default: 1.25 }, zone_length_m: { min: 10, max: 100, default: 30 }, no_curve_radius_m: 9999, ...patch,
   };
 }
-const map = (patch: Partial<MapTrack> = {}): MapTrack => ({ id: "t1", name: "Kari", source: "vbo", is_builtin: false, is_archived: false, zones: [], ...patch });
+const map = (patch: Partial<MapTrack> = {}): MapTrack => ({ id: "t1", name: "Kari", source: "vbo", is_archived: false, zones: [], ...patch });
 
 /** Make the canvas report an 800 x 520 box so client coordinates equal picture units. */
 function sizeCanvas() {
@@ -207,39 +207,17 @@ describe("CornerEditorDialog (editable map)", () => {
 describe("CornerEditorDialog (view-only)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.get).mockResolvedValue(makePayload({ editable: false, is_schematic: true, suggestions: [] }));
+    vi.mocked(api.get).mockResolvedValue(makePayload({ editable: false, suggestions: [] }));
   });
 
-  it("shows the Demo Circuit's corners read-only with the schematic note and no save button", async () => {
-    render(<CornerEditorDialog map={map({ name: "Demo Circuit", is_builtin: true })} onClose={vi.fn()} onChanged={vi.fn()} />);
-    await waitFor(() => expect(screen.getByTestId("editor-schematic-note")).toBeTruthy());
+  it("shows an archived map's corners read-only with no save button", async () => {
+    render(<CornerEditorDialog map={map({ is_archived: true })} onClose={vi.fn()} onChanged={vi.fn()} />);
+    await waitFor(() => expect(screen.getByTestId("corner-marker-table")).toBeTruthy());
     expect(screen.queryByTestId("marker-name-1")).toBeNull();
     expect(screen.queryByTestId("editor-save-btn")).toBeNull();
     expect(screen.getByTestId("editor-help").textContent).toContain("view-only");
     fireEvent.click(sizeCanvas(), { clientX: projected[60].x, clientY: projected[60].y });
     expect(screen.queryByTestId("marker-row-2")).toBeNull();
-  });
-
-  it("duplicates the Demo Circuit as a custom map and reports clamped limits", async () => {
-    const onChanged = vi.fn();
-    const onClose = vi.fn();
-    vi.mocked(api.post).mockResolvedValue({ clamped: [{ label: "Sweeper", from_g: 1.55, to_g: 1.5 }] });
-    render(<CornerEditorDialog map={map({ name: "Demo Circuit", is_builtin: true })} onClose={onClose} onChanged={onChanged} />);
-    await waitFor(() => expect(screen.getByTestId("duplicate-btn")).toBeTruthy());
-    fireEvent.change(screen.getByTestId("duplicate-name-input"), { target: { value: "My Copy" } });
-    fireEvent.click(screen.getByTestId("duplicate-btn"));
-    await waitFor(() => expect(onChanged).toHaveBeenCalled());
-    expect(api.post).toHaveBeenCalledWith("/api/tracks/t1/duplicate/", { name: "My Copy" });
-    expect(onChanged.mock.calls[0][0]).toContain("Sweeper limit 1.55 g became 1.5 g");
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it("shows the server's message when the copy name is taken", async () => {
-    vi.mocked(api.post).mockRejectedValue(new Error("A map with this name already exists."));
-    render(<CornerEditorDialog map={map({ is_builtin: true })} onClose={vi.fn()} onChanged={vi.fn()} />);
-    await waitFor(() => expect(screen.getByTestId("duplicate-btn")).toBeTruthy());
-    fireEvent.click(screen.getByTestId("duplicate-btn"));
-    await waitFor(() => expect(screen.getByTestId("duplicate-error").textContent).toContain("already exists"));
   });
 
   it("view-only maps have no Delete all corners button", async () => {
@@ -250,9 +228,8 @@ describe("CornerEditorDialog (view-only)", () => {
     expect(screen.queryByTestId("marker-remove-1")).toBeNull();
   });
 
-  it("archived maps are view-only without the duplicate form", async () => {
+  it("archived maps explain that they are view-only", async () => {
     render(<CornerEditorDialog map={map({ is_archived: true })} onClose={vi.fn()} onChanged={vi.fn()} />);
     await waitFor(() => expect(screen.getByTestId("editor-help").textContent).toContain("archived"));
-    expect(screen.queryByTestId("duplicate-btn")).toBeNull();
   });
 });

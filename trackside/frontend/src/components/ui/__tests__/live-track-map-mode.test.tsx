@@ -34,41 +34,34 @@ describe("LiveTrackView map mode", () => {
   });
 
   it("a track with real coordinates opens on the real map, with its line, corners and the driver's position", async () => {
-    show({ reference_line: line, is_schematic: false, corners });
+    show({ reference_line: line, corners });
     const map = await screen.findByTestId("gps-map-stub");
     expect(map.dataset).toMatchObject({ points: "12", corners: "1", lat: "10.0003", lng: "76.0001", zone: "z1" });
     expect(screen.queryByTestId("live-track-svg")).toBeNull();
   });
 
-  it("the Demo Circuit (schematic, no real coordinates) keeps the plain drawing and has no Map/Plain switch", async () => {
-    show({ reference_line: line, is_schematic: true, corners: [] });
-    await waitFor(() => expect(screen.getByTestId("live-track-svg")).toBeDefined());
-    expect(screen.queryByTestId("gps-map-stub")).toBeNull();
-    expect(screen.queryByTestId("live-view-map")).toBeNull();
-  });
-
   it("Plain switches to the drawing, Map switches back, and the choice is remembered", async () => {
-    const view = show({ reference_line: line, is_schematic: false, corners });
+    const view = show({ reference_line: line, corners });
     await screen.findByTestId("gps-map-stub");
     fireEvent.click(screen.getByTestId("live-view-plain"));
     expect(screen.getByTestId("live-track-svg")).toBeDefined();
     expect(screen.queryByTestId("gps-map-stub")).toBeNull();
     expect(window.localStorage.getItem("trackside_live_map_mode")).toBe("plain");
     view.unmount();
-    show({ reference_line: line, is_schematic: false, corners });                      // a new visit starts in Plain
+    show({ reference_line: line, corners });                      // a new visit starts in Plain
     await waitFor(() => expect(screen.getByTestId("live-track-svg")).toBeDefined());
     fireEvent.click(screen.getByTestId("live-view-map"));
     expect(await screen.findByTestId("gps-map-stub")).toBeDefined();
   });
 
   it("an unsurveyed track still shows the fallback, never an empty map", async () => {
-    show({ reference_line: null, is_schematic: false, corners: [] });
+    show({ reference_line: null, corners: [] });
     await waitFor(() => expect(screen.queryByTestId("gps-map-stub")).toBeNull());
     expect(screen.queryByTestId("live-view-map")).toBeNull();
   });
 
   it("passes no position to the map before the first reading", async () => {
-    show({ reference_line: line, is_schematic: false, corners }, [null, null], null);
+    show({ reference_line: line, corners }, [null, null], null);
     const map = await screen.findByTestId("gps-map-stub");
     expect(map.dataset).toMatchObject({ lat: "null", lng: "null", zone: "null" });
   });

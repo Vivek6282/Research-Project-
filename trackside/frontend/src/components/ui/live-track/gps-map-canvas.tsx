@@ -1,7 +1,6 @@
 /**
  * Trackside Live Track View — the track on a real map.
  * Draws the track line, its corners and the driver's live position at their real latitude and longitude.
- * The Demo Circuit has no real coordinates, so it keeps the plain drawing (TrackCanvas) instead.
  */
 
 import { useEffect, useRef, useState } from "react";

@@ -1,6 +1,6 @@
 /**
  * Trackside Coach — Laptop link hook.
- * Starts a live session for a chosen driver so a laptop's simulator (driving the glove through the
+ * Starts a live session for a chosen driver on a chosen map so a laptop's simulator (driving the glove through the
  * bridge) can post its readings to this server, and shows where the link is (waiting, receiving...).
  * The one-time token is kept only in memory: it is gone after a reload.
  */
@@ -15,6 +15,8 @@ export interface LinkStart {
   session_id: string;
   driver_id: string;
   driver_name: string;
+  track_id: string;
+  track_name: string;
   backend_url: string;
   device_token: string;
   zones: Record<string, string>;
@@ -60,12 +62,12 @@ export function useLaptopLink() {
     return () => clearInterval(timer);
   }, [refresh]);
 
-  // Start a link for this driver and keep the one-time token
-  const start = useCallback(async (driverId: string) => {
+  // Start a link for this driver on this map and keep the one-time token
+  const start = useCallback(async (driverId: string, trackId: string) => {
     setBusy(true);
     setError(null);
     try {
-      setLink(await api.post<LinkStart>("/api/laptop-link/start/", { driver_id: driverId }));
+      setLink(await api.post<LinkStart>("/api/laptop-link/start/", { driver_id: driverId, track_id: trackId }));
       await refresh();
       return true;
     } catch (e) {

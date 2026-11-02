@@ -19,8 +19,6 @@ export interface DemoRunFacts {
   track_name: string;
   laps: number;
   pace: string;
-  pace_applied: boolean;
-  built_in: boolean;
   limits?: Record<string, number>;
   limits_custom?: boolean;
 }

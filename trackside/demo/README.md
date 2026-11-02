@@ -20,10 +20,9 @@ Everything about maps and demonstrations lives in the Coach screen, not in Setti
 
 **Each demo:**
 1. Sign in as a **Coach**, open **MAPS & DEMO**.
-2. The **Demo Circuit** (the simulator's built-in map, badges *Built-in* and *Simulator map*) is the first card; every custom map follows. **Add track** imports a new one from a RaceChrono CSV or VBO file.
+2. Every map you have is a card. **Add track** imports a new one from a RaceChrono CSV or VBO file, and **Draw on map** draws one. There is no built-in map: add one first.
 3. Press **Play demo** on a card, choose an **active driver**, the **laps** (1 to 20) and the **pace**:
    * **safe**: every corner stays green, **edge**: amber at every corner, **over**: red alerts at every corner.
-   * Pace applies to custom maps only; the Demo Circuit keeps its own fixed demo pattern.
 4. The panel shows *Running, lap x of y*, whether the glove bridge is connected, and the buttons **Stop**, **Watch live** (jumps to the Live Pit-Wall Console with that driver selected) and **Open live visualizer**.
 5. The glove reacts exactly as before: the simulator still sends `g,STAGE` lines to the bridge on `SERIAL_PORT`, now using the chosen map's corners.
 
@@ -59,7 +58,7 @@ On the hosted site (Render) the server runs the virtual race itself and your **b
 1. Use **Chrome or Edge** on the laptop (Firefox and Safari do not support Web Serial). Open the hosted site, wait for it to wake, and log in as Coach.
 2. Plug in the bridge (and switch the glove on).
 3. Press **Connect bridge** in the bar at the top (next to LIVE WS STREAM). The browser lists the USB ports: choose a **CP210x** one. The site checks the board's banner: if you chose the glove it says so, press Connect bridge again and pick the other one. The chip turns green: **GLOVE BRIDGE CONNECTED**. Next time the page reconnects a port you chose before by itself.
-4. **Maps & Demo > Play demo** on the Demo Circuit, choose the driver and Start. You land on the live tab; the server runs the simulator and the browser sends each reading's stage to the bridge, so the glove follows the run.
+4. **Maps & Demo > Play demo** on one of your maps, choose the driver and Start. You land on the live tab; the server runs the simulator and the browser sends each reading's stage to the bridge, so the glove follows the run.
 5. Stop it with **Stop** on the Maps & Demo tab.
 
 Needs the server setting `HOSTED_DEMO_ENABLED=true` (the Render blueprint sets it; remove it or set it to false to switch the hosted demo off). Only a Coach can start a run. The glove lags the screen by a fraction of a second. If the bridge is busy, close the Arduino Serial Monitor. The "Connect laptop" method below is only a fallback: its box appears on the Maps & Demo tab only when the Play demo is not available on that server.
@@ -149,10 +148,10 @@ The Coach "Maps & Demo" tab does all of this for you (section 0). This manual ro
 The physical glove and companion browser visualizer work seamlessly with or without the backend connected. When the backend is configured, the simulator asynchronously batches and records telemetry into the database without slowing down the simulation or the physical glove, allowing live session results, zone breakdowns, and alert logs to appear in the Coach and Driver dashboards.
 
 To store a demo run:
-1. **Seed Demo Circuit & Session:**
+1. **Seed a Session on one of your maps** (it needs corners called Hairpin, Sweeper and Chicane):
    In `trackside/backend`, run:
    ```bash
-   python manage.py seed_demo --driver-email <driver>
+   python manage.py seed_demo --driver-email <driver> --track-name "<map name>"
    ```
 2. **Configure Environment:**
    Paste the printed lines directly into `trackside/demo/.env` (see `.env.example` for placeholders and reference).
@@ -272,7 +271,7 @@ If you launch the simulator from a terminal with a value **above** a zone defaul
 
 * A corner's g-force limit is set **on the map**: Maps, then **Edit corners** (0.3 to 1.5 g). It is stored as the corner's own limit and applies to **everyone** who drives that map.
 * The alerts, the live Coach screen, the simulator (and so the glove and the visualizer) and the Play demo status ("Map limits: Hairpin 1.05 / Sweeper 1.30 / Chicane 1.10") all use that same limit.
-* The built-in **Demo Circuit is locked**: to change its limits, **Duplicate as custom map** and edit the copy. The built-in run uses the simulator's own track and fixed defaults, so the Play demo passes no `--limit` for it.
+* There is no built-in map: every map's limits can be edited in the corner editor.
 * **Per-driver limits are retired.** Old per-driver rows stay in the database as history and are ignored; creating a new one (`POST /api/drivers/thresholds/`) answers `410 Gone`.
 
 ---

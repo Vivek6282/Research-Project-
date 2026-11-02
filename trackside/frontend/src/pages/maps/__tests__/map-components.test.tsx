@@ -31,7 +31,7 @@ const PREVIEW: ImportPreview = {
 
 /** Build a map row with sensible defaults. */
 function map(patch: Partial<MapTrack>): MapTrack {
-  return { id: "1", name: "Map", source: "racechrono_csv", is_builtin: false, is_archived: false, zones: [], ...patch };
+  return { id: "1", name: "Map", source: "racechrono_csv", is_archived: false, zones: [], ...patch };
 }
 
 describe("CornerTable", () => {
@@ -65,15 +65,13 @@ describe("MapCardGrid", () => {
   const handlers = { onArchive: vi.fn(), onRestore: vi.fn() };
   const square = [{ lat: 12.97, lng: 77.59 }, { lat: 12.97, lng: 77.592 }, { lat: 12.972, lng: 77.592 }, { lat: 12.972, lng: 77.59 }];
 
-  it("shows Built-in and Simulator map badges, the schematic note, and no archive button for the Demo Circuit", () => {
-    const demo = map({ name: "Demo Circuit", is_builtin: true, source: "builtin", is_schematic: true, schematic_outline: square });
-    render(<MapCardGrid maps={[demo]} canArchive {...handlers} />);
+  it("treats a map called Demo Circuit like any other map: no badges, and Delete is offered", () => {
+    render(<MapCardGrid maps={[map({ name: "Demo Circuit", reference_line: square })]} canArchive {...handlers} />);
     const card = screen.getByTestId("map-card-Demo Circuit");
-    expect(card.textContent).toContain("Built-in");
-    expect(card.textContent).toContain("Simulator map");
-    expect(card.textContent).toContain("Schematic");
-    expect(screen.getByTestId("outline-thumbnail")).toBeTruthy();
-    expect(screen.queryByTestId("archive-Demo Circuit")).toBeNull();
+    expect(card.textContent).not.toContain("Built-in");
+    expect(card.textContent).not.toContain("Simulator map");
+    expect(card.textContent).not.toContain("Schematic");
+    expect(screen.getByTestId("archive-Demo Circuit")).toBeTruthy();
   });
 
   it("shows the number of alert corners and a thumbnail from the stored outline", () => {
@@ -85,12 +83,10 @@ describe("MapCardGrid", () => {
     expect(screen.getAllByTestId("outline-thumbnail-empty")).toHaveLength(1);
   });
 
-  it("offers Delete forever only on archived, non-built-in maps, and only when the caller allows it", () => {
+  it("offers Delete forever only on archived maps, and only when the caller allows it", () => {
     const onDeleteForever = vi.fn();
-    const archivedDemo = map({ id: "3", name: "Demo Circuit", is_builtin: true, is_archived: true });
-    render(<MapCardGrid maps={[map({ name: "A" }), map({ id: "2", name: "B", is_archived: true }), archivedDemo]} canArchive onDeleteForever={onDeleteForever} {...handlers} />);
+    render(<MapCardGrid maps={[map({ name: "A" }), map({ id: "2", name: "B", is_archived: true })]} canArchive onDeleteForever={onDeleteForever} {...handlers} />);
     expect(screen.queryByTestId("delete-forever-A")).toBeNull();
-    expect(screen.queryByTestId("delete-forever-Demo Circuit")).toBeNull();
     fireEvent.click(screen.getByTestId("delete-forever-B"));
     expect(onDeleteForever).toHaveBeenCalledWith(expect.objectContaining({ id: "2" }));
   });
@@ -104,20 +100,18 @@ describe("MapCardGrid", () => {
     expect((screen.getByTestId("delete-forever-Free") as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("offers Edit details (not on the built-in) and Duplicate (also on the built-in) only when handlers are given", () => {
+  it("offers Edit details and Duplicate only when handlers are given", () => {
     const onEditDetails = vi.fn();
     const onDuplicate = vi.fn();
-    const demo = map({ id: "3", name: "Demo Circuit", is_builtin: true });
-    const { unmount } = render(<MapCardGrid maps={[map({ name: "A" }), demo]} canArchive {...handlers} />);
+    const { unmount } = render(<MapCardGrid maps={[map({ name: "A" })]} canArchive {...handlers} />);
     expect(screen.queryByTestId("edit-details-A")).toBeNull();
     expect(screen.queryByTestId("duplicate-A")).toBeNull();
     unmount();
-    render(<MapCardGrid maps={[map({ name: "A" }), demo]} canArchive onEditDetails={onEditDetails} onDuplicate={onDuplicate} {...handlers} />);
-    expect(screen.queryByTestId("edit-details-Demo Circuit")).toBeNull();
+    render(<MapCardGrid maps={[map({ name: "A" })]} canArchive onEditDetails={onEditDetails} onDuplicate={onDuplicate} {...handlers} />);
     fireEvent.click(screen.getByTestId("edit-details-A"));
-    fireEvent.click(screen.getByTestId("duplicate-Demo Circuit"));
+    fireEvent.click(screen.getByTestId("duplicate-A"));
     expect(onEditDetails).toHaveBeenCalledWith(expect.objectContaining({ name: "A" }));
-    expect(onDuplicate).toHaveBeenCalledWith(expect.objectContaining({ name: "Demo Circuit" }));
+    expect(onDuplicate).toHaveBeenCalledWith(expect.objectContaining({ name: "A" }));
   });
 
   it("hides Delete forever without permission or without a handler", () => {

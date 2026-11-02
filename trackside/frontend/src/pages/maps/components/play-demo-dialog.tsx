@@ -75,15 +75,10 @@ export function PlayDemoDialog({ map, onClose, onStart, serverError }: PlayDemoD
           {!lapsOk && <p data-testid="play-laps-error" className="text-[11px] text-[#E5473C]">Laps must be a whole number from 1 to 20.</p>}
           <label className="flex flex-col gap-1 text-[11px] font-mono text-[#7C8898]">
             Pace
-            <select data-testid="play-pace-select" className={inputClass} value={pace} onChange={(e) => setPace(e.target.value)} disabled={map.is_builtin}>
+            <select data-testid="play-pace-select" className={inputClass} value={pace} onChange={(e) => setPace(e.target.value)}>
               {PACES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </label>
-          {map.is_builtin && (
-            <p data-testid="play-pace-note" className="text-[10px] font-mono text-[#7C8898]">
-              The Demo Circuit always uses its own fixed demo pattern, so pace applies to custom maps only.
-            </p>
-          )}
           {serverError && <p role="alert" data-testid="play-server-error" className="text-xs text-[#E5473C] border border-[#E5473C]/40 rounded p-2">{serverError}</p>}
           <div className="flex justify-end gap-2">
             <button onClick={onClose} className="text-xs font-mono px-3 py-2 min-h-[36px] rounded-[2px] border border-[#232B35] text-[#7C8898] cursor-pointer">Cancel</button>

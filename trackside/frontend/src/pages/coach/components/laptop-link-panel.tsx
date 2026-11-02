@@ -8,12 +8,15 @@
 import { useState } from "react";
 import { Eye, Laptop, Square } from "lucide-react";
 import { useActiveDrivers } from "../../maps/hooks/use-active-drivers";
+import { useActiveMaps } from "../../maps/hooks/use-active-maps";
 import { envLines, useLaptopLink } from "../hooks/use-laptop-link";
 
 interface LaptopLinkPanelProps {
   onWatchLive: (driverId: string) => void;
 }
 
+/** The corner names the laptop simulator labels its readings with. */
+export const SIMULATOR_CORNERS = ["Hairpin", "Sweeper", "Chicane"];
 const button = "inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 min-h-[34px] rounded-[2px] border cursor-pointer";
 const STATE_TEXT: Record<string, string> = {
   idle: "No link",
@@ -24,11 +27,15 @@ const STATE_TEXT: Record<string, string> = {
 
 export function LaptopLinkPanel({ onWatchLive }: LaptopLinkPanelProps) {
   const { drivers, isLoading } = useActiveDrivers();
+  const { maps, isLoading: mapsLoading, error: mapsError } = useActiveMaps();
   const { link, status, error, busy, start, stop } = useLaptopLink();
   const [driverId, setDriverId] = useState("");
+  const [trackId, setTrackId] = useState("");
   const [showToken, setShowToken] = useState(false);
   const [copied, setCopied] = useState(false);
   const active = status.state !== "idle";
+  const chosen = maps.find((m) => m.id === trackId);
+  const missing = chosen ? SIMULATOR_CORNERS.filter((c) => !chosen.zones.some((z) => z.label === c)) : [];
 
   // Copy the .env lines (with the real token) to the clipboard
   async function copyLines() {
@@ -63,15 +70,35 @@ export function LaptopLinkPanel({ onWatchLive }: LaptopLinkPanelProps) {
             <option value="">{isLoading ? "Loading drivers…" : "Choose a driver"}</option>
             {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
+          <select
+            data-testid="laptop-link-map"
+            value={trackId}
+            onChange={(e) => setTrackId(e.target.value)}
+            disabled={mapsLoading}
+            className="px-2 py-1.5 rounded text-xs font-mono bg-[#0A0E13] border border-[#232B35] text-[#E7EDF3]"
+          >
+            <option value="">{mapsLoading ? "Loading maps…" : "Choose a map"}</option>
+            {maps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
           <button
             data-testid="laptop-link-start"
-            disabled={!driverId || busy}
-            onClick={() => start(driverId)}
-            className={`${button} border-[#3FA6E0] text-[#3FA6E0] ${!driverId || busy ? "opacity-40 cursor-not-allowed" : ""}`}
+            disabled={!driverId || !trackId || busy}
+            onClick={() => start(driverId, trackId)}
+            className={`${button} border-[#3FA6E0] text-[#3FA6E0] ${!driverId || !trackId || busy ? "opacity-40 cursor-not-allowed" : ""}`}
           >
             Start link
           </button>
         </div>
+      )}
+
+      {!active && mapsError && <p role="alert" className="text-[11px] text-[#E5473C]">{mapsError}</p>}
+      {!active && !mapsLoading && maps.length === 0 && !mapsError && (
+        <p data-testid="laptop-link-no-maps" className="text-[11px] font-mono text-[#F2A93B]">There are no maps yet. Add or draw one on this tab first.</p>
+      )}
+      {!active && missing.length > 0 && (
+        <p data-testid="laptop-link-missing" className="text-[11px] font-mono text-[#F2A93B]">
+          {chosen?.name} has no corner called {missing.join(", ")}. The laptop simulator labels its readings Hairpin, Sweeper and Chicane, so readings for the missing corners will not match any corner.
+        </p>
       )}
 
       {active && (

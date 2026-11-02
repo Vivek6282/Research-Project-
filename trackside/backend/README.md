@@ -52,7 +52,7 @@ Each role keeps its own session cookie: `sessionid_admin`, `sessionid_coach`, `s
 ## Where limits come from
 
 * A corner's g-force limit is `zone.threshold_g`, set on the map (Maps, then **Edit corners**, 0.3 to 1.5 g). It applies to everyone who drives that map. Alerts (`Alert.threshold_applied`), live events, roster status, the simulator profile and the Play demo status all read it through `drivers/limits.py` (`limit_in_force`).
-* The built-in Demo Circuit is locked; duplicate it as a custom map to change its limits.
+* There is no built-in map any more: every map's limits can be edited. The laptop link and the `seed_demo` / `seed_sample_data` commands take a map of yours (corners called Hairpin, Sweeper and Chicane).
 * **Per-driver limits are retired.** Old `DriverZoneThreshold` rows are kept as history, unused (no data was deleted or migrated). `POST /api/drivers/thresholds/` answers `410 Gone`; the list endpoints stay read-only. The Admin delete screen still counts those rows, and they are removed with the driver.
 
 ## Production variables

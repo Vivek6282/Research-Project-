@@ -15,12 +15,12 @@ import { PlayDemoDialog } from "../../maps/components/play-demo-dialog";
 
 const mockGet = vi.mocked(api.get);
 const mockPost = vi.mocked(api.post);
-const RUN = { session_id: "s1", driver_id: "d1", driver_name: "Ana Driver", track_id: "t1", track_name: "Kari", laps: 5, pace: "edge", pace_applied: true, built_in: false };
+const RUN = { session_id: "s1", driver_id: "d1", driver_name: "Ana Driver", track_id: "t1", track_name: "Kari", laps: 5, pace: "edge" };
 const IDLE: DemoStatus = { running: false, state: "idle", laps: null, current_lap: null, bridge_connected: null, port_hint: null, last_lines: [], error: null, run: null };
 const RUNNING: DemoStatus = { ...IDLE, running: true, state: "running", laps: 5, current_lap: 2, run: RUN };
 const MAPS = { results: [
-  { id: "d", name: "Demo Circuit", source: "builtin", is_builtin: true, is_archived: false, zones: [] },
-  { id: "t1", name: "Kari", source: "vbo", is_builtin: false, is_archived: false, zones: [{ id: "z", label: "T1", threshold_g: 1.2 }] },
+  { id: "d", name: "Sprint Loop", source: "drawn", is_archived: false, zones: [] },
+  { id: "t1", name: "Kari", source: "vbo", is_archived: false, zones: [{ id: "z", label: "T1", threshold_g: 1.2 }] },
 ] };
 const ROSTER = { roster: [
   { driver_id: "d1", driver_name: "Ana Driver", is_active: true },
@@ -124,7 +124,7 @@ describe("PlayDemoDialog", () => {
     vi.clearAllMocks();
     serve(IDLE);
   });
-  const custom = { id: "t1", name: "Kari", source: "vbo" as const, is_builtin: false, is_archived: false, zones: [] };
+  const custom = { id: "t1", name: "Kari", source: "vbo" as const, is_archived: false, zones: [] };
 
   it("lists only active drivers and checks the laps", async () => {
     render(<PlayDemoDialog map={custom} onClose={vi.fn()} onStart={vi.fn()} serverError={null} />);
@@ -168,10 +168,10 @@ describe("PlayDemoDialog", () => {
     expect(screen.getByTestId("play-server-error").textContent).toContain("already running");
   });
 
-  it("explains that pace does not apply to the Demo Circuit", async () => {
-    render(<PlayDemoDialog map={{ ...custom, name: "Demo Circuit", is_builtin: true }} onClose={vi.fn()} onStart={vi.fn()} serverError={null} />);
-    expect((screen.getByTestId("play-pace-select") as HTMLSelectElement).disabled).toBe(true);
-    expect(screen.getByTestId("play-pace-note").textContent).toContain("custom maps only");
+  it("lets the coach choose the pace for any map", async () => {
+    render(<PlayDemoDialog map={custom} onClose={vi.fn()} onStart={vi.fn()} serverError={null} />);
+    expect((screen.getByTestId("play-pace-select") as HTMLSelectElement).disabled).toBe(false);
+    expect(screen.queryByTestId("play-pace-note")).toBeNull();
   });
 });
 
@@ -221,7 +221,7 @@ describe("Maps & Demo tab with demo controls", () => {
     renderTab(true, onWatchLive);
     await waitFor(() => expect(screen.getByTestId("demo-stop-btn")).toBeTruthy());
     expect((screen.getByTestId("play-Kari") as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByTestId("play-Demo Circuit") as HTMLButtonElement).title).toContain("already running");
+    expect((screen.getByTestId("play-Sprint Loop") as HTMLButtonElement).title).toContain("already running");
     fireEvent.click(screen.getByTestId("demo-watch-live-btn"));
     expect(onWatchLive).toHaveBeenCalledWith("d1");
     fireEvent.click(screen.getByTestId("demo-stop-btn"));

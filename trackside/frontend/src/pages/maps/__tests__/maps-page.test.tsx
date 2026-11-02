@@ -19,8 +19,8 @@ const mockPost = vi.mocked(api.post);
 
 const RESULT = {
   results: [
-    { id: "k", name: "Kari", source: "vbo", is_builtin: false, is_archived: false, zones: [{ id: "z", label: "T1", threshold_g: 1.2 }] },
-    { id: "d", name: "Demo Circuit", source: "builtin", is_builtin: true, is_archived: false, zones: [], is_schematic: true },
+    { id: "k", name: "Kari", source: "vbo", is_archived: false, zones: [{ id: "z", label: "T1", threshold_g: 1.2 }] },
+    { id: "d", name: "Sprint Loop", source: "drawn", is_archived: false, zones: [] },
   ],
 };
 
@@ -49,11 +49,11 @@ describe("MapsPage", () => {
     await waitFor(() => expect(screen.getByTestId("map-list")).toBeTruthy());
     expect(screen.getByTestId("add-map-btn")).toBeTruthy();
     expect(screen.getByTestId("archive-Kari")).toBeTruthy();
-    expect(screen.queryByTestId("archive-Demo Circuit")).toBeNull();
+    expect(screen.getByTestId("archive-Sprint Loop")).toBeTruthy();
     expect(screen.queryByTestId("play-Kari")).toBeNull();
   });
 
-  it("shows a driver the maps but no way to change them, and never asks to create the Demo Circuit", async () => {
+  it("shows a driver the maps but no way to change them, and never creates anything", async () => {
     authState.user = { role: "driver" };
     renderPage();
     await waitFor(() => expect(screen.getByTestId("map-list")).toBeTruthy());
@@ -76,18 +76,18 @@ describe("MapsBrowser", () => {
     mockPost.mockResolvedValue({});
   });
 
-  it("lists the Demo Circuit first and makes sure it exists before listing", async () => {
+  it("lists the maps by name and creates nothing on load", async () => {
     render(<MapsBrowser canManage />);
     await waitFor(() => expect(screen.getByTestId("map-list")).toBeTruthy());
-    expect(mockPost).toHaveBeenCalledWith("/api/tracks/demo-circuit/");
-    const names = screen.getAllByTestId(/^map-card-(?!corners)/).map((el) => el.getAttribute("data-testid"));
-    expect(names).toEqual(["map-card-Demo Circuit", "map-card-Kari"]);
+    expect(mockPost).not.toHaveBeenCalled();
+    const names = screen.getAllByTestId(/^map-card-(?!corners|sessions)/).map((el) => el.getAttribute("data-testid"));
+    expect(names).toEqual(["map-card-Kari", "map-card-Sprint Loop"]);
   });
 
   it("asks for the archived list with ?archived=only and shows Restore", async () => {
     mockGet.mockImplementation(async (url: string) =>
       url.includes("archived=only")
-        ? { results: [{ id: "a", name: "Old", source: "vbo", is_builtin: false, is_archived: true, zones: [] }] }
+        ? { results: [{ id: "a", name: "Old", source: "vbo", is_archived: true, zones: [] }] }
         : RESULT);
     render(<MapsBrowser canManage />);
     await waitFor(() => expect(mockGet).toHaveBeenCalledWith("/api/tracks/"));
@@ -118,7 +118,7 @@ describe("MapsBrowser", () => {
 
   /** Open the Archived tab with one archived map called Old. */
   async function openArchived() {
-    mockGet.mockResolvedValue({ results: [{ id: "a", name: "Old", source: "vbo", is_builtin: false, is_archived: true, zones: [] }] });
+    mockGet.mockResolvedValue({ results: [{ id: "a", name: "Old", source: "vbo", is_archived: true, zones: [] }] });
     render(<MapsBrowser canManage />);
     fireEvent.click(screen.getByTestId("maps-tab-archived"));
     await waitFor(() => expect(screen.getByTestId("delete-forever-Old")).toBeTruthy());
@@ -178,12 +178,12 @@ describe("MapsBrowser", () => {
     expect(screen.queryByTestId("edit-details-Kari")).toBeNull();
   });
 
-  it("duplicates any map (the Demo Circuit too) under a new name and reports clamped limits", async () => {
+  it("duplicates any map under a new name and reports clamped limits", async () => {
     mockPost.mockImplementation(async (url: string) => (url.includes("duplicate") ? { clamped: [{ label: "Sweeper", from_g: 1.55, to_g: 1.5 }] } : {}));
     render(<MapsBrowser canManage />);
-    await waitFor(() => expect(screen.getByTestId("duplicate-Demo Circuit")).toBeTruthy());
-    fireEvent.click(screen.getByTestId("duplicate-Demo Circuit"));
-    expect((screen.getByTestId("map-name-input") as HTMLInputElement).value).toBe("Demo Circuit copy");
+    await waitFor(() => expect(screen.getByTestId("duplicate-Sprint Loop")).toBeTruthy());
+    fireEvent.click(screen.getByTestId("duplicate-Sprint Loop"));
+    expect((screen.getByTestId("map-name-input") as HTMLInputElement).value).toBe("Sprint Loop copy");
     expect(screen.queryByTestId("map-kart-class")).toBeNull();
     fireEvent.change(screen.getByTestId("map-name-input"), { target: { value: "My copy" } });
     fireEvent.click(screen.getByTestId("map-name-submit"));
@@ -192,7 +192,7 @@ describe("MapsBrowser", () => {
   });
 
   it("restores an archived map", async () => {
-    mockGet.mockResolvedValue({ results: [{ id: "a", name: "Old", source: "vbo", is_builtin: false, is_archived: true, zones: [] }] });
+    mockGet.mockResolvedValue({ results: [{ id: "a", name: "Old", source: "vbo", is_archived: true, zones: [] }] });
     render(<MapsBrowser canManage />);
     fireEvent.click(screen.getByTestId("maps-tab-archived"));
     await waitFor(() => expect(screen.getByTestId("restore-Old")).toBeTruthy());
@@ -220,7 +220,7 @@ describe("MapsBrowser", () => {
     await waitFor(() => expect(screen.getByTestId("play-Kari")).toBeTruthy());
     fireEvent.click(screen.getByTestId("play-Kari"));
     expect(onPlay).toHaveBeenCalledWith(expect.objectContaining({ id: "k" }));
-    fireEvent.click(screen.getByTestId("edit-corners-Demo Circuit"));
+    fireEvent.click(screen.getByTestId("edit-corners-Sprint Loop"));
     expect(screen.getByTestId("corner-editor-dialog")).toBeTruthy();
     expect(mockGet).toHaveBeenCalledWith("/api/tracks/d/corners/");
   });

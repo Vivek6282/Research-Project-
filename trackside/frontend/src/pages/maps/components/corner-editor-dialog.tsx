@@ -2,13 +2,11 @@
  * Trackside Maps — corner marker editor dialog (Coach and Admin).
  *
  * Mark the turning points where drivers face the highest g: each saved marker becomes an alert
- * corner (a Zone) that the alert rule and the glove use. The built-in Demo Circuit and archived
- * maps open view-only; the Demo Circuit can be duplicated into a map you can edit.
+ * corner (a Zone) that the alert rule and the glove use. Archived maps open view-only.
  */
 
 import { useState } from "react";
-import { Copy, Trash2, X } from "lucide-react";
-import { api } from "../../../lib/api";
+import { Trash2, X } from "lucide-react";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useCornerEditor } from "../hooks/use-corner-editor";
 import type { MapTrack } from "../types";
@@ -19,7 +17,7 @@ import { LimitHistoryDialog } from "./limit-history-dialog";
 interface CornerEditorDialogProps {
   map: MapTrack;
   onClose: () => void;
-  /** Called after a save or a duplicate so the map list can reload; the text is shown on the list */
+  /** Called after a save so the map list can reload; the text is shown on the list */
   onChanged: (message?: string) => void;
 }
 
@@ -33,9 +31,6 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
   const [confirmClose, setConfirmClose] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [historyOf, setHistoryOf] = useState<{ id: string; label: string } | null>(null);
-  const [copyName, setCopyName] = useState(`${map.name} copy`);
-  const [copyError, setCopyError] = useState<string | null>(null);
-  const [isCopying, setIsCopying] = useState(false);
   const canEdit = Boolean(payload?.editable);
 
   /** Close, asking first when there are unsaved edits. */
@@ -47,22 +42,6 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
   /** Save, then tell the list to reload. */
   async function handleSave() {
     if (await editor.save()) onChanged();
-  }
-
-  /** Make an editable copy of this map (the Demo Circuit's way into editing). */
-  async function handleDuplicate() {
-    setIsCopying(true);
-    setCopyError(null);
-    try {
-      const result = await api.post<{ clamped?: { label: string; from_g: number; to_g: number }[] }>(`/api/tracks/${map.id}/duplicate/`, { name: copyName });
-      const note = (result.clamped ?? []).map((c) => `${c.label} limit ${c.from_g} g became ${c.to_g} g (the allowed maximum)`).join("; ");
-      onChanged(`Created "${copyName}".${note ? ` ${note}.` : ""}`);
-      onClose();
-    } catch (e) {
-      setCopyError(e instanceof Error ? e.message : "Could not duplicate the map.");
-    } finally {
-      setIsCopying(false);
-    }
   }
 
   return (
@@ -83,15 +62,8 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
               <p className="text-[11px] font-mono text-[#7C8898] leading-relaxed" data-testid="editor-help">
                 {canEdit
                   ? "Where g is highest: the tightest point of each bend. Click the outline to add a corner, drag a number along the line to move it, or click a green + to accept a suggestion. Each corner is an alert zone the glove uses."
-                  : map.is_builtin
-                    ? "The Demo Circuit's corners are view-only so the demo always works. Duplicate it to get a map you can edit."
-                    : "This map is archived, so its corners are view-only. Restore it to edit them."}
+                  : "This map is archived, so its corners are view-only. Restore it to edit them."}
               </p>
-              {payload.is_schematic && (
-                <p data-testid="editor-schematic-note" className="text-[11px] font-mono text-[#F2A93B]">
-                  Schematic outline: a picture of the simulator's track drawn about 800 m round, not a GPS survey.
-                </p>
-              )}
               <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-3">
                 <CornerEditorCanvas
                   payload={payload} markers={editor.markers} selectedKey={editor.selectedKey} editable={canEdit}
@@ -114,21 +86,6 @@ export function CornerEditorDialog({ map, onClose, onChanged }: CornerEditorDial
               )}
               {editor.checks.first && canEdit && <p data-testid="editor-blocker" className="text-[11px] text-[#7C8898]">Cannot save yet: {editor.checks.first}</p>}
               {editor.savedNote && <p data-testid="editor-saved" className="text-xs text-[#33D17E]">{editor.savedNote}</p>}
-
-              {!canEdit && map.is_builtin && (
-                <div className="flex flex-wrap items-end gap-2 p-3 border border-[#232B35] rounded bg-[#161D26]">
-                  <label className="flex flex-col gap-1 text-[11px] font-mono text-[#7C8898] flex-1 min-w-[200px]">
-                    Name of the editable copy
-                    <input data-testid="duplicate-name-input" value={copyName} maxLength={150} onChange={(e) => setCopyName(e.target.value)}
-                      className="bg-[#0A0E13] border border-[#232B35] rounded-[2px] px-2 py-1.5 text-xs text-[#E7EDF3]" />
-                  </label>
-                  <button data-testid="duplicate-btn" disabled={isCopying || !copyName.trim()} onClick={handleDuplicate}
-                    className={`${buttonClass} bg-[#3FA6E0] text-[#06121B] font-bold inline-flex items-center gap-2`}>
-                    <Copy size={14} /> {isCopying ? "Copying…" : "Duplicate as custom map"}
-                  </button>
-                  {copyError && <p role="alert" data-testid="duplicate-error" className="w-full text-xs text-[#E5473C]">{copyError}</p>}
-                </div>
-              )}
 
               <div className="flex gap-2 justify-end">
                 {canEdit && editor.markers.length > 0 && (

@@ -1,5 +1,5 @@
 /**
- * Trackside Coach — the "Maps & Demo" tab: the simulator's built-in map and every custom map as
+ * Trackside Coach — the "Maps & Demo" tab: every map as
  * cards, with Add track, corner editing, Archived/Restore and (Coach only) the demo controls.
  */
 

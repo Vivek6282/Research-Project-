@@ -34,8 +34,11 @@ services:
         value: "true"
       # One finished sample (DEMO) session so the hosted site has something to show. Remove or set to
       # "false" to stop adding it (delete the "Sample Driver" in the Admin screen to remove it).
+      # It needs an existing map: first add or draw one, then set this to "true" and SAMPLE_TRACK_NAME to its name.
       - key: SEED_SAMPLE_DATA
-        value: "true"
+        value: "false"
+      - key: SAMPLE_TRACK_NAME
+        value: ""
       # The first admin (see RENDER.md). Remove ADMIN_PASSWORD after your first login.
       - key: ADMIN_EMAIL
         sync: false

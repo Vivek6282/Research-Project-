@@ -29,13 +29,13 @@ This is the easy, free way to show the dashboards. The server setup in `DEPLOYME
 
 ## Sample data (so the dashboards are not empty)
 
-The hosted site has no live data on its own: a session only exists when a device or a demo posts readings. With `SEED_SAMPLE_DATA=true` in the service's **Environment** (the Blueprint sets it), the first start adds one finished **sample session**, clearly labelled **DEMO RUN**:
+The hosted site has no live data on its own: a session only exists when a device or a demo posts readings. With `SEED_SAMPLE_DATA=true` and `SAMPLE_TRACK_NAME` set to the name of one of your maps in the service's **Environment**, the next start adds one finished **sample session**, clearly labelled **DEMO RUN**. The Blueprint leaves both off, because the site has no map until you add one. The map needs an outline and corners named **Hairpin**, **Sweeper** and **Chicane**:
 
 * a driver called **Sample Driver** (it has no login; nobody can sign in as it)
-* the built-in **Demo Circuit**, 5 laps (240 readings) and the 9 alerts they cause (amber and red)
+* your chosen map, 5 laps (240 readings) and the alerts they cause (amber and red)
 * it fills the Coach **Historical** tab, the Timing Tower, the track view and **Corner Deltas**; the live feed still shows offline because nothing is running right now
 
-It never runs twice. To remove it: open the Admin screen, **Delete** the "Sample Driver" (its session goes with it), and set `SEED_SAMPLE_DATA` to `false` in Environment so it is not added again. If you did not use the Blueprint, add `SEED_SAMPLE_DATA` = `true` in Environment by hand and redeploy.
+It never runs twice. To remove it: open the Admin screen, **Delete** the "Sample Driver" (its session goes with it), and set `SEED_SAMPLE_DATA` to `false` in Environment so it is not added again. Add `SEED_SAMPLE_DATA` = `true` and `SAMPLE_TRACK_NAME` in Environment by hand and redeploy.
 
 ## Glove demo with this site
 
